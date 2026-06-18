@@ -1,0 +1,5 @@
+rootProject.name = 'SoulEvents'
+
+include 'api'
+include 'core'
+include 'events:airdrop'

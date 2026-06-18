@@ -1,0 +1,28 @@
+name: SoulEvents-AirDrop
+version: '${version}'
+main: bm.b0b0b0.soulevents.airdrop.AirDropPlugin
+api-version: '1.21'
+authors: [ b0b0b0 ]
+depend: [ SoulEvents ]
+softdepend: [ WorldGuard ]
+
+libraries:
+  - net.elytrium:serializer:1.1.1
+  - com.zaxxer:HikariCP:5.1.0
+  - org.xerial:sqlite-jdbc:3.45.3.0
+  - com.mysql:mysql-connector-j:8.3.0
+
+commands:
+  airdrop:
+    description: AirDrop event commands
+    permission: soulevents.airdrop.admin
+    aliases: [ ad ]
+
+permissions:
+  soulevents.airdrop.admin:
+    default: op
+  soulevents.airdrop.summon:
+    default: op
+  soulevents.airdrop.bypass:
+    description: Skip concurrent spawn limits for testing
+    default: op

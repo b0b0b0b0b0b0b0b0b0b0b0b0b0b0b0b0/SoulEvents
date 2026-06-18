@@ -1,0 +1,19 @@
+name: SoulEvents
+version: '${version}'
+main: bm.b0b0b0.soulevents.core.SoulEventsPlugin
+api-version: '1.21'
+authors: [ b0b0b0 ]
+load: STARTUP
+
+libraries:
+  - net.elytrium:serializer:1.1.1
+
+commands:
+  soulevents:
+    description: SoulEvents administration
+    permission: soulevents.admin
+    aliases: [ se, events ]
+
+permissions:
+  soulevents.admin:
+    default: op

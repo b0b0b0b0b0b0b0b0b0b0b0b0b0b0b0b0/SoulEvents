@@ -19,14 +19,6 @@ public final class HikariFactory {
         config.setConnectionTimeout(databaseConfig.poolConfig().connectionTimeoutMs);
         config.setIdleTimeout(databaseConfig.poolConfig().idleTimeoutMs);
         config.setMaxLifetime(databaseConfig.poolConfig().maxLifetimeMs);
-        if (databaseConfig.storageType() == DatabaseConfig.StorageType.MYSQL) {
-            config.setJdbcUrl("jdbc:mysql://" + databaseConfig.mysqlHost() + ":" + databaseConfig.mysqlPort()
-                    + "/" + databaseConfig.mysqlDatabase() + "?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8");
-            config.setUsername(databaseConfig.mysqlUsername());
-            config.setPassword(databaseConfig.mysqlPassword());
-            config.setDriverClassName("com.mysql.cj.jdbc.Driver");
-            return new HikariDataSource(config);
-        }
         File storage = new File(plugin.getDataFolder(), databaseConfig.storageDirectory());
         storage.mkdirs();
         File databaseFile = new File(storage, databaseConfig.sqliteFileName());

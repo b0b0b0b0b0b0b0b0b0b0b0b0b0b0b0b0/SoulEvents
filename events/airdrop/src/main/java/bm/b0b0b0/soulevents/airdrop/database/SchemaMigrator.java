@@ -13,7 +13,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 public final class SchemaMigrator {
 
@@ -26,44 +25,12 @@ public final class SchemaMigrator {
     }
 
     public void migrate() throws SQLException, IOException {
-        try (Connection connection = dataSource.getConnection()) {
-            if (isMySql(connection)) {
-                runScript("database/001_airdrop_mysql.sql");
-                ensureIndex(connection, "airdrop_sessions", "idx_airdrop_sessions_type", "type_id");
-            } else {
-                runScript("database/001_airdrop.sql");
-            }
-            try (Statement statement = connection.createStatement()) {
-                statement.executeUpdate(
-                        "INSERT INTO schema_version(version) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM schema_version)"
-                );
-            }
+        runScript("database/001_airdrop.sql");
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "INSERT INTO schema_version(version) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM schema_version)"
+            );
         }
-    }
-
-    private void ensureIndex(Connection connection, String table, String indexName, String column)
-            throws SQLException {
-        try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate("CREATE INDEX " + indexName + " ON " + table + "(" + column + ")");
-        } catch (SQLException exception) {
-            if (!isDuplicateIndex(exception)) {
-                throw exception;
-            }
-        }
-    }
-
-    private static boolean isDuplicateIndex(SQLException exception) {
-        String message = exception.getMessage();
-        if (message == null) {
-            return false;
-        }
-        String lower = message.toLowerCase(Locale.ROOT);
-        return lower.contains("duplicate key name") || lower.contains("already exists");
-    }
-
-    private static boolean isMySql(Connection connection) throws SQLException {
-        String product = connection.getMetaData().getDatabaseProductName();
-        return product != null && product.toLowerCase(Locale.ROOT).contains("mysql");
     }
 
     private void runScript(String resourcePath) throws SQLException, IOException {

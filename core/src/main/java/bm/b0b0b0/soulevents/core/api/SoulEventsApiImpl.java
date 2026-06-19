@@ -35,8 +35,8 @@ public final class SoulEventsApiImpl implements SoulEventsApi {
         this.modules = new EventModuleRegistryImpl(sessions);
         this.scheduler = new EventSchedulerImpl(plugin);
         this.protection = new ProtectionServicesImpl(plugin, config);
-        this.schematics = new SchematicServiceImpl(plugin);
         this.messages = new YamlMessageService(plugin);
+        this.schematics = new SchematicServiceImpl((org.bukkit.plugin.java.JavaPlugin) plugin, this.messages);
     }
 
     @Override

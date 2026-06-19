@@ -14,6 +14,12 @@ startup.integration.worldguard-missing: "  WorldGuard: не найден (softde
 
 startup.module.airdrop: "  AirDrop: готов"
 
+startup.schematic.bundled: "  Установлена встроенная схема: <file>"
+
+startup.schematic.loaded: "  Схема <id> загружена: <size>, footprint <footprint>, probe <probe>, chest (<chestX>, <chestY>, <chestZ>)<markerNote>"
+
+startup.schematic.folder-empty: "  Папка schematics/ пуста — положи .schem в plugins/SoulEvents/schematics/"
+
 startup.module.generic: "  Модуль <module>: готов"
 
 startup.modules.none: "  Модули: не зарегистрированы"

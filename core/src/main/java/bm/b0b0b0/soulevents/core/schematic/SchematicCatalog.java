@@ -4,7 +4,9 @@ import bm.b0b0b0.soulevents.api.schematic.SchematicProfile;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceOffset;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicFileSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicSettings;
-import org.bukkit.plugin.Plugin;
+import bm.b0b0b0.soulevents.core.message.CoreConsoleLog;
+import bm.b0b0b0.soulevents.core.message.YamlMessageService;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,7 +27,8 @@ public final class SchematicCatalog {
 
     private static final List<String> SCHEMATIC_EXTENSIONS = List.of(".schem", ".schematic");
 
-    private final Plugin plugin;
+    private final JavaPlugin plugin;
+    private final YamlMessageService messages;
     private final SchematicMarkerScanner scanner;
     private final Map<String, SchematicDefinition> definitions = new LinkedHashMap<>();
     private final ExecutorService scanExecutor = Executors.newSingleThreadExecutor(runnable -> {
@@ -34,8 +37,9 @@ public final class SchematicCatalog {
         return thread;
     });
 
-    public SchematicCatalog(Plugin plugin) {
+    public SchematicCatalog(JavaPlugin plugin, YamlMessageService messages) {
         this.plugin = plugin;
+        this.messages = messages;
         this.scanner = new SchematicMarkerScanner(plugin);
     }
 
@@ -47,7 +51,7 @@ public final class SchematicCatalog {
             plugin.getLogger().log(Level.SEVERE, "Failed to create schematics folder", exception);
         }
 
-        BundledSchematicInstaller.installMissing(plugin, root);
+        BundledSchematicInstaller.installMissing(plugin, messages, root);
 
         Map<String, SchematicDefinition> pending = new LinkedHashMap<>();
         try (var stream = Files.list(root)) {
@@ -64,7 +68,7 @@ public final class SchematicCatalog {
         }
 
         if (pending.isEmpty()) {
-            plugin.getLogger().info("Schematics folder is empty — drop .schem files into plugins/SoulEvents/schematics/");
+            CoreConsoleLog.line(plugin, messages, "startup.schematic.folder-empty");
         }
 
         if (!SchematicMarkerScanner.isFaweAvailable()) {
@@ -137,14 +141,20 @@ public final class SchematicCatalog {
                 logMarkerFailure(definition, metadata);
                 return metadata;
             }
-            plugin.getLogger().info(
-                    "Schematic '" + definition.id() + "' loaded: "
-                            + metadata.sizeX() + "x" + metadata.sizeY() + "x" + metadata.sizeZ()
-                            + ", footprint " + metadata.footprint().size()
-                            + ", probe " + metadata.surfaceProbe().size()
-                            + ", chest offset (" + metadata.chestOffsetX() + ", "
-                            + metadata.chestOffsetY() + ", " + metadata.chestOffsetZ() + ")"
-                            + (metadata.markerDetected() ? " [marker]" : " [manual offset]")
+            CoreConsoleLog.line(
+                    plugin,
+                    messages,
+                    "startup.schematic.loaded",
+                    Map.of(
+                            "id", definition.id(),
+                            "size", metadata.sizeX() + "x" + metadata.sizeY() + "x" + metadata.sizeZ(),
+                            "footprint", String.valueOf(metadata.footprint().size()),
+                            "probe", String.valueOf(metadata.surfaceProbe().size()),
+                            "chestX", String.valueOf(metadata.chestOffsetX()),
+                            "chestY", String.valueOf(metadata.chestOffsetY()),
+                            "chestZ", String.valueOf(metadata.chestOffsetZ()),
+                            "markerNote", metadata.markerDetected() ? " [marker]" : " [manual offset]"
+                    )
             );
             return metadata;
         } catch (IOException exception) {

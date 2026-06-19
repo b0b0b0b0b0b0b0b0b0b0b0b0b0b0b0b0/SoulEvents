@@ -15,6 +15,10 @@ public final class AirDropStartupConsolePresenter {
         this.messages = messages;
     }
 
+    public void logTypeLoaded(String typeId) {
+        line(console(), "airdrop.startup.type-loaded", Map.of("id", typeId));
+    }
+
     public void logRegistered() {
         ConsoleCommandSender console = console();
         blank(console);
@@ -48,8 +52,12 @@ public final class AirDropStartupConsolePresenter {
         console.sendMessage(" ");
     }
 
+    private void line(ConsoleCommandSender console, String key, Map<String, String> placeholders) {
+        console.sendMessage(AirDropConsolePalette.prefixLine(messages.resolvePlain(key, placeholders)));
+    }
+
     private void line(ConsoleCommandSender console, String key) {
-        console.sendMessage(AirDropConsolePalette.prefixLine(messages.resolvePlain(key, Map.of())));
+        line(console, key, Map.of());
     }
 
     private void coloredLine(ConsoleCommandSender console, String key, UnaryOperator<String> color) {

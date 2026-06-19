@@ -1,6 +1,7 @@
 ﻿command.no-permission: "<red>Нет прав.</red>"
 airdrop.startup.separator: "=============================="
 airdrop.startup.registered: "Модуль AirDrop подключён"
+airdrop.startup.type-loaded: "  Аэр <id> загружен"
 airdrop.startup.core-missing: "SoulEvents не найден — модуль AirDrop отключён"
 airdrop.startup.database-failed: "База данных AirDrop недоступна — модуль отключён"
 airdrop.usage: "<yellow>/airdrop admin | summon <тип> | reload</yellow>"

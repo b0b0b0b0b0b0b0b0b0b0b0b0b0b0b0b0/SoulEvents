@@ -29,4 +29,7 @@ public final class SchematicPlacementSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Твёрдый блок под поверхностью."))
     public boolean requireSolidBelow = true;
+
+    @Comment(@CommentValue("Материалы подгонки рельефа под footprint."))
+    public SchematicTerrainMaterialsSettings terrainMaterials = new SchematicTerrainMaterialsSettings();
 }

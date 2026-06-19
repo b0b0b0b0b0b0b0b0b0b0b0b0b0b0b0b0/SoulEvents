@@ -11,4 +11,7 @@ public final class SchematicBlendSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Радиус blend."))
     public int radius = 4;
+
+    @Comment(@CommentValue("Материалы, которые blend может заменить."))
+    public SchematicBlendMaterialsSettings materials = new SchematicBlendMaterialsSettings();
 }

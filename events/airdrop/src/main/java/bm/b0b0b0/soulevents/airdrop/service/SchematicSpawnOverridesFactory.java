@@ -31,12 +31,18 @@ public final class SchematicSpawnOverridesFactory {
                 placement.safetyMargin,
                 placement.placementProbeStep,
                 placement.rejectLiquids,
-                placement.requireSolidBelow
+                placement.requireSolidBelow,
+                placement.terrainMaterials.naturalTop,
+                placement.terrainMaterials.removable
         );
     }
 
     private static SchematicBlendOverrides blend(TypeSchematicBlendSettings blend) {
-        return new SchematicBlendOverrides(blend.enabled, blend.radius);
+        return new SchematicBlendOverrides(
+                blend.enabled,
+                blend.radius,
+                blend.materials.replaceable
+        );
     }
 
     private static SchematicPasteOverrides paste(TypeSchematicPasteSettings paste) {

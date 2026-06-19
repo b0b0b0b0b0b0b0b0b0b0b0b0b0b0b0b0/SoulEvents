@@ -5,34 +5,20 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
 public final class SchematicLandscapeBlender {
 
-    private static final Set<Material> BLEND_REPLACEABLE = EnumSet.of(
-            Material.STONE,
-            Material.COBBLESTONE,
-            Material.DEEPSLATE,
-            Material.COBBLED_DEEPSLATE,
-            Material.ANDESITE,
-            Material.DIORITE,
-            Material.GRANITE,
-            Material.DIRT,
-            Material.GRASS_BLOCK,
-            Material.COARSE_DIRT,
-            Material.SAND,
-            Material.GRAVEL,
-            Material.PODZOL,
-            Material.MYCELIUM,
-            Material.MOSS_BLOCK
-    );
+    private final SchematicTerrainAdapter terrain;
+    private final SchematicMaterialSet replaceable;
 
-    private SchematicLandscapeBlender() {
+    public SchematicLandscapeBlender(SchematicTerrainAdapter terrain, SchematicMaterialSet replaceable) {
+        this.terrain = terrain;
+        this.replaceable = replaceable;
     }
 
-    public static int blend(World world, SchematicWorldBounds bounds, int radius) {
+    public int blend(World world, SchematicWorldBounds bounds, int radius) {
         if (radius <= 0) {
             return 0;
         }
@@ -60,7 +46,7 @@ public final class SchematicLandscapeBlender {
         return changed;
     }
 
-    private static int[][] buildTargetHeights(World world, SchematicWorldBounds bounds, int floorY, int radius) {
+    private int[][] buildTargetHeights(World world, SchematicWorldBounds bounds, int floorY, int radius) {
         int width = bounds.maxX() - bounds.minX() + 1 + radius * 2;
         int depth = bounds.maxZ() - bounds.minZ() + 1 + radius * 2;
         int[][] heights = new int[width][depth];
@@ -74,18 +60,18 @@ public final class SchematicLandscapeBlender {
                     continue;
                 }
                 if (distance > radius) {
-                    heights[arrayX][arrayZ] = SchematicTerrainAdapter.highestSolidY(world, x, z);
+                    heights[arrayX][arrayZ] = terrain.highestSolidY(world, x, z);
                     continue;
                 }
                 double factor = smoothStep(distance / (double) (radius + 1));
-                int naturalY = SchematicTerrainAdapter.highestSolidY(world, x, z);
+                int naturalY = terrain.highestSolidY(world, x, z);
                 heights[arrayX][arrayZ] = (int) Math.round(floorY + (naturalY - floorY) * factor);
             }
         }
         return smoothHeightMap(heights, 1);
     }
 
-    private static int[][] smoothHeightMap(int[][] source, int passes) {
+    private int[][] smoothHeightMap(int[][] source, int passes) {
         int[][] current = source;
         for (int pass = 0; pass < passes; pass++) {
             int width = current.length;
@@ -123,7 +109,7 @@ public final class SchematicLandscapeBlender {
         return (int) Math.round(sum / (double) count);
     }
 
-    private static int sculptColumn(
+    private int sculptColumn(
             World world,
             int x,
             int z,
@@ -131,11 +117,11 @@ public final class SchematicLandscapeBlender {
             int distance,
             int radius
     ) {
-        int currentSurfaceY = SchematicTerrainAdapter.highestSolidY(world, x, z);
+        int currentSurfaceY = terrain.highestSolidY(world, x, z);
         if (currentSurfaceY <= world.getMinHeight()) {
             return 0;
         }
-        Material top = SchematicTerrainAdapter.sampleNaturalTop(world, x, z);
+        Material top = terrain.sampleNaturalTop(world, x, z);
         double factor = 1.0 - (distance / (double) (radius + 1));
         int blendDepth = Math.max(1, (int) Math.ceil(3.0 * factor));
         int changed = 0;
@@ -152,7 +138,7 @@ public final class SchematicLandscapeBlender {
         } else if (currentSurfaceY < targetSurfaceY) {
             for (int y = currentSurfaceY + 1; y <= targetSurfaceY; y++) {
                 Material material = y == targetSurfaceY
-                        ? SchematicTerrainAdapter.topMaterial(top)
+                        ? terrain.topMaterial(top)
                         : Material.DIRT;
                 Block block = world.getBlockAt(x, y, z);
                 if (block.getType() != material) {
@@ -165,11 +151,11 @@ public final class SchematicLandscapeBlender {
         int surfaceY = targetSurfaceY;
         for (int depth = 0; depth < blendDepth; depth++) {
             Block block = world.getBlockAt(x, surfaceY - depth, z);
-            if (!BLEND_REPLACEABLE.contains(block.getType())) {
+            if (!replaceable.contains(block.getType())) {
                 continue;
             }
             Material target = depth == 0
-                    ? SchematicTerrainAdapter.topMaterial(top)
+                    ? terrain.topMaterial(top)
                     : Material.DIRT;
             if (block.getType() != target) {
                 block.setType(target, false);
@@ -187,7 +173,7 @@ public final class SchematicLandscapeBlender {
         return ringCells * 8;
     }
 
-    static void appendPreBlendCapture(
+    void appendPreBlendCapture(
             World world,
             SchematicWorldBounds bounds,
             int radius,
@@ -210,7 +196,7 @@ public final class SchematicLandscapeBlender {
                 int arrayX = x - arrayBaseX;
                 int arrayZ = z - arrayBaseZ;
                 int targetY = targetHeights[arrayX][arrayZ];
-                int naturalY = SchematicTerrainAdapter.highestSolidY(world, x, z);
+                int naturalY = terrain.highestSolidY(world, x, z);
                 int minY = Math.min(naturalY, targetY) - 3;
                 int maxY = Math.max(naturalY, targetY);
                 for (int y = minY; y <= maxY; y++) {

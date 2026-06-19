@@ -1,6 +1,7 @@
 ﻿command.no-permission: "<red>No permission.</red>"
 airdrop.startup.separator: "=============================="
 airdrop.startup.registered: "AirDrop module connected"
+airdrop.startup.type-loaded: "  AirDrop <id> loaded"
 airdrop.startup.core-missing: "SoulEvents not found — AirDrop module disabled"
 airdrop.startup.database-failed: "AirDrop database unavailable — module disabled"
 airdrop.usage: "<yellow>/airdrop admin | summon <type> | reload</yellow>"

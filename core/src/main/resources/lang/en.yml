@@ -14,6 +14,12 @@ startup.integration.worldguard-missing: "  WorldGuard: not found (softdepend, re
 
 startup.module.airdrop: "  AirDrop: ready"
 
+startup.schematic.bundled: "  Installed bundled schematic: <file>"
+
+startup.schematic.loaded: "  Schematic <id> loaded: <size>, footprint <footprint>, probe <probe>, chest (<chestX>, <chestY>, <chestZ>)<markerNote>"
+
+startup.schematic.folder-empty: "  schematics/ folder is empty — drop .schem files into plugins/SoulEvents/schematics/"
+
 startup.module.generic: "  Module <module>: ready"
 
 startup.modules.none: "  Modules: none registered"

@@ -9,10 +9,11 @@ import bm.b0b0b0.soulevents.api.schematic.SchematicWorldBounds;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceOffset;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicPlacementSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicSettings;
+import bm.b0b0b0.soulevents.core.message.YamlMessageService;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -24,15 +25,15 @@ import java.util.concurrent.CompletableFuture;
 
 public final class SchematicServiceImpl implements SchematicService {
 
-    private final Plugin plugin;
+    private final JavaPlugin plugin;
     private final SchematicCatalog catalog;
     private final SchematicPlacementValidator placementValidator;
     private final SchematicSessionUndo sessionUndo;
     private final WorldEditSchematicBridge worldEditBridge;
 
-    public SchematicServiceImpl(Plugin plugin) {
+    public SchematicServiceImpl(JavaPlugin plugin, YamlMessageService messages) {
         this.plugin = plugin;
-        this.catalog = new SchematicCatalog(plugin);
+        this.catalog = new SchematicCatalog(plugin, messages);
         this.placementValidator = new SchematicPlacementValidator();
         this.sessionUndo = new SchematicSessionUndo();
         this.worldEditBridge = new WorldEditSchematicBridge();
@@ -194,6 +195,7 @@ public final class SchematicServiceImpl implements SchematicService {
         SchematicSettings settings = definition.settings();
         SchematicPlacementSettings placement = SchematicSpawnSupport.resolvePlacement(settings, overrides);
         var blend = SchematicSpawnSupport.resolveBlend(settings, overrides);
+        SchematicTerrainContext terrainContext = SchematicTerrainContext.from(placement, blend);
         boolean ignoreAir = SchematicSpawnSupport.resolveIgnoreAir(
                 settings,
                 overrides,
@@ -238,6 +240,7 @@ public final class SchematicServiceImpl implements SchematicService {
                 normalizedOrigin,
                 metadata,
                 placement,
+                terrainContext.terrainAdapter(),
                 horizontalCaptureMargin,
                 terrainAdapt
         ).whenComplete((prepared, prepareError) -> {
@@ -306,14 +309,15 @@ public final class SchematicServiceImpl implements SchematicService {
                 if (blendEnabled && effectiveBlendRadius > 0) {
                     SchematicWorldBounds bounds = toWorldBounds(normalizedOrigin, metadata);
                     java.util.Set<Long> capturedKeys = WorldEditSchematicBridge.snapshotKeys(undoSnapshots);
-                    SchematicLandscapeBlender.appendPreBlendCapture(
+                    SchematicLandscapeBlender landscapeBlender = terrainContext.landscapeBlender();
+                    landscapeBlender.appendPreBlendCapture(
                             world,
                             bounds,
                             effectiveBlendRadius,
                             undoSnapshots,
                             capturedKeys
                     );
-                    SchematicLandscapeBlender.blend(world, bounds, effectiveBlendRadius);
+                    landscapeBlender.blend(world, bounds, effectiveBlendRadius);
                     sessionUndo.store(options.sessionId(), world.getName(), List.copyOf(undoSnapshots));
                 }
                 plugin.getLogger().info(

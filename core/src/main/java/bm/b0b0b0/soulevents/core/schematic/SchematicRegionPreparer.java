@@ -33,6 +33,7 @@ public final class SchematicRegionPreparer {
             Location pasteOrigin,
             SchematicDefinition.SchematicMetadata metadata,
             SchematicPlacementSettings placement,
+            SchematicTerrainAdapter terrainAdapter,
             int horizontalMargin,
             int terrainAdapt
     ) {
@@ -49,8 +50,17 @@ public final class SchematicRegionPreparer {
 
         captureBatch(plugin, world, pasteX, pasteY, pasteZ, captureSteps, snapshots, 0, () ->
                 vegetationClearBatch(plugin, world, metadata, placement, pasteX, pasteY, pasteZ, 0, () ->
-                        adaptBatch(plugin, world, metadata, placement, pasteX, pasteY, pasteZ, 0, () ->
-                                future.complete(new PreparedRegion(List.copyOf(snapshots), pasteX, pasteY, pasteZ))
+                        adaptBatch(
+                                plugin,
+                                world,
+                                metadata,
+                                placement,
+                                terrainAdapter,
+                                pasteX,
+                                pasteY,
+                                pasteZ,
+                                0,
+                                () -> future.complete(new PreparedRegion(List.copyOf(snapshots), pasteX, pasteY, pasteZ))
                         ), future), future);
         return future;
     }
@@ -149,6 +159,7 @@ public final class SchematicRegionPreparer {
             World world,
             SchematicDefinition.SchematicMetadata metadata,
             SchematicPlacementSettings placement,
+            SchematicTerrainAdapter terrainAdapter,
             int pasteX,
             int pasteY,
             int pasteZ,
@@ -165,7 +176,7 @@ public final class SchematicRegionPreparer {
         int limit = placement.terrainAdaptBlocks;
         for (int index = columnIndex; index < end; index++) {
             FlatSurfaceOffset offset = footprint.get(index);
-            SchematicTerrainAdapter.adaptColumn(
+            terrainAdapter.adaptColumn(
                     world,
                     pasteX + offset.dx(),
                     pasteZ + offset.dz(),
@@ -179,7 +190,9 @@ public final class SchematicRegionPreparer {
         }
         plugin.getServer().getScheduler().runTaskLater(
                 plugin,
-                () -> adaptBatch(plugin, world, metadata, placement, pasteX, pasteY, pasteZ, end, onComplete),
+                () -> adaptBatch(
+                        plugin, world, metadata, placement, terrainAdapter, pasteX, pasteY, pasteZ, end, onComplete
+                ),
                 1L
         );
     }

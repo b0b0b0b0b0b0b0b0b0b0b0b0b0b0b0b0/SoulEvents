@@ -9,6 +9,8 @@ import bm.b0b0b0.soulevents.core.config.settings.SchematicPasteSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicPlacementSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicSettings;
 
+import java.util.List;
+
 public final class SchematicSpawnSupport {
 
     private SchematicSpawnSupport() {
@@ -35,6 +37,9 @@ public final class SchematicSpawnSupport {
         SchematicBlendSettings resolved = new SchematicBlendSettings();
         resolved.enabled = blend.enabled();
         resolved.radius = blend.radius();
+        if (!blend.replaceableMaterials().isEmpty()) {
+            resolved.materials.replaceable = List.copyOf(blend.replaceableMaterials());
+        }
         return resolved;
     }
 
@@ -69,6 +74,12 @@ public final class SchematicSpawnSupport {
         placement.placementProbeStep = source.placementProbeStep();
         placement.rejectLiquids = source.rejectLiquids();
         placement.requireSolidBelow = source.requireSolidBelow();
+        if (!source.naturalTopMaterials().isEmpty()) {
+            placement.terrainMaterials.naturalTop = List.copyOf(source.naturalTopMaterials());
+        }
+        if (!source.removableMaterials().isEmpty()) {
+            placement.terrainMaterials.removable = List.copyOf(source.removableMaterials());
+        }
         return placement;
     }
 }

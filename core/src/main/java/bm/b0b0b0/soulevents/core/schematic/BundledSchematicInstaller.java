@@ -1,12 +1,15 @@
 package bm.b0b0b0.soulevents.core.schematic;
 
-import org.bukkit.plugin.Plugin;
+import bm.b0b0b0.soulevents.core.message.CoreConsoleLog;
+import bm.b0b0b0.soulevents.core.message.YamlMessageService;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 final class BundledSchematicInstaller {
@@ -18,13 +21,18 @@ final class BundledSchematicInstaller {
     private BundledSchematicInstaller() {
     }
 
-    static void installMissing(Plugin plugin, Path schematicsRoot) {
+    static void installMissing(JavaPlugin plugin, YamlMessageService messages, Path schematicsRoot) {
         for (String resourcePath : BUNDLED_SCHEMATICS) {
-            installIfMissing(plugin, schematicsRoot, resourcePath);
+            installIfMissing(plugin, messages, schematicsRoot, resourcePath);
         }
     }
 
-    private static void installIfMissing(Plugin plugin, Path schematicsRoot, String resourcePath) {
+    private static void installIfMissing(
+            JavaPlugin plugin,
+            YamlMessageService messages,
+            Path schematicsRoot,
+            String resourcePath
+    ) {
         String fileName = Path.of(resourcePath).getFileName().toString();
         Path target = schematicsRoot.resolve(fileName);
         if (Files.exists(target)) {
@@ -36,7 +44,7 @@ final class BundledSchematicInstaller {
                 return;
             }
             Files.copy(stream, target);
-            plugin.getLogger().info("Installed bundled schematic: " + fileName);
+            CoreConsoleLog.line(plugin, messages, "startup.schematic.bundled", Map.of("file", fileName));
         } catch (IOException exception) {
             plugin.getLogger().log(
                     Level.WARNING,

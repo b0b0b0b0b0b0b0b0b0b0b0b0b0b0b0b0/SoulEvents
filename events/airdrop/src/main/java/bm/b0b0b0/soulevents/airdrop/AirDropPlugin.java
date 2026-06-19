@@ -64,6 +64,7 @@ public final class AirDropPlugin extends JavaPlugin {
     }
 
     private void startModule() {
+        logLoadedTypes();
         module = new AirDropModule(this, api, config, messages, sessionRepository);
         guiFactory = new AirDropGuiFactory(this, config, messages, module.service());
         module.setGuiFactory(guiFactory);
@@ -91,6 +92,7 @@ public final class AirDropPlugin extends JavaPlugin {
     public void reloadAll() {
         reloadLocalConfig();
         startupConsole = new AirDropStartupConsolePresenter(this, messages);
+        logLoadedTypes();
         if (module != null) {
             guiFactory = new AirDropGuiFactory(this, config, messages, module.service());
             module.reload(config, messages, guiFactory);
@@ -104,6 +106,15 @@ public final class AirDropPlugin extends JavaPlugin {
 
     public AirDropGuiFactory guiFactory() {
         return guiFactory;
+    }
+
+    private void logLoadedTypes() {
+        if (startupConsole == null || config == null) {
+            return;
+        }
+        for (String typeId : config.typesById().keySet()) {
+            startupConsole.logTypeLoaded(typeId);
+        }
     }
 
     @Override

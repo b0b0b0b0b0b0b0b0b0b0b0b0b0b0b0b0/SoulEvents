@@ -53,7 +53,7 @@
 plugins/SoulEvents/schematics/
   military_pad/
     pad.schem           ← FAWE / WorldEdit clipboard
-    settings.yml        ← настройки этой схемы (Elytrium)
+    settings.yml        ← настройки этой схемы
   desert_ruin/
     ruin.schem
     settings.yml
@@ -66,10 +66,10 @@ ID схемы = **имя папки** (`military_pad`).
 1. Построй площадку в flat/creative.
 2. Поставь **один BEDROCK** (или другой блок из `marker.block`) — точка будущего сундука.
 3. Выдели всё → `//copy` → `//schem save military_pad`.
-4. Положи файл в `schematics/military_pad/pad.schem`.
+4. Положи файл в `plugins/SoulEvents/schematics/military_pad/pad.schem`.
 5. При первом `reload` создастся `settings.yml` с дефолтами — подкрути `placement.verticalOffset` если нужно.
 
-### settings.yml (дефолты в Java)
+### settings.yml
 
 | Секция | Назначение |
 |--------|------------|

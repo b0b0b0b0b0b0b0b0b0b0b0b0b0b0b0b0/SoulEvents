@@ -37,7 +37,7 @@ public final class ArenaRegionEnforcementListener implements Listener {
         this.guard = new ArenaRegionGuard(service, config, arenaRegions);
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onBucketEmpty(PlayerBucketEmptyEvent event) {
         Material bucket = event.getBucket();
         if (bucket != Material.LAVA_BUCKET && bucket != Material.WATER_BUCKET) {
@@ -48,7 +48,7 @@ public final class ArenaRegionEnforcementListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onBlockPlace(BlockPlaceEvent event) {
         Block block = event.getBlockPlaced();
         Material type = block.getType();
@@ -61,7 +61,7 @@ public final class ArenaRegionEnforcementListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onFluidFlow(BlockFromToEvent event) {
         Material type = event.getBlock().getType();
         if (type == Material.WATER && guard.denies(event.getToBlock().getLocation(), "water-flow")) {
@@ -73,7 +73,7 @@ public final class ArenaRegionEnforcementListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onIgnite(BlockIgniteEvent event) {
         if (event.getCause() != BlockIgniteEvent.IgniteCause.LAVA) {
             return;
@@ -83,7 +83,7 @@ public final class ArenaRegionEnforcementListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onExplosionPrime(ExplosionPrimeEvent event) {
         if (!(event.getEntity() instanceof TNTPrimed)) {
             return;
@@ -93,7 +93,7 @@ public final class ArenaRegionEnforcementListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onEntityExplode(EntityExplodeEvent event) {
         String flag = explosionFlag(event.getEntity());
         if (flag == null) {
@@ -105,7 +105,7 @@ public final class ArenaRegionEnforcementListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onEndermanGrief(EntityChangeBlockEvent event) {
         if (event.getEntityType() != EntityType.ENDERMAN) {
             return;

@@ -8,6 +8,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -17,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class AirDropSessionRegistry {
 
     private final ConcurrentHashMap<UUID, SessionRecord> sessions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<BlockKey, UUID> blockIndex = new ConcurrentHashMap<>();
 
     public void register(
             UUID sessionId,
@@ -28,7 +30,7 @@ public final class AirDropSessionRegistry {
             List<ReplacedBlock> clusterBlocks,
             int clusterLootSlotIndex
     ) {
-        sessions.put(sessionId, new SessionRecord(
+        SessionRecord record = new SessionRecord(
                 anchor.clone(),
                 chestMaterial,
                 originalMaterial,
@@ -42,7 +44,9 @@ public final class AirDropSessionRegistry {
                 null,
                 false,
                 false
-        ));
+        );
+        sessions.put(sessionId, record);
+        indexSession(sessionId, record);
     }
 
     public void assignLootChests(UUID sessionId, List<AirDropChestHolder> lootChests) {
@@ -54,15 +58,7 @@ public final class AirDropSessionRegistry {
     }
 
     public Optional<SessionRecord> findByAnchor(Location location) {
-        if (location.getWorld() == null) {
-            return Optional.empty();
-        }
-        for (SessionRecord record : sessions.values()) {
-            if (matchesAnchor(record, location)) {
-                return Optional.of(record);
-            }
-        }
-        return Optional.empty();
+        return sessionIdAt(location).flatMap(this::find);
     }
 
     public Optional<SessionRecord> find(UUID sessionId) {
@@ -73,26 +69,48 @@ public final class AirDropSessionRegistry {
         if (location.getWorld() == null) {
             return Optional.empty();
         }
-        for (var entry : sessions.entrySet()) {
-            if (matchesAnchor(entry.getValue(), location)) {
-                return Optional.of(entry.getKey());
-            }
-        }
-        return Optional.empty();
+        return Optional.ofNullable(blockIndex.get(BlockKey.of(location)));
     }
 
-    private static boolean matchesAnchor(SessionRecord record, Location location) {
-        Location anchor = record.anchor();
-        if (anchor.getWorld().equals(location.getWorld())
-                && anchor.getBlockX() == location.getBlockX()
-                && anchor.getBlockY() == location.getBlockY()
-                && anchor.getBlockZ() == location.getBlockZ()) {
-            return true;
+    private void indexSession(UUID sessionId, SessionRecord record) {
+        if (record == null) {
+            return;
         }
+        for (BlockKey key : blockKeysFor(record)) {
+            blockIndex.put(key, sessionId);
+        }
+    }
+
+    private void deindexSession(SessionRecord record) {
+        if (record == null) {
+            return;
+        }
+        for (BlockKey key : blockKeysFor(record)) {
+            blockIndex.remove(key);
+        }
+    }
+
+    private static List<BlockKey> blockKeysFor(SessionRecord record) {
+        List<BlockKey> keys = new ArrayList<>();
+        keys.add(BlockKey.of(record.anchor()));
         if (record.clusterEnabled()) {
-            return AirDropClusterChestPlacer.isClusterChestLocation(anchor, location);
+            for (ReplacedBlock block : record.clusterBlocks()) {
+                keys.add(BlockKey.of(block.location()));
+            }
         }
-        return false;
+        return keys;
+    }
+
+    private record BlockKey(String world, int x, int y, int z) {
+
+        private static BlockKey of(Location location) {
+            return new BlockKey(
+                    location.getWorld().getName(),
+                    location.getBlockX(),
+                    location.getBlockY(),
+                    location.getBlockZ()
+            );
+        }
     }
 
     public void assignUnlockTask(UUID sessionId, BukkitTask unlockTask) {
@@ -135,6 +153,7 @@ public final class AirDropSessionRegistry {
         if (record == null) {
             return;
         }
+        deindexSession(record);
         cancelTask(record.unlockBroadcastTask());
         cancelTask(record.cleanupTask());
     }

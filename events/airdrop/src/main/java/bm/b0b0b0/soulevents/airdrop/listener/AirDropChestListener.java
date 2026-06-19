@@ -22,7 +22,6 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.InventoryCreativeEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -31,12 +30,35 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public final class AirDropChestListener implements Listener {
+
+    private static final Set<InventoryAction> BLOCKED_BOTTOM_ACTIONS = EnumSet.of(
+            InventoryAction.COLLECT_TO_CURSOR,
+            InventoryAction.MOVE_TO_OTHER_INVENTORY,
+            InventoryAction.HOTBAR_SWAP,
+            InventoryAction.SWAP_WITH_CURSOR,
+            InventoryAction.PLACE_ALL,
+            InventoryAction.PLACE_ONE,
+            InventoryAction.PLACE_SOME,
+            InventoryAction.UNKNOWN
+    );
+
+    private static final Set<ClickType> BLOCKED_BOTTOM_CLICKS = EnumSet.of(
+            ClickType.DOUBLE_CLICK,
+            ClickType.NUMBER_KEY,
+            ClickType.SWAP_OFFHAND,
+            ClickType.MIDDLE,
+            ClickType.RIGHT,
+            ClickType.SHIFT_RIGHT,
+            ClickType.SHIFT_LEFT
+    );
 
     private final AirDropService service;
 
@@ -67,21 +89,14 @@ public final class AirDropChestListener implements Listener {
         service.tryOpenChest(player, sessionId.get(), block.getLocation());
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onInventoryMove(InventoryMoveItemEvent event) {
-        if (isProtectedMoveInventory(event.getSource()) || isProtectedMoveInventory(event.getDestination())) {
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onBlockChestMove(InventoryMoveItemEvent event) {
+        if (isWorldBlockChestMove(event.getSource()) || isWorldBlockChestMove(event.getDestination())) {
             event.setCancelled(true);
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onLootCreative(InventoryCreativeEvent event) {
-        if (isAirDropTop(event.getView().getTopInventory())) {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onLootClick(InventoryClickEvent event) {
         Inventory top = event.getView().getTopInventory();
         if (!isAirDropTop(top)) {
@@ -115,15 +130,6 @@ public final class AirDropChestListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onLootDrag(InventoryDragEvent event) {
-        Inventory top = event.getView().getTopInventory();
-        if (!isAirDropTop(top)) {
-            return;
-        }
-        event.setCancelled(true);
-    }
-
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onInventoryClick(InventoryClickEvent event) {
         handleInventoryChange(event.getWhoClicked(), event.getView().getTopInventory());
@@ -155,24 +161,24 @@ public final class AirDropChestListener implements Listener {
         service.messages().send(event.getPlayer(), "airdrop.chest-protected", Map.of());
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onEntityChangeBlock(EntityChangeBlockEvent event) {
         if (service.sessionIdAt(event.getBlock().getLocation()).isPresent()) {
             event.setCancelled(true);
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onBlockExplode(BlockExplodeEvent event) {
         removeAnchorBlocks(event.blockList().iterator());
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onEntityExplode(EntityExplodeEvent event) {
         removeAnchorBlocks(event.blockList().iterator());
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPistonExtend(BlockPistonExtendEvent event) {
         for (Block block : event.getBlocks()) {
             if (service.sessionIdAt(block.getLocation()).isPresent()) {
@@ -182,7 +188,7 @@ public final class AirDropChestListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPistonRetract(BlockPistonRetractEvent event) {
         for (Block block : event.getBlocks()) {
             if (service.sessionIdAt(block.getLocation()).isPresent()) {
@@ -196,13 +202,13 @@ public final class AirDropChestListener implements Listener {
         return top.getHolder(false) instanceof AirDropChestHolder;
     }
 
-    private boolean isProtectedMoveInventory(Inventory inventory) {
+    private boolean isWorldBlockChestMove(Inventory inventory) {
         if (inventory == null) {
             return false;
         }
         InventoryHolder holder = inventory.getHolder(false);
         if (holder instanceof ProtectedLootInventoryHolder) {
-            return true;
+            return false;
         }
         if (holder instanceof BlockState state) {
             return service.sessionIdAt(state.getLocation()).isPresent();
@@ -232,23 +238,8 @@ public final class AirDropChestListener implements Listener {
         if (event.getRawSlot() < topSize) {
             return false;
         }
-        InventoryAction action = event.getAction();
-        ClickType click = event.getClick();
-        return action == InventoryAction.COLLECT_TO_CURSOR
-                || action == InventoryAction.MOVE_TO_OTHER_INVENTORY
-                || action == InventoryAction.HOTBAR_SWAP
-                || action == InventoryAction.SWAP_WITH_CURSOR
-                || action == InventoryAction.PLACE_ALL
-                || action == InventoryAction.PLACE_ONE
-                || action == InventoryAction.PLACE_SOME
-                || action == InventoryAction.UNKNOWN
-                || click == ClickType.DOUBLE_CLICK
-                || click == ClickType.NUMBER_KEY
-                || click == ClickType.SWAP_OFFHAND
-                || click == ClickType.MIDDLE
-                || click == ClickType.RIGHT
-                || click == ClickType.SHIFT_RIGHT
-                || click == ClickType.SHIFT_LEFT
+        return BLOCKED_BOTTOM_ACTIONS.contains(event.getAction())
+                || BLOCKED_BOTTOM_CLICKS.contains(event.getClick())
                 || event.isShiftClick();
     }
 

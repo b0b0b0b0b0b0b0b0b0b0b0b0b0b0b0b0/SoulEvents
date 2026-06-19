@@ -3,6 +3,7 @@ package bm.b0b0b0.soulevents.core.listener;
 import bm.b0b0b0.soulevents.api.SoulEventsApi;
 import bm.b0b0b0.soulevents.api.module.ActiveEvent;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
@@ -18,7 +19,7 @@ public final class ProtectionListener implements Listener {
         this.api = api;
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onBlockPlace(BlockPlaceEvent event) {
         UUID sessionId = findSession(event.getBlock().getLocation());
         if (sessionId == null) {
@@ -30,7 +31,7 @@ public final class ProtectionListener implements Listener {
         }
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onBucketEmpty(PlayerBucketEmptyEvent event) {
         UUID sessionId = findSession(event.getBlock().getLocation());
         if (sessionId == null) {
@@ -43,9 +44,15 @@ public final class ProtectionListener implements Listener {
     }
 
     private UUID findSession(org.bukkit.Location location) {
+        if (location.getWorld() == null) {
+            return null;
+        }
         for (ActiveEvent event : api.modules().activeEvents()) {
-            if (event.anchor().getWorld().equals(location.getWorld())
-                    && event.anchor().distanceSquared(location) <= 64 * 64) {
+            org.bukkit.Location anchor = event.anchor();
+            if (anchor.getWorld() != location.getWorld()) {
+                continue;
+            }
+            if (anchor.distanceSquared(location) <= 64 * 64) {
                 return event.sessionId();
             }
         }

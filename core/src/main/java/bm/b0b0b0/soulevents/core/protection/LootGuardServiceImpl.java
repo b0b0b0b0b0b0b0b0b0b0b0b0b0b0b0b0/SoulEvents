@@ -220,6 +220,21 @@ public final class LootGuardServiceImpl implements LootGuardService {
         }
     }
 
+    public void shutdownPending() {
+        for (BukkitTask task : revealTasks.values()) {
+            task.cancel();
+        }
+        revealTasks.clear();
+        awaitingReveal.clear();
+    }
+
+    public void shutdown() {
+        shutdownPending();
+        pendingReveal.clear();
+        claimedSlots.clear();
+        lastTakeAt.clear();
+    }
+
     @Override
     public void debug(String message) {
         if (!lootDebugEnabled) {
@@ -241,19 +256,11 @@ public final class LootGuardServiceImpl implements LootGuardService {
     }
 
     public void reload(PluginConfig config) {
+        shutdownPending();
         apply(config);
-        debug("reload config takeCooldownMs=" + takeCooldownMillis
-                + " revealDelayMs=" + revealDelayMillis
-                + " debug=" + lootDebugEnabled
-                + " clearing maps");
         lastTakeAt.clear();
         pendingReveal.clear();
         claimedSlots.clear();
-        awaitingReveal.clear();
-        for (BukkitTask task : revealTasks.values()) {
-            task.cancel();
-        }
-        revealTasks.clear();
     }
 
     private void scheduleReveal(Player player, PlayerRevealKey playerKey) {

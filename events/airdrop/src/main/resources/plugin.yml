@@ -15,11 +15,12 @@ libraries:
 commands:
   airdrop:
     description: AirDrop event commands
-    permission: soulevents.airdrop.admin
+    permission: soulevents.airdrop.staff
     aliases: [ ad ]
 
 permissions:
-  soulevents.airdrop.admin:
+  soulevents.airdrop.staff:
+    description: AirDrop staff commands and admin GUI
     default: op
   soulevents.airdrop.summon:
     default: op

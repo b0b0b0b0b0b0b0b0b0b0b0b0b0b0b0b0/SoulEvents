@@ -16,7 +16,7 @@ public final class TypeCreatorService {
     }
 
     public String createFromPreset(Preset preset) {
-        String typeId = nextId(preset.prefix());
+        String typeId = ConfigIds.requireValid(nextId(preset.prefix()));
         Path typePath = plugin.getDataFolder().toPath().resolve("types").resolve(typeId + ".yml");
         Path lootPath = plugin.getDataFolder().toPath().resolve("loot").resolve(typeId + ".yml");
 

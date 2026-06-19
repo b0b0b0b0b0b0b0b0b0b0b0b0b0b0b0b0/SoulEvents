@@ -6,6 +6,7 @@ import bm.b0b0b0.soulevents.api.module.EventPhase;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPasteOptions;
 import bm.b0b0b0.soulevents.api.schematic.SchematicWorldBounds;
 import bm.b0b0b0.soulevents.api.world.WorldPlacementResult;
+import bm.b0b0b0.soulevents.airdrop.config.AirDropPermissions;
 import bm.b0b0b0.soulevents.airdrop.config.AirDropPluginConfig;
 import bm.b0b0b0.soulevents.airdrop.config.AirDropTypeDefinition;
 import bm.b0b0b0.soulevents.airdrop.config.settings.AirDropTypeSettings;
@@ -190,10 +191,6 @@ public final class AirDropService {
                 return;
             }
             clusterIndex = slotIndex.get();
-            if (record.isDecoyCluster() && clusterIndex != record.clusterLootSlotIndex()) {
-                messages.send(player, "airdrop.chest-decoy", Map.of());
-                return;
-            }
         }
         Optional<ActiveEvent> active = activeEvent(sessionId);
         if (active.isEmpty()) {
@@ -232,6 +229,10 @@ public final class AirDropService {
         }
         if (type.requiredLoot.enabled && !RequiredItemMatcher.hasRequiredItem(player, type.requiredLoot)) {
             messages.send(player, "airdrop.required-item-missing", Map.of());
+            return;
+        }
+        if (record.clusterEnabled() && record.isDecoyCluster() && clusterIndex != record.clusterLootSlotIndex()) {
+            messages.send(player, "airdrop.chest-decoy", Map.of());
             return;
         }
         final int openedClusterIndex = clusterIndex;
@@ -403,7 +404,7 @@ public final class AirDropService {
             return;
         }
         AirDropTypeSettings type = typeOptional.get().settings();
-        if (!type.summon.adminSummonEnabled && !sender.hasPermission("soulevents.airdrop.admin")) {
+        if (!type.summon.adminSummonEnabled && !sender.hasPermission(AirDropPermissions.STAFF)) {
             messages.send(sender, "command.no-permission", Map.of());
             return;
         }

@@ -204,10 +204,15 @@ public final class SchematicMarkerScanner {
         return count;
     }
 
-    public static boolean isWorldEditAvailable() {
+    public static boolean isFaweAvailable() {
         org.bukkit.plugin.Plugin fawe = org.bukkit.Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit");
-        org.bukkit.plugin.Plugin we = org.bukkit.Bukkit.getPluginManager().getPlugin("WorldEdit");
-        return fawe != null && fawe.isEnabled() || we != null && we.isEnabled();
+        return fawe != null && fawe.isEnabled();
+    }
+
+    /** @deprecated use {@link #isFaweAvailable()} */
+    @Deprecated
+    public static boolean isWorldEditAvailable() {
+        return isFaweAvailable();
     }
 
     public static Logger logger(Plugin plugin) {

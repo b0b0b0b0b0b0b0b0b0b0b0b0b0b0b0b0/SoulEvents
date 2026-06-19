@@ -2,6 +2,7 @@ package bm.b0b0b0.soulevents.airdrop.command;
 
 import bm.b0b0b0.soulevents.api.SoulEventsApi;
 import bm.b0b0b0.soulevents.airdrop.AirDropPlugin;
+import bm.b0b0b0.soulevents.airdrop.config.AirDropPermissions;
 import bm.b0b0b0.soulevents.airdrop.gui.AirDropGuiFactory;
 import bm.b0b0b0.soulevents.airdrop.message.AirDropMessageService;
 import bm.b0b0b0.soulevents.airdrop.service.AirDropService;
@@ -51,7 +52,7 @@ public final class AirDropCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if ("reload".equalsIgnoreCase(args[0])) {
-            if (!sender.hasPermission("soulevents.airdrop.admin")) {
+            if (!sender.hasPermission(AirDropPermissions.STAFF)) {
                 messages.send(sender, "command.no-permission", Map.of());
                 return true;
             }
@@ -64,7 +65,7 @@ public final class AirDropCommand implements CommandExecutor, TabCompleter {
                 messages.send(sender, "airdrop.usage-admin-console", Map.of());
                 return true;
             }
-            if (!sender.hasPermission("soulevents.airdrop.admin")) {
+            if (!sender.hasPermission(AirDropPermissions.STAFF)) {
                 messages.send(sender, "command.no-permission", Map.of());
                 return true;
             }
@@ -78,14 +79,14 @@ public final class AirDropCommand implements CommandExecutor, TabCompleter {
             }
             String typeId = args[1].toLowerCase(Locale.ROOT);
             if (sender instanceof Player player) {
-                if (sender.hasPermission("soulevents.airdrop.admin")) {
+                if (sender.hasPermission(AirDropPermissions.STAFF)) {
                     service.spawnAdminAsync(sender, typeId);
                 } else {
                     service.spawnPlayerAsync(player, typeId);
                 }
                 return true;
             }
-            if (!sender.hasPermission("soulevents.airdrop.admin")) {
+            if (!sender.hasPermission(AirDropPermissions.STAFF)) {
                 messages.send(sender, "command.no-permission", Map.of());
                 return true;
             }

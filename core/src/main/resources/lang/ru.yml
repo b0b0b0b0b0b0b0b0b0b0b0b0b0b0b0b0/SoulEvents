@@ -40,6 +40,8 @@ schematic.marker-fix-hint.1: "<gray>1. Сохрани мир / сделай бэ
 schematic.marker-fix-hint.2: "<gray>2. В schematics/<id>/settings.yml укажи редкий marker.block (не BEDROCK, если им застроена вся постройка).</gray>"
 schematic.marker-fix-hint.3: "<gray>3. В клипборде этот блок — только в точке сундука, остальное замени на нормальные блоки.</gray>"
 schematic.marker-fix-hint.4: "<gray>4. //schem save → /soulevents reload → schematic info <id></gray>"
+schematic.fawe-missing: "<red>FastAsyncWorldEdit не установлен — paste схем отключён.</red>"
+schematic.undo-too-large: "<red>Схема слишком большая для undo-снимка. Уменьши .schem или подними paste.maxUndoBlocks.</red>"
 
 command.reloaded: "<green>SoulEvents перезагружен.</green>"
 

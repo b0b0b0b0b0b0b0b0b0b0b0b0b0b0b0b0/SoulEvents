@@ -40,6 +40,8 @@ schematic.marker-fix-hint.1: "<gray>1. Save the world / take a backup.</gray>"
 schematic.marker-fix-hint.2: "<gray>2. In schematics/<id>/settings.yml set a rare marker.block (not BEDROCK if the build is full of it).</gray>"
 schematic.marker-fix-hint.3: "<gray>3. In the clipboard that block must appear only at the chest anchor; replace the rest.</gray>"
 schematic.marker-fix-hint.4: "<gray>4. //schem save → /soulevents reload → schematic info <id></gray>"
+schematic.fawe-missing: "<red>FastAsyncWorldEdit is not installed — schematic paste disabled.</red>"
+schematic.undo-too-large: "<red>Schematic too large for undo snapshot. Shrink .schem or raise paste.maxUndoBlocks.</red>"
 
 command.reloaded: "<green>SoulEvents reloaded.</green>"
 

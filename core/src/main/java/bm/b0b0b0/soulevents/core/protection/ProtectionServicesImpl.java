@@ -43,9 +43,14 @@ public final class ProtectionServicesImpl implements ProtectionServices {
     }
 
     public void reload(PluginConfig config) {
+        loot.shutdownPending();
         gates.reload(config);
         loot.reload(config);
         arena.reload(config);
         effects.reload(config);
+    }
+
+    public void shutdown() {
+        loot.shutdown();
     }
 }

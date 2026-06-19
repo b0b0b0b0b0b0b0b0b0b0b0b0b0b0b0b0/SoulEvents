@@ -63,8 +63,8 @@ public final class SchematicCatalog {
             definitions.putAll(pending);
         }
 
-        if (!SchematicMarkerScanner.isWorldEditAvailable()) {
-            plugin.getLogger().warning("WorldEdit/FAWE not found — schematic metadata scan and paste disabled.");
+        if (!SchematicMarkerScanner.isFaweAvailable()) {
+            plugin.getLogger().warning("FastAsyncWorldEdit not found — schematic metadata scan and paste disabled.");
             return CompletableFuture.completedFuture(null);
         }
 

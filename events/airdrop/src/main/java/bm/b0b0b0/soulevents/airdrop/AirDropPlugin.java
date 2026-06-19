@@ -70,7 +70,7 @@ public final class AirDropPlugin extends JavaPlugin {
         module.setGuiFactory(guiFactory);
         module.onLoad(new EventModuleContextImpl(api, this));
         api.modules().register(module);
-        getServer().getPluginManager().registerEvents(new AirDropGuiListener(), this);
+        getServer().getPluginManager().registerEvents(new AirDropGuiListener(messages), this);
         getServer().getPluginManager().registerEvents(new AirDropChestListener(module.service()), this);
         getServer().getPluginManager().registerEvents(
                 new ArenaRegionEnforcementListener(

@@ -103,9 +103,17 @@ public final class TypeDirectoryLoader {
 
     private static void loadType(JavaPlugin plugin, Path typePath, Path lootDir, Map<String, AirDropTypeDefinition> types) {
         String typeId = stripExtension(typePath.getFileName().toString());
+        if (!ConfigIds.isValid(typeId)) {
+            plugin.getLogger().warning("Skipping type with invalid id: " + typeId);
+            return;
+        }
         AirDropTypeSettings settings = new AirDropTypeSettings();
         settings.reload(typePath);
         String lootId = settings.lootTableId == null || settings.lootTableId.isEmpty() ? typeId : settings.lootTableId;
+        if (!ConfigIds.isValid(lootId)) {
+            plugin.getLogger().warning("Type " + typeId + " references invalid loot id: " + lootId + ", using type id");
+            lootId = typeId;
+        }
         Path lootPath = lootDir.resolve(lootId + ".yml");
         LootTableSettings loot = new LootTableSettings();
         if (Files.exists(lootPath)) {

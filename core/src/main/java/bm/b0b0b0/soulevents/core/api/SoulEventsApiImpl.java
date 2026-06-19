@@ -97,6 +97,7 @@ public final class SoulEventsApiImpl implements SoulEventsApi {
     public void shutdown() {
         scheduler.cancelAll();
         sessions.clear();
+        protection.shutdown();
         schematics.shutdown();
     }
 }

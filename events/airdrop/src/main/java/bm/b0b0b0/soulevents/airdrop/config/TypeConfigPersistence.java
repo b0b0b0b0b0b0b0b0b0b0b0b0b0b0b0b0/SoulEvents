@@ -11,7 +11,8 @@ public final class TypeConfigPersistence {
     }
 
     public static void saveTypeSettings(JavaPlugin plugin, String typeId, AirDropTypeSettings settings) {
-        Path typePath = plugin.getDataFolder().toPath().resolve("types").resolve(typeId + ".yml");
+        String safeId = ConfigIds.requireValid(typeId);
+        Path typePath = plugin.getDataFolder().toPath().resolve("types").resolve(safeId + ".yml");
         settings.save(typePath);
     }
 

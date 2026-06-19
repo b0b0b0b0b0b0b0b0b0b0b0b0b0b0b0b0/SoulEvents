@@ -130,9 +130,9 @@ public final class SchematicServiceImpl implements SchematicService {
                     SchematicPasteResult.failed(options.sessionId(), "schematic.not-ready")
             );
         }
-        if (!SchematicMarkerScanner.isWorldEditAvailable()) {
+        if (!SchematicMarkerScanner.isFaweAvailable()) {
             return CompletableFuture.completedFuture(
-                    SchematicPasteResult.failed(options.sessionId(), "schematic.worldedit-missing")
+                    SchematicPasteResult.failed(options.sessionId(), "schematic.fawe-missing")
             );
         }
         World world = pasteOrigin.getWorld();
@@ -157,6 +157,15 @@ public final class SchematicServiceImpl implements SchematicService {
 
         CompletableFuture<SchematicPasteResult> future = new CompletableFuture<>();
         Bukkit.getScheduler().runTask(plugin, () -> {
+            int undoBlocks = undoBlockCount(metadata);
+            int undoLimit = definition.settings().paste.maxUndoBlocks;
+            if (undoLimit > 0 && undoBlocks > undoLimit) {
+                future.complete(SchematicPasteResult.failed(
+                        options.sessionId(),
+                        "schematic.undo-too-large"
+                ));
+                return;
+            }
             List<WorldEditSchematicBridge.BlockSnapshot> snapshots = worldEditBridge.captureRegion(
                     world,
                     normalizedOrigin,
@@ -245,5 +254,13 @@ public final class SchematicServiceImpl implements SchematicService {
         normalized.setY(normalized.getBlockY());
         normalized.setZ(normalized.getBlockZ());
         return normalized;
+    }
+
+    private static int undoBlockCount(SchematicDefinition.SchematicMetadata metadata) {
+        int sizeX = metadata.regionMaxX() - metadata.regionMinX() + 1;
+        int sizeY = metadata.regionMaxY() - metadata.regionMinY() + 1;
+        int sizeZ = metadata.regionMaxZ() - metadata.regionMinZ() + 1;
+        long volume = (long) sizeX * sizeY * sizeZ;
+        return volume > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) volume;
     }
 }

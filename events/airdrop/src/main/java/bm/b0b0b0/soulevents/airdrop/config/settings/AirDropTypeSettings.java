@@ -40,14 +40,8 @@ public final class AirDropTypeSettings extends YamlSerializable {
     @Comment(@CommentValue("Устарело: используйте arenaWorldGuard.marginWithoutSchematic."))
     public int arenaRadius = 50;
 
-    @Comment(@CommentValue("ID схематики в папке schematics/ ядра."))
-    public String schematicId = "";
-
-    @Comment(@CommentValue("Плавное сглаживание краёв схематики."))
-    public boolean landscapeBlend = true;
-
-    @Comment(@CommentValue("Радиус сглаживания схематики."))
-    public int blendRadius = 4;
+    @Comment(@CommentValue("Схематика: id файла + placement/paste/blend для этого типа."))
+    public SchematicTypeSettings schematic = new SchematicTypeSettings();
 
     @Comment(@CommentValue("Фаза «beacon смерти» перед открытием."))
     public PreOpenBeaconSettings preOpenBeacon = new PreOpenBeaconSettings();
@@ -72,4 +66,15 @@ public final class AirDropTypeSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Очистка после открытия сундука."))
     public LifecycleSettings lifecycle = new LifecycleSettings();
+
+    public boolean usesSchematic() {
+        return schematic.enabled && schematic.id != null && !schematic.id.isBlank();
+    }
+
+    public String schematicId() {
+        if (!usesSchematic()) {
+            return "";
+        }
+        return schematic.id.trim();
+    }
 }

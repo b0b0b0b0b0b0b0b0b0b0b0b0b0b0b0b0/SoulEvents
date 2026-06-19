@@ -31,12 +31,22 @@ public final class FlatSurfaceFinderImpl implements FlatSurfaceFinder {
         }
         int referenceY = surfaceHeights[0];
         for (int height : surfaceHeights) {
-            if (Math.abs(height - referenceY) > requirements.maxSurfaceDelta()) {
+            referenceY = Math.max(referenceY, height);
+        }
+        for (int height : surfaceHeights) {
+            if (referenceY - height > requirements.maxSurfaceDelta()) {
                 return Optional.empty();
             }
         }
-        for (FlatSurfaceOffset offset : points) {
-            if (!isPlacementValid(world, blockX + offset.dx(), referenceY, blockZ + offset.dz(), requirements)) {
+        for (int index = 0; index < points.size(); index++) {
+            FlatSurfaceOffset offset = points.get(index);
+            if (!isPlacementValid(
+                    world,
+                    blockX + offset.dx(),
+                    surfaceHeights[index],
+                    blockZ + offset.dz(),
+                    requirements
+            )) {
                 return Optional.empty();
             }
         }

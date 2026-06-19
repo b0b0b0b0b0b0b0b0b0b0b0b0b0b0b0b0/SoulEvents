@@ -56,12 +56,28 @@ final class EffectProfileSupport {
         if (raw == null || raw.isBlank()) {
             return null;
         }
-        String normalized = raw.trim().toUpperCase(Locale.ROOT);
-        PotionEffectType legacy = PotionEffectType.getByName(normalized);
-        if (legacy != null) {
-            return legacy;
+        String trimmed = raw.trim();
+        if (trimmed.contains(":")) {
+            NamespacedKey namespacedKey = NamespacedKey.fromString(trimmed.toLowerCase(Locale.ROOT));
+            return namespacedKey == null ? null : Registry.POTION_EFFECT_TYPE.get(namespacedKey);
         }
-        NamespacedKey key = NamespacedKey.minecraft(normalized.toLowerCase(Locale.ROOT));
-        return Registry.POTION_EFFECT_TYPE.get(key);
+        PotionEffectType direct = Registry.POTION_EFFECT_TYPE.get(
+                NamespacedKey.minecraft(trimmed.toLowerCase(Locale.ROOT))
+        );
+        if (direct != null) {
+            return direct;
+        }
+        return legacyAlias(trimmed.toUpperCase(Locale.ROOT));
+    }
+
+    private static PotionEffectType legacyAlias(String normalized) {
+        return switch (normalized) {
+            case "SLOW" -> PotionEffectType.SLOWNESS;
+            case "FAST" -> PotionEffectType.SPEED;
+            case "HARM", "INSTANT_DAMAGE" -> PotionEffectType.INSTANT_DAMAGE;
+            case "HEAL", "INSTANT_HEAL" -> PotionEffectType.INSTANT_HEALTH;
+            case "JUMP" -> PotionEffectType.JUMP_BOOST;
+            default -> null;
+        };
     }
 }

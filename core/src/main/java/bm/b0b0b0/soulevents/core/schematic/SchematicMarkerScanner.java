@@ -101,7 +101,11 @@ public final class SchematicMarkerScanner {
         }
 
         List<FlatSurfaceOffset> footprint = scanFootprint(clipboard, region, min.y());
-        List<FlatSurfaceOffset> surfaceProbe = buildSurfaceProbe(footprint, settings.placement.safetyMargin);
+        List<FlatSurfaceOffset> surfaceProbe = SchematicPlacementProbeBuilder.build(
+                footprint,
+                settings.placement.placementProbeStep,
+                settings.placement.safetyMargin
+        );
         int blockCount = countBlocks(clipboard, region);
 
         return new SchematicDefinition.SchematicMetadata(
@@ -172,27 +176,6 @@ public final class SchematicMarkerScanner {
         return footprint;
     }
 
-    private static List<FlatSurfaceOffset> buildSurfaceProbe(List<FlatSurfaceOffset> footprint, int safetyMargin) {
-        if (safetyMargin <= 0) {
-            return footprint;
-        }
-        Set<String> seen = new HashSet<>();
-        List<FlatSurfaceOffset> probe = new ArrayList<>();
-        for (FlatSurfaceOffset point : footprint) {
-            for (int dx = -safetyMargin; dx <= safetyMargin; dx++) {
-                for (int dz = -safetyMargin; dz <= safetyMargin; dz++) {
-                    int x = point.dx() + dx;
-                    int z = point.dz() + dz;
-                    String key = x + ":" + z;
-                    if (seen.add(key)) {
-                        probe.add(new FlatSurfaceOffset(x, z));
-                    }
-                }
-            }
-        }
-        return probe;
-    }
-
     private static int countBlocks(Clipboard clipboard, Region region) {
         int count = 0;
         for (BlockVector3 pos : region) {
@@ -209,7 +192,6 @@ public final class SchematicMarkerScanner {
         return fawe != null && fawe.isEnabled();
     }
 
-    /** @deprecated use {@link #isFaweAvailable()} */
     @Deprecated
     public static boolean isWorldEditAvailable() {
         return isFaweAvailable();

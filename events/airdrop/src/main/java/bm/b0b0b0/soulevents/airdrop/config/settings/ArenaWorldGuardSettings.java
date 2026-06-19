@@ -16,7 +16,7 @@ public final class ArenaWorldGuardSettings extends YamlSerializable {
     @Comment(@CommentValue("Приоритет региона (выше = сильнее перекрывает другие)."))
     public int regionPriority = 1000;
 
-    @Comment(@CommentValue("Горизонтальный отступ (блоки) вокруг схематики, если schematicId задан."))
+    @Comment(@CommentValue("Горизонтальный отступ (блоки) вокруг схематики, если schematic.enabled."))
     public int marginWithSchematic = 10;
 
     @Comment(@CommentValue("Горизонтальный радиус (блоки) от сундука, если схематики нет."))

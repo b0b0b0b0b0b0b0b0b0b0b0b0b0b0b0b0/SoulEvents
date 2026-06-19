@@ -13,5 +13,5 @@ public final class SchematicPasteSettings extends YamlSerializable {
     public int blocksPerTick = 1500;
 
     @Comment(@CommentValue("Макс. блоков в undo-снимке (0 = без лимита). Больше — paste отклоняется."))
-    public int maxUndoBlocks = 524_288;
+    public int maxUndoBlocks = 2_097_152;
 }

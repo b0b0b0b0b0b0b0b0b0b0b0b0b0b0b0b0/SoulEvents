@@ -4,14 +4,18 @@ import bm.b0b0b0.soulevents.api.schematic.SchematicPasteOptions;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPasteResult;
 import bm.b0b0b0.soulevents.api.schematic.SchematicProfile;
 import bm.b0b0b0.soulevents.api.schematic.SchematicService;
+import bm.b0b0b0.soulevents.api.schematic.SchematicSpawnOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicWorldBounds;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceOffset;
+import bm.b0b0b0.soulevents.core.config.settings.SchematicPlacementSettings;
+import bm.b0b0b0.soulevents.core.config.settings.SchematicSettings;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.plugin.Plugin;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -23,7 +27,6 @@ public final class SchematicServiceImpl implements SchematicService {
     private final Plugin plugin;
     private final SchematicCatalog catalog;
     private final SchematicPlacementValidator placementValidator;
-    private final SchematicPasteQueue pasteQueue;
     private final SchematicSessionUndo sessionUndo;
     private final WorldEditSchematicBridge worldEditBridge;
 
@@ -31,7 +34,6 @@ public final class SchematicServiceImpl implements SchematicService {
         this.plugin = plugin;
         this.catalog = new SchematicCatalog(plugin);
         this.placementValidator = new SchematicPlacementValidator();
-        this.pasteQueue = new SchematicPasteQueue();
         this.sessionUndo = new SchematicSessionUndo();
         this.worldEditBridge = new WorldEditSchematicBridge();
         catalog.reload();
@@ -88,13 +90,41 @@ public final class SchematicServiceImpl implements SchematicService {
     public List<FlatSurfaceOffset> footprint(String schematicId) {
         return catalog.get(schematicId)
                 .filter(SchematicDefinition::isReady)
-                .map(definition -> definition.metadata().surfaceProbe())
+                .map(definition -> definition.metadata().footprint())
                 .orElse(List.of(new FlatSurfaceOffset(0, 0)));
     }
 
     @Override
     public Optional<Location> resolvePasteOrigin(World world, int blockX, int blockZ, String schematicId) {
-        return catalog.get(schematicId).flatMap(definition -> placementValidator.resolve(world, blockX, blockZ, definition));
+        return resolvePasteOrigin(world, blockX, blockZ, schematicId, null);
+    }
+
+    @Override
+    public Optional<Location> resolvePasteOrigin(
+            World world,
+            int blockX,
+            int blockZ,
+            String schematicId,
+            SchematicSpawnOverrides overrides
+    ) {
+        return resolvePasteOriginDetailed(world, blockX, blockZ, schematicId, overrides).location();
+    }
+
+    @Override
+    public bm.b0b0b0.soulevents.api.schematic.SchematicPlacementResolution resolvePasteOriginDetailed(
+            World world,
+            int blockX,
+            int blockZ,
+            String schematicId,
+            SchematicSpawnOverrides overrides
+    ) {
+        Optional<SchematicDefinition> definitionOptional = catalog.get(schematicId);
+        if (definitionOptional.isEmpty()) {
+            return bm.b0b0b0.soulevents.api.schematic.SchematicPlacementResolution.rejected("schematic-unknown");
+        }
+        SchematicDefinition definition = definitionOptional.get();
+        SchematicPlacementSettings placement = SchematicSpawnSupport.resolvePlacement(definition.settings(), overrides);
+        return placementValidator.resolveDetailed(world, blockX, blockZ, definition, placement).toApi();
     }
 
     @Override
@@ -117,6 +147,16 @@ public final class SchematicServiceImpl implements SchematicService {
             String schematicId,
             Location pasteOrigin,
             SchematicPasteOptions options
+    ) {
+        return paste(schematicId, pasteOrigin, options, null);
+    }
+
+    @Override
+    public CompletableFuture<SchematicPasteResult> paste(
+            String schematicId,
+            Location pasteOrigin,
+            SchematicPasteOptions options,
+            SchematicSpawnOverrides overrides
     ) {
         Optional<SchematicDefinition> definitionOptional = catalog.get(schematicId);
         if (definitionOptional.isEmpty()) {
@@ -151,68 +191,147 @@ public final class SchematicServiceImpl implements SchematicService {
             );
         }
         Location chestAnchor = chestOptional.get();
-        boolean ignoreAir = options.ignoreAirOverride() != null
-                ? options.ignoreAirOverride()
-                : definition.settings().paste.ignoreAir;
+        SchematicSettings settings = definition.settings();
+        SchematicPlacementSettings placement = SchematicSpawnSupport.resolvePlacement(settings, overrides);
+        var blend = SchematicSpawnSupport.resolveBlend(settings, overrides);
+        boolean ignoreAir = SchematicSpawnSupport.resolveIgnoreAir(
+                settings,
+                overrides,
+                options.ignoreAirOverride()
+        );
+        int blocksPerTick = SchematicSpawnSupport.resolveBlocksPerTick(settings, overrides);
         boolean blendEnabled = options.landscapeBlendOverride() != null
                 ? options.landscapeBlendOverride()
-                : definition.settings().blend.enabled;
+                : blend.enabled;
         int blendRadius = options.blendRadiusOverride() != null
                 ? options.blendRadiusOverride()
-                : definition.settings().blend.radius;
-        int captureMargin = blendEnabled ? Math.max(0, blendRadius) : 0;
+                : blend.radius;
+        int terrainAdapt = Math.max(0, placement.terrainAdaptBlocks);
+        final int effectiveBlendRadius = resolveBlendRadius(blendEnabled, blendRadius, metadata);
+        final int horizontalCaptureMargin = blendEnabled ? Math.max(0, effectiveBlendRadius) : 0;
 
         CompletableFuture<SchematicPasteResult> future = new CompletableFuture<>();
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            int undoBlocks = undoBlockCount(metadata);
-            int undoLimit = definition.settings().paste.maxUndoBlocks;
-            if (undoLimit > 0 && undoBlocks > undoLimit) {
-                future.complete(SchematicPasteResult.failed(
-                        options.sessionId(),
-                        "schematic.undo-too-large"
-                ));
+        int captureBlocks = SchematicRegionBounds.estimateUndoCaptureBlockCount(
+                metadata,
+                horizontalCaptureMargin,
+                terrainAdapt,
+                blendEnabled ? effectiveBlendRadius : 0
+        );
+        int undoLimit = settings.paste.maxUndoBlocks;
+        if (undoLimit > 0 && captureBlocks > undoLimit) {
+            plugin.getLogger().warning(
+                    "Schematic undo snapshot too large for '" + schematicId + "': "
+                            + captureBlocks + " capture blocks (limit " + undoLimit
+                            + ", region " + metadata.sizeX() + "x" + metadata.sizeY() + "x" + metadata.sizeZ()
+                            + ", footprint " + metadata.footprint().size()
+                            + ", " + metadata.blockCount() + " schematic blocks). "
+                            + "Raise paste.maxUndoBlocks in schematics/" + schematicId + ".yml."
+            );
+            return CompletableFuture.completedFuture(
+                    SchematicPasteResult.failed(options.sessionId(), "schematic.undo-too-large")
+            );
+        }
+
+        SchematicRegionPreparer.prepareAsync(
+                plugin,
+                world,
+                normalizedOrigin,
+                metadata,
+                placement,
+                horizontalCaptureMargin,
+                terrainAdapt
+        ).whenComplete((prepared, prepareError) -> {
+            if (prepareError != null) {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    String reason = prepareError.getMessage();
+                    if ("terrain-too-rough".equals(reason)) {
+                        future.complete(SchematicPasteResult.failed(
+                                options.sessionId(),
+                                "schematic.terrain-too-rough"
+                        ));
+                    } else {
+                        plugin.getLogger().log(
+                                java.util.logging.Level.WARNING,
+                                "Schematic prepare failed for '" + schematicId + "'",
+                                prepareError
+                        );
+                        future.complete(SchematicPasteResult.failed(
+                                options.sessionId(),
+                                "schematic.paste-failed"
+                        ));
+                    }
+                });
                 return;
             }
-            List<WorldEditSchematicBridge.BlockSnapshot> snapshots = worldEditBridge.captureRegion(
-                    world,
-                    normalizedOrigin,
+            sessionUndo.store(options.sessionId(), world.getName(), prepared.snapshots());
+            Path schematicFile = definition.schematicFile();
+            FaweSchematicPaster.pasteWhenApplied(
+                    plugin,
+                    schematicFile,
                     metadata,
-                    captureMargin
-            );
-            sessionUndo.store(options.sessionId(), world.getName(), snapshots);
-            Path schematicFile = definition.directory().resolve(definition.settings().file);
-
-            pasteQueue.submit(() -> {
-                try {
-                    return worldEditBridge.paste(
-                            schematicFile,
-                            definition.settings(),
-                            metadata,
-                            normalizedOrigin,
-                            ignoreAir
-                    );
-                } catch (Exception exception) {
-                    return WorldEditSchematicBridge.PasteOutcome.failed(exception.getMessage());
-                }
-            }).thenAccept(outcome -> Bukkit.getScheduler().runTask(plugin, () -> {
-                if (!outcome.success()) {
+                    normalizedOrigin,
+                    ignoreAir,
+                    blocksPerTick
+            ).whenComplete((outcome, pasteError) -> Bukkit.getScheduler().runTask(plugin, () -> {
+                if (pasteError != null || outcome == null || !outcome.success()) {
+                    worldEditBridge.restoreSnapshots(world, prepared.snapshots());
                     sessionUndo.remove(options.sessionId());
+                    String detail = pasteError != null
+                            ? pasteError.getMessage()
+                            : outcome != null ? outcome.error() : "unknown";
+                    plugin.getLogger().warning(
+                            "Schematic paste failed for '" + schematicId + "' at "
+                                    + normalizedOrigin.getBlockX() + ", "
+                                    + normalizedOrigin.getBlockY() + ", "
+                                    + normalizedOrigin.getBlockZ()
+                                    + (detail != null ? ": " + detail : "")
+                    );
                     future.complete(SchematicPasteResult.failed(
                             options.sessionId(),
                             "schematic.paste-failed"
                     ));
                     return;
                 }
-                worldEditBridge.clearMarker(world, normalizedOrigin, metadata, definition.settings());
-                if (blendEnabled && blendRadius > 0) {
+                Location resolvedChest = SchematicMarkerLocator.resolveChestAfterPaste(
+                        plugin,
+                        schematicId,
+                        world,
+                        normalizedOrigin,
+                        metadata,
+                        settings.marker
+                );
+                SchematicMarkerLocator.clearMarkerAt(world, resolvedChest, settings.marker);
+                List<WorldEditSchematicBridge.BlockSnapshot> undoSnapshots =
+                        new ArrayList<>(prepared.snapshots());
+                if (blendEnabled && effectiveBlendRadius > 0) {
                     SchematicWorldBounds bounds = toWorldBounds(normalizedOrigin, metadata);
-                    SchematicLandscapeBlender.blend(world, bounds, blendRadius);
+                    java.util.Set<Long> capturedKeys = WorldEditSchematicBridge.snapshotKeys(undoSnapshots);
+                    SchematicLandscapeBlender.appendPreBlendCapture(
+                            world,
+                            bounds,
+                            effectiveBlendRadius,
+                            undoSnapshots,
+                            capturedKeys
+                    );
+                    SchematicLandscapeBlender.blend(world, bounds, effectiveBlendRadius);
+                    sessionUndo.store(options.sessionId(), world.getName(), List.copyOf(undoSnapshots));
                 }
+                plugin.getLogger().info(
+                        "Schematic '" + schematicId + "' pasted at "
+                                + normalizedOrigin.getBlockX() + ", "
+                                + normalizedOrigin.getBlockY() + ", "
+                                + normalizedOrigin.getBlockZ()
+                                + " chest="
+                                + resolvedChest.getBlockX() + ", "
+                                + resolvedChest.getBlockY() + ", "
+                                + resolvedChest.getBlockZ()
+                                + " (" + outcome.blockCount() + " blocks)"
+                );
                 future.complete(new SchematicPasteResult(
                         options.sessionId(),
                         true,
                         normalizedOrigin.clone(),
-                        chestAnchor.clone(),
+                        resolvedChest.clone(),
                         outcome.blockCount(),
                         Optional.empty()
                 ));
@@ -235,12 +354,9 @@ public final class SchematicServiceImpl implements SchematicService {
             return future;
         }
         List<WorldEditSchematicBridge.BlockSnapshot> snapshots = undo.snapshots();
-        pasteQueue.submit(() -> {
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                worldEditBridge.restoreSnapshots(world, snapshots);
-                future.complete(null);
-            });
-            return null;
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            worldEditBridge.restoreSnapshots(world, snapshots);
+            future.complete(null);
         });
         return future;
     }
@@ -255,7 +371,6 @@ public final class SchematicServiceImpl implements SchematicService {
     }
 
     public void shutdown() {
-        pasteQueue.shutdown();
         catalog.shutdown();
         sessionUndo.clear();
     }
@@ -268,11 +383,19 @@ public final class SchematicServiceImpl implements SchematicService {
         return normalized;
     }
 
-    private static int undoBlockCount(SchematicDefinition.SchematicMetadata metadata) {
-        int sizeX = metadata.regionMaxX() - metadata.regionMinX() + 1;
-        int sizeY = metadata.regionMaxY() - metadata.regionMinY() + 1;
-        int sizeZ = metadata.regionMaxZ() - metadata.regionMinZ() + 1;
-        long volume = (long) sizeX * sizeY * sizeZ;
-        return volume > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) volume;
+    private static int resolveBlendRadius(
+            boolean blendEnabled,
+            int configuredRadius,
+            SchematicDefinition.SchematicMetadata metadata
+    ) {
+        if (!blendEnabled || configuredRadius <= 0) {
+            return 0;
+        }
+        int minHorizontal = Math.min(metadata.sizeX(), metadata.sizeZ());
+        if (minHorizontal <= SchematicPlacementProbeBuilder.FULL_FOOTPRINT_PROBE_LIMIT) {
+            return configuredRadius;
+        }
+        int scaled = Math.max(configuredRadius, minHorizontal / 6);
+        return Math.min(scaled, 12);
     }
 }

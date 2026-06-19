@@ -11,6 +11,9 @@ public final class AirDropModuleSettings extends YamlSerializable {
     @Comment(@CommentValue("Глобальный лимит активных аирдропов всех типов."))
     public int maxConcurrentTotal = 20;
 
+    @Comment(@CommentValue("Подробный лог поиска точки в консоль (не в чат игрокам)."))
+    public boolean spawnDebugEnabled = false;
+
     @NewLine
     @Comment(@CommentValue("Локализация (тексты — lang/ в папке плагина)."))
     public LocaleSettings locale = new LocaleSettings();

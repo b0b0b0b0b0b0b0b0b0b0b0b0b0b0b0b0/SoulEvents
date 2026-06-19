@@ -170,7 +170,7 @@ public final class AirDropPreOpenService {
             }
             List<PotionEffect> resolved = api.protection().effects().resolve(sessionId, player, baseEffects);
             for (PotionEffect effect : resolved) {
-                player.addPotionEffect(effect, true);
+                player.addPotionEffect(effect);
             }
         }
     }

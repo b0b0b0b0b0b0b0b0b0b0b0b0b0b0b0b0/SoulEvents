@@ -1,19 +1,19 @@
-package bm.b0b0b0.soulevents.core.config.settings;
+package bm.b0b0b0.soulevents.airdrop.config.settings;
 
 import net.elytrium.serializer.annotations.Comment;
 import net.elytrium.serializer.annotations.CommentValue;
 import net.elytrium.serializer.language.object.YamlSerializable;
 
-public final class SchematicPlacementSettings extends YamlSerializable {
+public final class TypeSchematicPlacementSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Доп. смещение по Y после привязки к поверхности (+ выше, − ниже)."))
     public int verticalOffset = 0;
 
-    @Comment(@CommentValue("Макс. перепад высот footprint (блоки). Для крупных схем обычно хватает 3."))
-    public int maxSurfaceDelta = 3;
+    @Comment(@CommentValue("Макс. перепад высот footprint (блоки)."))
+    public int maxSurfaceDelta = 32;
 
     @Comment(@CommentValue("Подгонка рельефа перед paste: сколько блоков вверх/вниз по каждой колонке footprint."))
-    public int terrainAdaptBlocks = 3;
+    public int terrainAdaptBlocks = 32;
 
     @Comment(@CommentValue("Мин. воздуха над верхом схемы."))
     public int minAirAbove = 6;
@@ -28,5 +28,5 @@ public final class SchematicPlacementSettings extends YamlSerializable {
     public boolean rejectLiquids = true;
 
     @Comment(@CommentValue("Твёрдый блок под поверхностью."))
-    public boolean requireSolidBelow = true;
+    public boolean requireSolidBelow = false;
 }

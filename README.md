@@ -46,7 +46,7 @@
 
 ## Схематики
 
-Схематики живут в **ядре** (`plugins/SoulEvents/schematics/`). Модули (AirDrop и др.) только ссылаются на `schematicId` в своём типе.
+Схематики живут в **ядре** (`plugins/SoulEvents/schematics/`). Один `.schem` можно использовать в **разных** типах аирдропа с разными настройками размещения в `types/<id>.yml`.
 
 **Зависимость:** [FastAsyncWorldEdit](https://modrinth.black/plugin/fastasyncworldedit) или [WorldEdit](https://modrinth.black/plugin/worldedit) (softdepend). Без FAWE/WE каталог загрузится, но paste и scan `.schem` не работают.
 
@@ -54,15 +54,17 @@
 
 ```
 plugins/SoulEvents/schematics/
-  military_pad/
-    pad.schem           ← FAWE / WorldEdit clipboard
-    settings.yml        ← настройки этой схемы
-  desert_ruin/
-    ruin.schem
-    settings.yml
+  test_arena.schem      ← файл схемы
+  test_arena.yml        ← только marker (создаётся при reload)
+  military_pad.schem
+  military_pad.yml
 ```
 
-ID схемы = **имя папки** (`military_pad`).
+ID схемы = **имя файла без расширения** (`test_arena`).
+
+В JAR ядра в комплекте **`test_arena.schem`** — при первом `/soulevents reload` или старте сервера копируется в `schematics/`, если файла ещё нет.
+
+Подпапки не нужны. Положил `.schem` в `schematics/` → `/soulevents reload` → рядом появится `<id>.yml` с секцией `marker`.
 
 ### Подготовка `.schem`
 
@@ -71,34 +73,33 @@ ID схемы = **имя папки** (`military_pad`).
 **Сборка**
 
 1. На тестовом мире собери постройку **в воздухе** (высокий Y), чтобы при `//copy` в файл не попали земля, трава и прочий мусор вокруг.
-2. В точке центра аирдропа — **ровно один** блок `marker.block` из `settings.yml`. Не заливай им всю постройку: если в `.schem` их больше одного, схема **не загрузится** (paste отключён). Для декора используй обычные блоки; маркер — редкий (`STRUCTURE_VOID`, `LIGHT_BLUE_CONCRETE`…).
+2. В точке центра аирдропа — **ровно один** блок `marker.block` (дефолт `BEDROCK`). Не заливай им всю постройку: если в `.schem` их больше одного, схема **не загрузится** (paste отключён).
 3. Если в типе включён кластер (`chestCluster.enabled`, по умолчанию да) — вокруг маркера встанут **4 сундука** крестом (север / юг / восток / запад). В схеме под этой зоной должна быть ровная площадка или воздух на уровне маркера — плагин заменит блоки на сундуки сам.
 4. Один сундук без кластера — выключи `chestCluster.enabled` в `types/<id>.yml`; тогда лутовый сундук будет ровно в точке маркера.
-5. Выдели постройку → `//copy` → `//schem save <id>` → положи файл в `plugins/SoulEvents/schematics/<id>/` (имя файла — как в `settings.yml`, поле `file`).
-6. `/soulevents reload` → `/soulevents schematic info <id>`. Ошибка маркера — бэкап мира, смени `marker.block`, оставь один такой блок в постройке, `//schem save` заново.
+5. Выдели постройку → `//copy` → `//schem save test_arena` → положи `test_arena.schem` в `plugins/SoulEvents/schematics/`.
+6. `/soulevents reload` → `/soulevents schematic info test_arena`. Ошибка маркера — бэкап мира, смени `marker.block` в `test_arena.yml`, оставь один такой блок в постройке, `//schem save` заново.
 
 **Частые косяки:** схема из сплошного bedrock (847 маркеров — отклонено), маркер не на «полу» кластера, copy с захватом ландшафта.
 
-### settings.yml
+### `<id>.yml` (только маркер)
 
-| Секция | Назначение |
-|--------|------------|
-| `file` | имя `.schem` в папке |
-| `placement.verticalOffset` | ± блоков по Y после привязки к земле |
-| `placement.maxSurfaceDelta` | допустимый перепад высот площадки |
-| `placement.minAirAbove` | воздух над верхом схемы |
-| `placement.safetyMargin` | кольцо проверки вокруг (обрывы, вода) |
+| Ключ | Назначение |
+|------|------------|
 | `marker.block` | блок-маркер: **ровно 1** в `.schem`, иначе схема rejected |
 | `marker.autoDetect` | искать маркер в `.schem` при reload |
 | `marker.chestOffsetX/Y/Z` | ручной offset, если `autoDetect: false` |
-| `paste.ignoreAir` | не вставлять воздух из схемы |
-| `blend.enabled` / `blend.radius` | сглаживание краёв (override из типа аирдропа) |
+| `marker.replaceWithAir` | удалить маркер при paste |
+
+Placement, paste и blend — в **`types/<airdrop>.yml` → `schematic`**, не здесь. Одна схема — много типов с разными параметрами.
 
 ### Размещение на карте
 
 Ядро ищет **ровную поверхность** под весь footprint схемы:
 
-- низ bounding box ложится на землю (`surfaceSnap`);
+- низ bounding box ложится на самую высокую точку footprint (перепад до `maxSurfaceDelta`);
+- для крупных схем (>64 колонок footprint) проверка идёт по **редкой сетке** (~100–150 точек), не по всем 1000+;
+- перед paste **все** колонки footprint подгоняются до `terrainAdaptBlocks` вверх/вниз;
+- после paste края сглаживаются в ландшафт (`blend`);
 - без воды/лавы в зоне;
 - объём схемы не врезается в скалу (clearance check);
 - над площадкой достаточно воздуха.
@@ -122,13 +123,30 @@ ID схемы = **имя папки** (`military_pad`).
 
 ### Подключение к типу аирдропа
 
-В `types/<id>.yml`:
+В `types/default.yml` (и в **каждом** типе — default, rare, donate):
 
 ```yaml
-schematicId: military_pad
-landscapeBlend: true   # override blend схемы
-blendRadius: 4
+schematic:
+  enabled: true
+  id: test_arena
+  placement:
+    max-surface-delta: 3
+    terrain-adapt-blocks: 3
+    min-air-above: 6
+    safety-margin: 4
+  paste:
+    ignore-air: false
+    blocks-per-tick: 1500
+  blend:
+    enabled: true
+    radius: 4
 ```
+
+- `enabled: false` по умолчанию — обычный аирдроп без схемы
+- `id` — имя файла без `.schem` (`test_arena.schem` → `test_arena`)
+- `placement` / `paste` / `blend` — свои для каждого типа; одна `test_arena.schem` может быть у `default`, `rare` и `donate` с разными `terrain-adapt-blocks` и `blend.radius`
+
+Никаких отдельных `types/test_arena.yml` — только правка своего типа.
 
 ---
 

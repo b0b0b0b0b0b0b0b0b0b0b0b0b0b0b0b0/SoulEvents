@@ -4,11 +4,8 @@ import net.elytrium.serializer.annotations.Comment;
 import net.elytrium.serializer.annotations.CommentValue;
 import net.elytrium.serializer.language.object.YamlSerializable;
 
-@Comment(@CommentValue("Настройки одной схематики. Папка: plugins/SoulEvents/schematics/<id>/"))
+@Comment(@CommentValue("Runtime-настройки схемы. В schematics/<id>.yml на диске — только marker (см. SchematicFileSettings)."))
 public final class SchematicSettings extends YamlSerializable {
-
-    @Comment(@CommentValue("Файл .schem в этой же папке."))
-    public String file = "schematic.schem";
 
     public SchematicPlacementSettings placement = new SchematicPlacementSettings();
 

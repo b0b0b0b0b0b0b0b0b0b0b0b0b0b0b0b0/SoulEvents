@@ -8,7 +8,8 @@ import java.util.List;
 
 public record SchematicDefinition(
         String id,
-        Path directory,
+        Path schematicFile,
+        Path configFile,
         SchematicSettings settings,
         SchematicMetadata metadata
 ) {

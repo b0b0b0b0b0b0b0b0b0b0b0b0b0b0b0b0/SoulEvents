@@ -4,6 +4,7 @@ import bm.b0b0b0.soulevents.airdrop.config.settings.AirDropTypeSettings;
 import bm.b0b0b0.soulevents.airdrop.gate.WorldPlacementGate;
 import bm.b0b0b0.soulevents.api.schematic.SchematicService;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceFinder;
+import bm.b0b0b0.soulevents.api.world.WorldPlacementResult;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -26,17 +27,41 @@ public final class SpawnWorldResolver {
             WorldPlacementGate gate,
             Consumer<Optional<Location>> callback
     ) {
+        resolveAsync(plugin, type, gate, null, callback);
+    }
+
+    public void resolveAsync(
+            Plugin plugin,
+            AirDropTypeSettings type,
+            WorldPlacementGate gate,
+            SpawnSearchDebug debug,
+            Consumer<Optional<Location>> callback
+    ) {
         String spawnWorldName = type.worldPlacement.spawnWorld;
         if (spawnWorldName == null || spawnWorldName.isEmpty()) {
             callback.accept(locationFinder.findInWorlds(type, gate, gate.schedulerWorlds()));
             return;
         }
         World world = Bukkit.getWorld(spawnWorldName);
-        if (world == null || !gate.checkWorld(world).allowed()) {
+        if (world == null) {
+            if (debug != null) {
+                debug.finishFailedWorld(spawnWorldName, "world not loaded");
+            }
             callback.accept(Optional.empty());
             return;
         }
-        locationFinder.findAsync(plugin, type, world, gate, callback);
+        WorldPlacementResult worldCheck = gate.checkWorld(world);
+        if (!worldCheck.allowed()) {
+            if (debug != null) {
+                debug.finishFailedWorld(
+                        spawnWorldName,
+                        SpawnSearchDebug.gateReason(worldCheck.denial().name(), worldCheck.regionName())
+                );
+            }
+            callback.accept(Optional.empty());
+            return;
+        }
+        locationFinder.findAsync(plugin, type, world, gate, debug, callback);
     }
 
     public Optional<Location> resolve(AirDropTypeSettings type, WorldPlacementGate gate) {

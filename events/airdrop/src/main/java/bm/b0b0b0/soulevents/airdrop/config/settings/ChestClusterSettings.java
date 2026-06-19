@@ -5,7 +5,7 @@ import net.elytrium.serializer.annotations.CommentValue;
 
 public final class ChestClusterSettings {
 
-    @Comment(@CommentValue("Четыре сундука вокруг центра (носами наружу)."))
+    @Comment(@CommentValue("true = 4 сундука крестом вокруг маркера; false = один сундук в точке маркера."))
     public boolean enabled = true;
 
     @Comment(@CommentValue("ALL — свой лут в каждом сундуке; ONE_RANDOM — лут только в одном случайном."))

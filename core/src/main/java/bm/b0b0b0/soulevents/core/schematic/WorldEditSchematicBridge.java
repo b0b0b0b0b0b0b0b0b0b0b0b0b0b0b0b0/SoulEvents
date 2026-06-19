@@ -1,120 +1,73 @@
 package bm.b0b0b0.soulevents.core.schematic;
 
 import bm.b0b0b0.soulevents.core.config.settings.SchematicSettings;
-import com.sk89q.worldedit.EditSession;
-import com.sk89q.worldedit.WorldEdit;
-import com.sk89q.worldedit.bukkit.BukkitAdapter;
-import com.sk89q.worldedit.extent.clipboard.Clipboard;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
-import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
-import com.sk89q.worldedit.function.operation.Operation;
-import com.sk89q.worldedit.function.operation.Operations;
-import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.session.ClipboardHolder;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
-import java.util.concurrent.CompletableFuture;
+import java.util.Set;
 
 public final class WorldEditSchematicBridge {
 
-    public CompletableFuture<PasteOutcome> pasteAsync(
-            Path schematicFile,
-            SchematicSettings settings,
-            SchematicDefinition.SchematicMetadata metadata,
-            Location pasteOrigin,
-            boolean ignoreAir
-    ) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return paste(schematicFile, settings, metadata, pasteOrigin, ignoreAir);
-            } catch (Exception exception) {
-                return PasteOutcome.failed(exception.getMessage());
-            }
-        });
+    public static BlockSnapshot snapshotBlock(World world, int x, int y, int z) {
+        Block block = world.getBlockAt(x, y, z);
+        return new BlockSnapshot(x, y, z, block.getBlockData().clone());
     }
 
-    public PasteOutcome paste(
-            Path schematicFile,
-            SchematicSettings settings,
-            SchematicDefinition.SchematicMetadata metadata,
-            Location pasteOrigin,
-            boolean ignoreAir
-    ) throws Exception {
-        World world = pasteOrigin.getWorld();
-        if (world == null) {
-            return PasteOutcome.failed("World is null");
-        }
-        ClipboardFormat format = ClipboardFormats.findByFile(schematicFile.toFile());
-        if (format == null) {
-            return PasteOutcome.failed("Unknown schematic format");
-        }
-        try (InputStream input = Files.newInputStream(schematicFile);
-             ClipboardReader reader = format.getReader(input);
-             EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
-            Clipboard clipboard = reader.read();
-            BlockVector3 to = BlockVector3.at(
-                    pasteOrigin.getBlockX(),
-                    pasteOrigin.getBlockY(),
-                    pasteOrigin.getBlockZ()
-            );
-            Operation operation = new ClipboardHolder(clipboard)
-                    .createPaste(editSession)
-                    .to(to)
-                    .ignoreAirBlocks(ignoreAir)
-                    .build();
-            Operations.complete(operation);
-            editSession.flushSession();
-            return PasteOutcome.success(metadata.blockCount());
-        }
+    static long snapshotKey(int x, int y, int z) {
+        return ((long) x & 0x3FFFFFFL) << 38 | ((long) y & 0xFFF) << 26 | ((long) z & 0x3FFFFFFL);
     }
 
-    public List<BlockSnapshot> captureRegion(
+    static Set<Long> snapshotKeys(List<BlockSnapshot> snapshots) {
+        Set<Long> keys = new HashSet<>(snapshots.size());
+        for (BlockSnapshot snapshot : snapshots) {
+            keys.add(snapshotKey(snapshot.x(), snapshot.y(), snapshot.z()));
+        }
+        return keys;
+    }
+
+    static boolean appendSnapshotIfAbsent(
             World world,
-            Location pasteOrigin,
-            SchematicDefinition.SchematicMetadata metadata
+            List<BlockSnapshot> snapshots,
+            Set<Long> keys,
+            int x,
+            int y,
+            int z
     ) {
-        return captureRegion(world, pasteOrigin, metadata, 0);
+        if (!keys.add(snapshotKey(x, y, z))) {
+            return false;
+        }
+        snapshots.add(snapshotBlock(world, x, y, z));
+        return true;
     }
 
     public List<BlockSnapshot> captureRegion(
             World world,
             Location pasteOrigin,
             SchematicDefinition.SchematicMetadata metadata,
-            int horizontalMargin
+            int horizontalMargin,
+            int verticalBelow,
+            int verticalAbove
     ) {
         List<BlockSnapshot> snapshots = new ArrayList<>();
-        int margin = Math.max(0, horizontalMargin);
+        SchematicRegionBounds.VolumeBounds bounds = SchematicRegionBounds.captureBounds(
+                metadata,
+                horizontalMargin,
+                verticalBelow,
+                verticalAbove
+        );
         int baseX = pasteOrigin.getBlockX();
         int baseY = pasteOrigin.getBlockY();
         int baseZ = pasteOrigin.getBlockZ();
-        int minDx = metadata.regionMinX() - metadata.originX() - margin;
-        int maxDx = metadata.regionMaxX() - metadata.originX() + margin;
-        int minDy = metadata.regionMinY() - metadata.originY();
-        int maxDy = metadata.regionMaxY() - metadata.originY();
-        int minDz = metadata.regionMinZ() - metadata.originZ() - margin;
-        int maxDz = metadata.regionMaxZ() - metadata.originZ() + margin;
-
-        for (int dx = minDx; dx <= maxDx; dx++) {
-            for (int dz = minDz; dz <= maxDz; dz++) {
-                for (int dy = minDy; dy <= maxDy; dy++) {
-                    Block block = world.getBlockAt(baseX + dx, baseY + dy, baseZ + dz);
-                    snapshots.add(new BlockSnapshot(
-                            baseX + dx,
-                            baseY + dy,
-                            baseZ + dz,
-                            block.getBlockData().clone()
-                    ));
+        for (int dx = bounds.minDx(); dx <= bounds.maxDx(); dx++) {
+            for (int dz = bounds.minDz(); dz <= bounds.maxDz(); dz++) {
+                for (int dy = bounds.minDy(); dy <= bounds.maxDy(); dy++) {
+                    snapshots.add(snapshotBlock(world, baseX + dx, baseY + dy, baseZ + dz));
                 }
             }
         }
@@ -130,7 +83,7 @@ public final class WorldEditSchematicBridge {
 
     public void clearMarker(
             World world,
-            Location pasteOrigin,
+            org.bukkit.Location pasteOrigin,
             SchematicDefinition.SchematicMetadata metadata,
             SchematicSettings settings
     ) {

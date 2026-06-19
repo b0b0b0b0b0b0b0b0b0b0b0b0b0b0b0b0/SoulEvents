@@ -21,8 +21,20 @@ public class RandomSpawnSettings extends YamlSerializable {
     @Comment(@CommentValue("Центр Z, если useWorldSpawnAsCenter = false."))
     public int centerZ = 0;
 
-    @Comment(@CommentValue("Попыток найти подходящую точку на поверхности."))
-    public int maxAttempts = 48;
+    @Comment(@CommentValue("Попыток найти подходящую точку (не все подряд — см. search-timeout-seconds)."))
+    public int maxAttempts = 32;
+
+    @Comment(@CommentValue("Макс. секунд на поиск точки, потом отказ."))
+    public int searchTimeoutSeconds = 20;
+
+    @Comment(@CommentValue("Сколько кандидатов проверять параллельно (загрузка чанков)."))
+    public int parallelAttempts = 8;
+
+    @Comment(@CommentValue("Макс. точек из уже загруженных чанков; остальное — случайные X/Z с подгрузкой."))
+    public int loadedChunkCandidateLimit = 6;
+
+    @Comment(@CommentValue("Не тратить попытку на воду/океан (отсев по highest block)."))
+    public boolean skipWaterBiomes = true;
 
     @Comment(@CommentValue("Смещение Y над highest block в выбранных X/Z."))
     public int surfaceYOffset = 1;

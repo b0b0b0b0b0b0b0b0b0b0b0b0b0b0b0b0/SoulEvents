@@ -4,6 +4,7 @@ import bm.b0b0b0.soulevents.api.SoulEventsApi;
 import bm.b0b0b0.soulevents.api.module.ActiveEvent;
 import bm.b0b0b0.soulevents.api.module.EventPhase;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPasteOptions;
+import bm.b0b0b0.soulevents.api.schematic.SchematicSpawnOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicWorldBounds;
 import bm.b0b0b0.soulevents.api.world.WorldPlacementResult;
 import bm.b0b0b0.soulevents.airdrop.config.AirDropPermissions;
@@ -571,7 +572,17 @@ public final class AirDropService {
         WorldPlacementGate gate = gate(typeId);
         String spawnWorldName = spawnWorldResolver.configuredWorldName(definition.settings());
         World spawnWorld = Bukkit.getWorld(spawnWorldName);
+        SpawnSearchDebug debug = new SpawnSearchDebug(
+                plugin,
+                config.module().spawnDebugEnabled,
+                typeId
+        );
         if (spawnWorld == null) {
+            debug.finishFailedWorld(spawnWorldName, "world not loaded");
+            plugin.getLogger().warning(
+                    "[SoulEvents-AirDrop] Spawn failed type=" + typeId
+                            + " source=" + source + ": " + debug.failureMessage()
+            );
             if (feedback != null) {
                 messages.send(feedback, "airdrop.world-not-found", Map.of("world", spawnWorldName));
             }
@@ -580,30 +591,60 @@ public final class AirDropService {
         }
         WorldPlacementResult worldCheck = gate.checkWorld(spawnWorld);
         if (!worldCheck.allowed()) {
+            debug.finishFailedWorld(
+                    spawnWorldName,
+                    SpawnSearchDebug.gateReason(worldCheck.denial().name(), worldCheck.regionName())
+            );
+            plugin.getLogger().warning(
+                    "[SoulEvents-AirDrop] Spawn failed type=" + typeId
+                            + " source=" + source + ": " + debug.failureMessage()
+            );
             if (feedback != null) {
                 sendPlacementError(feedback, worldCheck);
             }
             completion.accept(false);
             return;
         }
-        if (feedback != null) {
-            messages.send(feedback, "airdrop.searching", Map.of("world", spawnWorldName));
-        }
-        spawnWorldResolver.resolveAsync(plugin, definition.settings(), gate, location -> {
+        plugin.getLogger().info(
+                "[SoulEvents-AirDrop] Spawn search type=" + typeId
+                        + " world=" + spawnWorldName
+                        + " source=" + source
+        );
+        spawnWorldResolver.resolveAsync(plugin, definition.settings(), gate, debug, location -> {
             if (location.isEmpty()) {
+                plugin.getLogger().warning(
+                        "[SoulEvents-AirDrop] Spawn failed type=" + typeId
+                                + " source=" + source + ": " + debug.failureMessage()
+                );
                 if (feedback != null) {
-                    messages.send(feedback, "airdrop.spawn-failed", Map.of("type", typeId, "world", spawnWorldName));
+                    messages.send(feedback, "airdrop.spawn-failed", Map.of(
+                            "type", typeId,
+                            "type_name", resolveTypeName(definition),
+                            "world", spawnWorldName
+                    ));
                 }
                 completion.accept(false);
                 return;
             }
             if (!tryStart(typeId, definition, location.get(), source, bypassLimits)) {
+                plugin.getLogger().warning(
+                        "[SoulEvents-AirDrop] Spawn failed type=" + typeId
+                                + " source=" + source + ": concurrent limit reached"
+                );
                 if (feedback != null) {
                     messages.send(feedback, "airdrop.limit-reached", Map.of("type", typeId));
                 }
                 completion.accept(false);
                 return;
             }
+            plugin.getLogger().info(
+                    "[SoulEvents-AirDrop] Spawn started type=" + typeId
+                            + " at " + location.get().getBlockX() + ", "
+                            + location.get().getBlockY() + ", "
+                            + location.get().getBlockZ()
+                            + " world=" + spawnWorldName
+                            + " source=" + source
+            );
             if (feedback != null) {
                 String messageKey = "admin".equals(source) ? "airdrop.admin-summoned" : "airdrop.summoned";
                 messages.send(feedback, messageKey, placeholders(typeId, definition, location.get(), null));
@@ -639,7 +680,7 @@ public final class AirDropService {
         if (!canSpawn(typeId, definition.settings(), bypassLimits)) {
             return false;
         }
-        if (!definition.settings().schematicId.isEmpty()) {
+        if (definition.settings().usesSchematic()) {
             startSessionWithSchematic(typeId, definition, anchor, source);
             return true;
         }
@@ -654,7 +695,8 @@ public final class AirDropService {
             String source
     ) {
         AirDropTypeSettings type = definition.settings();
-        Optional<Location> chestOptional = api.schematics().resolveChestAnchor(pasteOrigin, type.schematicId);
+        String schematicId = type.schematicId();
+        Optional<Location> chestOptional = api.schematics().resolveChestAnchor(pasteOrigin, schematicId);
         if (chestOptional.isEmpty()) {
             plugin.getLogger().warning("Schematic chest anchor missing for type " + typeId);
             return;
@@ -667,18 +709,35 @@ public final class AirDropService {
         api.sessions().setPhase(sessionId, EventPhase.PREPARING);
         sessionRepository.insertSession(sessionId, typeId, blockAnchor, source);
 
-        SchematicPasteOptions options = SchematicPasteOptions.legacy(
-                sessionId,
-                type.landscapeBlend,
-                type.blendRadius,
-                false
-        );
+        SchematicSpawnOverrides spawnOverrides = SchematicSpawnOverridesFactory.from(type.schematic);
+        SchematicPasteOptions options = SchematicPasteOptions.of(sessionId);
         Optional<SchematicWorldBounds> schematicBounds = api.schematics()
-                .worldBounds(type.schematicId, pasteOrigin);
+                .worldBounds(schematicId, pasteOrigin);
         arenaRegionService.create(sessionId, blockAnchor, type.arenaWorldGuard, schematicBounds);
-        api.schematics().paste(type.schematicId, pasteOrigin, options).thenAccept(result ->
+        plugin.getLogger().info(
+                "AirDrop schematic spawn: type=" + typeId
+                        + " schematic=" + schematicId
+                        + " paste=" + pasteOrigin.getBlockX() + ", "
+                        + pasteOrigin.getBlockY() + ", "
+                        + pasteOrigin.getBlockZ()
+                        + " chest=" + blockAnchor.getBlockX() + ", "
+                        + blockAnchor.getBlockY() + ", "
+                        + blockAnchor.getBlockZ()
+        );
+        api.schematics().paste(schematicId, pasteOrigin, options, spawnOverrides).thenAccept(result ->
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     if (!result.success()) {
+                        String reason = result.errorKey().orElse("unknown");
+                        plugin.getLogger().warning(
+                                "AirDrop schematic paste failed type=" + typeId
+                                        + " session=" + sessionId
+                                        + " reason=" + reason
+                                        + " at "
+                                        + pasteOrigin.getBlockX() + ", "
+                                        + pasteOrigin.getBlockY() + ", "
+                                        + pasteOrigin.getBlockZ()
+                                        + " (details in SoulEvents log)"
+                        );
                         endSession(sessionId, "SCHEMATIC_FAILED");
                         return;
                     }

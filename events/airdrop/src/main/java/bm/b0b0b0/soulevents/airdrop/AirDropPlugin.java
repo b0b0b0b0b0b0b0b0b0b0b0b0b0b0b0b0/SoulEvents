@@ -9,7 +9,6 @@ import bm.b0b0b0.soulevents.airdrop.database.DataSourceProvider;
 import bm.b0b0b0.soulevents.airdrop.database.DatabaseBootstrap;
 import bm.b0b0b0.soulevents.airdrop.gui.AirDropGuiFactory;
 import bm.b0b0b0.soulevents.airdrop.gui.AirDropGuiListener;
-import bm.b0b0b0.soulevents.airdrop.integration.ArenaRegionService;
 import bm.b0b0b0.soulevents.airdrop.listener.ArenaRegionEnforcementListener;
 import bm.b0b0b0.soulevents.airdrop.listener.AirDropChestListener;
 import bm.b0b0b0.soulevents.airdrop.message.AirDropMessageService;

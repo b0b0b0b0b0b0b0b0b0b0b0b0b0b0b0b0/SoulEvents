@@ -2,6 +2,7 @@ package bm.b0b0b0.soulevents.core.schematic;
 
 import bm.b0b0b0.soulevents.api.schematic.SchematicProfile;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceOffset;
+import bm.b0b0b0.soulevents.core.config.settings.SchematicFileSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicSettings;
 import org.bukkit.plugin.Plugin;
 
@@ -12,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -20,6 +22,8 @@ import java.util.concurrent.Executors;
 import java.util.logging.Level;
 
 public final class SchematicCatalog {
+
+    private static final List<String> SCHEMATIC_EXTENSIONS = List.of(".schem", ".schematic");
 
     private final Plugin plugin;
     private final SchematicMarkerScanner scanner;
@@ -43,17 +47,13 @@ public final class SchematicCatalog {
             plugin.getLogger().log(Level.SEVERE, "Failed to create schematics folder", exception);
         }
 
+        BundledSchematicInstaller.installMissing(plugin, root);
+
         Map<String, SchematicDefinition> pending = new LinkedHashMap<>();
         try (var stream = Files.list(root)) {
-            stream.filter(Files::isDirectory).forEach(directory -> {
-                String id = directory.getFileName().toString();
-                if (id.isBlank()) {
-                    return;
-                }
-                SchematicSettings settings = new SchematicSettings();
-                settings.reload(directory.resolve("settings.yml"));
-                pending.put(id, new SchematicDefinition(id, directory, settings, null));
-            });
+            stream.filter(Files::isRegularFile)
+                    .filter(this::isSchematicFile)
+                    .forEach(schematicFile -> registerSchematic(root, schematicFile, pending));
         } catch (IOException exception) {
             plugin.getLogger().log(Level.SEVERE, "Failed to scan schematics folder", exception);
         }
@@ -61,6 +61,10 @@ public final class SchematicCatalog {
         synchronized (definitions) {
             definitions.clear();
             definitions.putAll(pending);
+        }
+
+        if (pending.isEmpty()) {
+            plugin.getLogger().info("Schematics folder is empty — drop .schem files into plugins/SoulEvents/schematics/");
         }
 
         if (!SchematicMarkerScanner.isFaweAvailable()) {
@@ -78,7 +82,8 @@ public final class SchematicCatalog {
                         synchronized (definitions) {
                             definitions.put(definition.id(), new SchematicDefinition(
                                     definition.id(),
-                                    definition.directory(),
+                                    definition.schematicFile(),
+                                    definition.configFile(),
                                     definition.settings(),
                                     metadata
                             ));
@@ -88,18 +93,55 @@ public final class SchematicCatalog {
         return CompletableFuture.allOf(scans.toArray(CompletableFuture[]::new));
     }
 
+    private void registerSchematic(
+            Path root,
+            Path schematicFile,
+            Map<String, SchematicDefinition> pending
+    ) {
+        String id = schematicId(schematicFile);
+        if (id.isBlank()) {
+            return;
+        }
+        Path configFile = root.resolve(id + ".yml");
+        SchematicSettings settings = new SchematicSettings();
+        SchematicFileSettings fileSettings = new SchematicFileSettings();
+        fileSettings.reload(configFile);
+        settings.marker = fileSettings.marker;
+        pending.put(id, new SchematicDefinition(id, schematicFile, configFile, settings, null));
+    }
+
+    private boolean isSchematicFile(Path path) {
+        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+        for (String extension : SCHEMATIC_EXTENSIONS) {
+            if (name.endsWith(extension)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String schematicId(Path schematicFile) {
+        String name = schematicFile.getFileName().toString();
+        int dot = name.lastIndexOf('.');
+        return dot > 0 ? name.substring(0, dot) : name;
+    }
+
     private SchematicDefinition.SchematicMetadata scanDefinition(SchematicDefinition definition) {
-        Path file = definition.directory().resolve(definition.settings().file);
         try {
-            SchematicDefinition.SchematicMetadata metadata = scanner.scan(file, definition.settings());
+            SchematicDefinition.SchematicMetadata metadata = scanner.scan(
+                    definition.schematicFile(),
+                    definition.settings()
+            );
             if (metadata.markerValidation() != MarkerValidation.OK
                     && metadata.markerValidation() != MarkerValidation.MANUAL) {
-                logMarkerFailure(definition.id(), metadata);
+                logMarkerFailure(definition, metadata);
                 return metadata;
             }
             plugin.getLogger().info(
                     "Schematic '" + definition.id() + "' loaded: "
                             + metadata.sizeX() + "x" + metadata.sizeY() + "x" + metadata.sizeZ()
+                            + ", footprint " + metadata.footprint().size()
+                            + ", probe " + metadata.surfaceProbe().size()
                             + ", chest offset (" + metadata.chestOffsetX() + ", "
                             + metadata.chestOffsetY() + ", " + metadata.chestOffsetZ() + ")"
                             + (metadata.markerDetected() ? " [marker]" : " [manual offset]")
@@ -117,17 +159,21 @@ public final class SchematicCatalog {
             case AMBIGUOUS -> plugin.getLogger().severe(
                     "Schematic '" + id + "' rejected: found " + metadata.markerCount() + " marker blocks ("
                             + block + "), need exactly 1. Paste disabled. Fix: backup world, set a rare marker.block "
-                            + "in schematics/" + id + "/settings.yml, leave that block only at the chest anchor in the "
+                            + "in schematics/" + id + ".yml, leave that block only at the chest anchor in the "
                             + "build, //schem save, /soulevents reload."
             );
             case NOT_FOUND -> plugin.getLogger().severe(
                     "Schematic '" + id + "' rejected: marker block " + block + " not found in .schem. "
                             + "Paste disabled. Place one " + block + " at the chest anchor or set manual chestOffset "
-                            + "with marker.autoDetect: false."
+                            + "with marker.autoDetect: false in schematics/" + id + ".yml."
             );
             default -> {
             }
         }
+    }
+
+    private void logMarkerFailure(SchematicDefinition definition, SchematicDefinition.SchematicMetadata metadata) {
+        logMarkerFailure(definition.id(), metadata);
     }
 
     public Collection<String> ids() {

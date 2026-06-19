@@ -96,6 +96,7 @@ public final class SchematicCommandHandler {
                 "size", profile.sizeX() + "x" + profile.sizeY() + "x" + profile.sizeZ(),
                 "chest", profile.chestOffsetX() + ", " + profile.chestOffsetY() + ", " + profile.chestOffsetZ(),
                 "vertical", Integer.toString(profile.verticalOffset()),
+                "footprint", Integer.toString(metadata.footprint().size()),
                 "probe", Integer.toString(profile.surfaceProbe().size())
         ));
         return true;

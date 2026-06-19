@@ -20,11 +20,51 @@ public interface SchematicService {
 
     List<FlatSurfaceOffset> footprint(String schematicId);
 
-    Optional<Location> resolvePasteOrigin(World world, int blockX, int blockZ, String schematicId);
+    default Optional<Location> resolvePasteOrigin(World world, int blockX, int blockZ, String schematicId) {
+        return resolvePasteOrigin(world, blockX, blockZ, schematicId, null);
+    }
+
+    Optional<Location> resolvePasteOrigin(
+            World world,
+            int blockX,
+            int blockZ,
+            String schematicId,
+            SchematicSpawnOverrides overrides
+    );
+
+    default SchematicPlacementResolution resolvePasteOriginDetailed(
+            World world,
+            int blockX,
+            int blockZ,
+            String schematicId
+    ) {
+        return resolvePasteOriginDetailed(world, blockX, blockZ, schematicId, null);
+    }
+
+    SchematicPlacementResolution resolvePasteOriginDetailed(
+            World world,
+            int blockX,
+            int blockZ,
+            String schematicId,
+            SchematicSpawnOverrides overrides
+    );
 
     Optional<Location> resolveChestAnchor(Location pasteOrigin, String schematicId);
 
-    CompletableFuture<SchematicPasteResult> paste(String schematicId, Location pasteOrigin, SchematicPasteOptions options);
+    default CompletableFuture<SchematicPasteResult> paste(
+            String schematicId,
+            Location pasteOrigin,
+            SchematicPasteOptions options
+    ) {
+        return paste(schematicId, pasteOrigin, options, null);
+    }
+
+    CompletableFuture<SchematicPasteResult> paste(
+            String schematicId,
+            Location pasteOrigin,
+            SchematicPasteOptions options,
+            SchematicSpawnOverrides overrides
+    );
 
     CompletableFuture<Void> undo(UUID sessionId);
 

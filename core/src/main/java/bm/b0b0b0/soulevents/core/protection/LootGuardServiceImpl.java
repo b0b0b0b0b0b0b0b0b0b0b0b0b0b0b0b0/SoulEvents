@@ -256,6 +256,17 @@ public final class LootGuardServiceImpl implements LootGuardService {
         revealTasks.clear();
     }
 
+    public void shutdownAll() {
+        for (BukkitTask task : revealTasks.values()) {
+            task.cancel();
+        }
+        revealTasks.clear();
+        lastTakeAt.clear();
+        pendingReveal.clear();
+        claimedSlots.clear();
+        awaitingReveal.clear();
+    }
+
     private void scheduleReveal(Player player, PlayerRevealKey playerKey) {
         cancelRevealTask(playerKey);
         long delayTicks = Math.max(1L, (revealDelayMillis + 49L) / 50L);
@@ -372,8 +383,8 @@ public final class LootGuardServiceImpl implements LootGuardService {
     }
 
     private void apply(PluginConfig config) {
-        this.takeCooldownMillis = config.protection().lootTakeCooldownMillis;
-        this.revealDelayMillis = config.protection().lootRevealDelayMillis;
+        this.takeCooldownMillis = Math.max(0L, config.protection().lootTakeCooldownMillis);
+        this.revealDelayMillis = Math.min(1000L, Math.max(0L, config.protection().lootRevealDelayMillis));
         this.lootDebugEnabled = config.protection().lootDebugEnabled;
     }
 

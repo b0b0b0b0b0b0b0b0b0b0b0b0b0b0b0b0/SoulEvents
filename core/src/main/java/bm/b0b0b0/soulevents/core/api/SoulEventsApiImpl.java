@@ -31,10 +31,13 @@ public final class SoulEventsApiImpl implements SoulEventsApi {
 
     public SoulEventsApiImpl(Plugin plugin, PluginConfig config) {
         this.plugin = plugin;
-        this.sessions = new EventSessionControllerImpl();
+        this.protection = new ProtectionServicesImpl(plugin, config);
+        this.sessions = new EventSessionControllerImpl(
+                protection.arena(),
+                config.protection().arenaProtectionRadius
+        );
         this.modules = new EventModuleRegistryImpl(sessions);
         this.scheduler = new EventSchedulerImpl(plugin);
-        this.protection = new ProtectionServicesImpl(plugin, config);
         this.schematics = new SchematicServiceImpl(plugin);
         this.messages = new YamlMessageService(plugin);
     }
@@ -98,5 +101,6 @@ public final class SoulEventsApiImpl implements SoulEventsApi {
         scheduler.cancelAll();
         sessions.clear();
         schematics.shutdown();
+        protection.shutdown();
     }
 }

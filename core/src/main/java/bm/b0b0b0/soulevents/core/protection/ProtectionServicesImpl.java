@@ -48,4 +48,8 @@ public final class ProtectionServicesImpl implements ProtectionServices {
         arena.reload(config);
         effects.reload(config);
     }
+
+    public void shutdown() {
+        loot.shutdownAll();
+    }
 }

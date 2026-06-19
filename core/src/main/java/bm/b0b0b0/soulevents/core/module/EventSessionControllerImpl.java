@@ -3,18 +3,26 @@ package bm.b0b0b0.soulevents.core.module;
 import bm.b0b0b0.soulevents.api.module.ActiveEvent;
 import bm.b0b0b0.soulevents.api.module.EventPhase;
 import bm.b0b0b0.soulevents.api.module.EventSessionController;
+import bm.b0b0b0.soulevents.api.protection.ArenaGuardService;
 import org.bukkit.Location;
 
 import java.time.Instant;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class EventSessionControllerImpl implements EventSessionController {
 
-    private final Map<UUID, MutableActiveEvent> sessions = new LinkedHashMap<>();
+    private final Map<UUID, MutableActiveEvent> sessions = new ConcurrentHashMap<>();
+    private final ArenaGuardService arenaGuard;
+    private final int protectionRadius;
+
+    public EventSessionControllerImpl(ArenaGuardService arenaGuard, int protectionRadius) {
+        this.arenaGuard = arenaGuard;
+        this.protectionRadius = Math.max(0, protectionRadius);
+    }
 
     @Override
     public ActiveEvent start(String moduleId, String typeId, Location anchor) {
@@ -29,6 +37,9 @@ public final class EventSessionControllerImpl implements EventSessionController 
                 Optional.empty()
         );
         sessions.put(sessionId, event);
+        if (protectionRadius > 0) {
+            arenaGuard.protect(sessionId, anchor, protectionRadius);
+        }
         return event;
     }
 
@@ -55,6 +66,7 @@ public final class EventSessionControllerImpl implements EventSessionController 
             event.phase = EventPhase.ENDED;
             sessions.remove(sessionId);
         }
+        arenaGuard.unprotect(sessionId);
     }
 
     @Override

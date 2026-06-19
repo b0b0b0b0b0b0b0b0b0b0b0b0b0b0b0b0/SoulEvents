@@ -47,6 +47,7 @@ public final class AirDropArenaRegionService implements ArenaRegionService {
         if (world == null) {
             return;
         }
+        try {
         RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
         RegionManager manager = container.get(BukkitAdapter.adapt(world));
         if (manager == null) {
@@ -111,6 +112,10 @@ public final class AirDropArenaRegionService implements ArenaRegionService {
         );
         regions.put(sessionId, new RegionRef(world.getName(), regionId, bounds));
         saveAsync(manager);
+        } catch (RuntimeException exception) {
+            plugin.getLogger().log(Level.WARNING,
+                    "Failed to create arena WorldGuard region for session " + sessionId, exception);
+        }
     }
 
     @Override
@@ -163,9 +168,6 @@ public final class AirDropArenaRegionService implements ArenaRegionService {
             applyStateFlags(region, settings.allowFlags, StateFlag.State.ALLOW);
         }
         applyStateFlags(region, settings.denyFlags, StateFlag.State.DENY);
-        if (settings.allowFlags != null && !settings.allowFlags.isEmpty()) {
-            applyStateFlags(region, settings.allowFlags, StateFlag.State.ALLOW);
-        }
     }
 
     private static void allowAllStateFlags(ProtectedRegion region) {

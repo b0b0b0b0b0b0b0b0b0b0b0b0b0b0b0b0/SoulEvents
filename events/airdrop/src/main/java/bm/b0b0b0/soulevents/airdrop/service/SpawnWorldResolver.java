@@ -28,7 +28,7 @@ public final class SpawnWorldResolver {
     ) {
         String spawnWorldName = type.worldPlacement.spawnWorld;
         if (spawnWorldName == null || spawnWorldName.isEmpty()) {
-            callback.accept(locationFinder.findInWorlds(type, gate, gate.schedulerWorlds()));
+            locationFinder.findInWorldsAsync(plugin, type, gate, gate.schedulerWorlds(), callback);
             return;
         }
         World world = Bukkit.getWorld(spawnWorldName);

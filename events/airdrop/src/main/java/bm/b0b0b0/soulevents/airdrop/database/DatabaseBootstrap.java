@@ -37,7 +37,7 @@ public final class DatabaseBootstrap {
     private boolean initialize() {
         try {
             HikariDataSource dataSource = HikariFactory.create(plugin, databaseConfig);
-            new SchemaMigrator(plugin, dataSource).migrate();
+            new SchemaMigrator(plugin, dataSource, databaseConfig.storageType()).migrate();
             dataSourceProvider.assign(dataSource);
             return true;
         } catch (Exception exception) {

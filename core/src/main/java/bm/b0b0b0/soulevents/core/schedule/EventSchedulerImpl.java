@@ -6,15 +6,15 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class EventSchedulerImpl implements EventScheduler {
 
     private final Plugin plugin;
-    private final Map<String, ScheduledEntry> entries = new HashMap<>();
+    private final Map<String, ScheduledEntry> entries = new ConcurrentHashMap<>();
 
     public EventSchedulerImpl(Plugin plugin) {
         this.plugin = plugin;
@@ -29,7 +29,7 @@ public final class EventSchedulerImpl implements EventScheduler {
         }
         long intervalTicks = Math.max(1L, spec.interval().toSeconds() * 20L);
         BukkitTask task = plugin.getServer().getScheduler().runTaskTimer(plugin, trigger, intervalTicks, intervalTicks);
-        entries.put(key, new ScheduledEntry(spec, trigger, task, System.currentTimeMillis()));
+        entries.put(key, new ScheduledEntry(moduleId, typeId, spec, trigger, task, System.currentTimeMillis()));
     }
 
     @Override
@@ -51,19 +51,20 @@ public final class EventSchedulerImpl implements EventScheduler {
         if (entry == null) {
             return Optional.empty();
         }
-        long elapsed = System.currentTimeMillis() - entry.startedAtMillis();
         long intervalMillis = entry.spec().interval().toMillis();
+        if (intervalMillis <= 0) {
+            return Optional.empty();
+        }
+        long elapsed = System.currentTimeMillis() - entry.startedAtMillis();
         long remaining = intervalMillis - (elapsed % intervalMillis);
         return Optional.of(Duration.ofMillis(remaining));
     }
 
     public void reloadAll() {
-        List<Map.Entry<String, ScheduledEntry>> snapshot = List.copyOf(entries.entrySet());
-        for (Map.Entry<String, ScheduledEntry> entry : snapshot) {
-            ScheduledEntry scheduled = entry.getValue();
-            String[] parts = entry.getKey().split(":", 2);
-            cancelEntry(entry.getKey());
-            register(parts[0], parts[1], scheduled.spec(), scheduled.trigger());
+        List<ScheduledEntry> snapshot = List.copyOf(entries.values());
+        for (ScheduledEntry scheduled : snapshot) {
+            cancelEntry(key(scheduled.moduleId(), scheduled.typeId()));
+            register(scheduled.moduleId(), scheduled.typeId(), scheduled.spec(), scheduled.trigger());
         }
     }
 
@@ -84,6 +85,13 @@ public final class EventSchedulerImpl implements EventScheduler {
         return moduleId + ':' + typeId;
     }
 
-    private record ScheduledEntry(ScheduleSpec spec, Runnable trigger, BukkitTask task, long startedAtMillis) {
+    private record ScheduledEntry(
+            String moduleId,
+            String typeId,
+            ScheduleSpec spec,
+            Runnable trigger,
+            BukkitTask task,
+            long startedAtMillis
+    ) {
     }
 }

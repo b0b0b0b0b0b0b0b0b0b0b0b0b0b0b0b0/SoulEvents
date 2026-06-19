@@ -156,48 +156,82 @@ public final class SchematicServiceImpl implements SchematicService {
                 : definition.settings().paste.ignoreAir;
 
         CompletableFuture<SchematicPasteResult> future = new CompletableFuture<>();
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            List<WorldEditSchematicBridge.BlockSnapshot> snapshots = worldEditBridge.captureRegion(
-                    world,
-                    normalizedOrigin,
-                    metadata
+        Path schematicFile;
+        try {
+            schematicFile = resolveSchematicFile(definition);
+        } catch (RuntimeException exception) {
+            plugin.getLogger().warning("Rejected schematic file for '" + schematicId + "': " + exception.getMessage());
+            return CompletableFuture.completedFuture(
+                    SchematicPasteResult.failed(options.sessionId(), "schematic.invalid-file")
             );
-            sessionUndo.store(options.sessionId(), world.getName(), snapshots);
-            Path schematicFile = definition.directory().resolve(definition.settings().file);
-
-            pasteQueue.submit(() -> {
-                try {
-                    return worldEditBridge.paste(
-                            schematicFile,
-                            definition.settings(),
-                            metadata,
-                            normalizedOrigin,
-                            ignoreAir
-                    );
-                } catch (Exception exception) {
-                    return WorldEditSchematicBridge.PasteOutcome.failed(exception.getMessage());
-                }
-            }).thenAccept(outcome -> Bukkit.getScheduler().runTask(plugin, () -> {
-                if (!outcome.success()) {
-                    sessionUndo.remove(options.sessionId());
-                    future.complete(SchematicPasteResult.failed(
-                            options.sessionId(),
-                            "schematic.paste-failed"
-                    ));
-                    return;
-                }
-                worldEditBridge.clearMarker(world, normalizedOrigin, metadata, definition.settings());
-                future.complete(new SchematicPasteResult(
-                        options.sessionId(),
-                        true,
-                        normalizedOrigin.clone(),
-                        chestAnchor.clone(),
-                        outcome.blockCount(),
-                        Optional.empty()
-                ));
-            }));
-        });
+        }
+        pasteQueue.submit(() -> {
+            try {
+                return worldEditBridge.loadClipboard(schematicFile);
+            } catch (Exception exception) {
+                return null;
+            }
+        }).thenAccept(clipboard -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (clipboard == null) {
+                future.complete(SchematicPasteResult.failed(options.sessionId(), "schematic.paste-failed"));
+                return;
+            }
+            captureUndoSnapshot(options.sessionId(), world, normalizedOrigin, metadata);
+            WorldEditSchematicBridge.PasteOutcome outcome = worldEditBridge.pasteClipboard(
+                    clipboard,
+                    metadata,
+                    normalizedOrigin,
+                    ignoreAir
+            );
+            if (!outcome.success()) {
+                sessionUndo.remove(options.sessionId());
+                future.complete(SchematicPasteResult.failed(options.sessionId(), "schematic.paste-failed"));
+                return;
+            }
+            worldEditBridge.clearMarker(world, normalizedOrigin, metadata, definition.settings());
+            future.complete(new SchematicPasteResult(
+                    options.sessionId(),
+                    true,
+                    normalizedOrigin.clone(),
+                    chestAnchor.clone(),
+                    outcome.blockCount(),
+                    Optional.empty()
+            ));
+        }));
         return future;
+    }
+
+    private static final long MAX_UNDO_VOLUME = 750_000L;
+
+    private Path resolveSchematicFile(SchematicDefinition definition) {
+        String file = definition.settings().file;
+        if (file == null || file.isBlank()) {
+            throw new IllegalArgumentException("empty file name");
+        }
+        Path base = definition.directory().toAbsolutePath().normalize();
+        Path resolved = base.resolve(file).normalize();
+        if (!resolved.startsWith(base)) {
+            throw new IllegalArgumentException("path escapes schematic directory: " + file);
+        }
+        return resolved;
+    }
+
+    private void captureUndoSnapshot(
+            UUID sessionId,
+            World world,
+            Location origin,
+            SchematicDefinition.SchematicMetadata metadata
+    ) {
+        long volume = (long) (metadata.regionMaxX() - metadata.regionMinX() + 1)
+                * (metadata.regionMaxY() - metadata.regionMinY() + 1)
+                * (metadata.regionMaxZ() - metadata.regionMinZ() + 1);
+        if (volume > MAX_UNDO_VOLUME) {
+            plugin.getLogger().warning("Skipping undo snapshot for large schematic ("
+                    + volume + " blocks); undo disabled for session " + sessionId);
+            return;
+        }
+        List<WorldEditSchematicBridge.BlockSnapshot> snapshots = worldEditBridge.captureRegion(world, origin, metadata);
+        sessionUndo.store(sessionId, world.getName(), snapshots);
     }
 
     @Override

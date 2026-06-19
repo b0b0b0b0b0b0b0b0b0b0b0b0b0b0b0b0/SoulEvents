@@ -28,7 +28,9 @@ public final class HikariFactory {
             return new HikariDataSource(config);
         }
         File storage = new File(plugin.getDataFolder(), databaseConfig.storageDirectory());
-        storage.mkdirs();
+        if (!storage.isDirectory() && !storage.mkdirs()) {
+            throw new IllegalStateException("Could not create SQLite storage directory: " + storage.getAbsolutePath());
+        }
         File databaseFile = new File(storage, databaseConfig.sqliteFileName());
         config.setJdbcUrl("jdbc:sqlite:" + databaseFile.getAbsolutePath());
         config.setDriverClassName("org.sqlite.JDBC");

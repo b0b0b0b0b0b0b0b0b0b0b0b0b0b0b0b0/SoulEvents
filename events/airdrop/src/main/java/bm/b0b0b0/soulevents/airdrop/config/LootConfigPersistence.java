@@ -11,6 +11,7 @@ public final class LootConfigPersistence {
     }
 
     public static void saveLootTable(JavaPlugin plugin, String lootTableId, LootTableSettings loot) {
+        ConfigIds.requireSafe(lootTableId);
         Path lootPath = plugin.getDataFolder().toPath().resolve("loot").resolve(lootTableId + ".yml");
         loot.save(lootPath);
     }

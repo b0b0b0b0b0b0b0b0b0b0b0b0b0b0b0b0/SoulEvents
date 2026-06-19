@@ -151,6 +151,42 @@ public final class RandomLocationFinder {
         findAsyncAttempt(plugin, type, world, gate, regionIndex, candidates, 0, callback);
     }
 
+    public void findInWorldsAsync(
+            Plugin plugin,
+            AirDropTypeSettings type,
+            WorldPlacementGate gate,
+            List<String> worldNames,
+            Consumer<Optional<Location>> callback
+    ) {
+        findInWorldsAsync(plugin, type, gate, worldNames, 0, callback);
+    }
+
+    private void findInWorldsAsync(
+            Plugin plugin,
+            AirDropTypeSettings type,
+            WorldPlacementGate gate,
+            List<String> worldNames,
+            int index,
+            Consumer<Optional<Location>> callback
+    ) {
+        if (worldNames == null || index >= worldNames.size()) {
+            callback.accept(Optional.empty());
+            return;
+        }
+        World world = org.bukkit.Bukkit.getWorld(worldNames.get(index));
+        if (world == null) {
+            findInWorldsAsync(plugin, type, gate, worldNames, index + 1, callback);
+            return;
+        }
+        findAsync(plugin, type, world, gate, location -> {
+            if (location.isPresent()) {
+                callback.accept(location);
+            } else {
+                findInWorldsAsync(plugin, type, gate, worldNames, index + 1, callback);
+            }
+        });
+    }
+
     private void findAsyncAttempt(
             Plugin plugin,
             AirDropTypeSettings type,

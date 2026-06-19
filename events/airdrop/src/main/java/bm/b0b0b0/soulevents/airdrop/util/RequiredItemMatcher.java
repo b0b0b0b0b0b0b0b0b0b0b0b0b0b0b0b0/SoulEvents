@@ -55,9 +55,14 @@ public final class RequiredItemMatcher {
 
     private static boolean matchesAny(List<ItemStack> templates, List<ItemStack> carried) {
         for (ItemStack template : templates) {
+            int need = Math.max(1, template.getAmount());
+            int found = 0;
             for (ItemStack stack : carried) {
                 if (stack.isSimilar(template)) {
-                    return true;
+                    found += stack.getAmount();
+                    if (found >= need) {
+                        return true;
+                    }
                 }
             }
         }
@@ -65,20 +70,23 @@ public final class RequiredItemMatcher {
     }
 
     private static boolean matchesAll(List<ItemStack> templates, List<ItemStack> carried) {
-        boolean[] consumed = new boolean[carried.size()];
+        int[] remaining = new int[carried.size()];
+        for (int index = 0; index < carried.size(); index++) {
+            remaining[index] = carried.get(index).getAmount();
+        }
         for (ItemStack template : templates) {
-            boolean matched = false;
-            for (int index = 0; index < carried.size(); index++) {
-                if (consumed[index]) {
+            int need = Math.max(1, template.getAmount());
+            for (int index = 0; index < carried.size() && need > 0; index++) {
+                if (remaining[index] <= 0) {
                     continue;
                 }
                 if (carried.get(index).isSimilar(template)) {
-                    consumed[index] = true;
-                    matched = true;
-                    break;
+                    int take = Math.min(remaining[index], need);
+                    remaining[index] -= take;
+                    need -= take;
                 }
             }
-            if (!matched) {
+            if (need > 0) {
                 return false;
             }
         }

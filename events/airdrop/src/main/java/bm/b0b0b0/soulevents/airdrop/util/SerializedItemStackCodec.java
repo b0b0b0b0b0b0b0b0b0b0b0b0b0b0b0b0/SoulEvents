@@ -25,7 +25,7 @@ public final class SerializedItemStackCodec {
         }
         try {
             return ItemStack.deserializeBytes(Base64.getDecoder().decode(encoded));
-        } catch (IllegalArgumentException exception) {
+        } catch (RuntimeException exception) {
             return null;
         }
     }

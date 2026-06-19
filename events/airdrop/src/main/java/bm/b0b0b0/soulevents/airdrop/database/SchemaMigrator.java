@@ -1,5 +1,6 @@
 package bm.b0b0b0.soulevents.airdrop.database;
 
+import bm.b0b0b0.soulevents.airdrop.config.DatabaseConfig;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.sql.DataSource;
@@ -9,6 +10,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -18,16 +20,31 @@ public final class SchemaMigrator {
 
     private final JavaPlugin plugin;
     private final DataSource dataSource;
+    private final DatabaseConfig.StorageType storageType;
 
-    public SchemaMigrator(JavaPlugin plugin, DataSource dataSource) {
+    public SchemaMigrator(JavaPlugin plugin, DataSource dataSource, DatabaseConfig.StorageType storageType) {
         this.plugin = plugin;
         this.dataSource = dataSource;
+        this.storageType = storageType;
     }
 
     public void migrate() throws SQLException, IOException {
+        if (isAlreadyMigrated()) {
+            return;
+        }
         runScript("database/001_airdrop.sql");
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
-            statement.executeUpdate("INSERT INTO schema_version(version) SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM schema_version)");
+            statement.executeUpdate("INSERT INTO schema_version(version) VALUES (1)");
+        }
+    }
+
+    private boolean isAlreadyMigrated() {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery("SELECT version FROM schema_version")) {
+            return resultSet.next();
+        } catch (SQLException exception) {
+            return false;
         }
     }
 
@@ -35,9 +52,18 @@ public final class SchemaMigrator {
         List<String> statements = readStatements(resourcePath);
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             for (String sql : statements) {
-                statement.executeUpdate(sql);
+                statement.executeUpdate(translateDialect(sql));
             }
         }
+    }
+
+    private String translateDialect(String sql) {
+        if (storageType != DatabaseConfig.StorageType.MYSQL) {
+            return sql;
+        }
+        return sql
+                .replace("AUTOINCREMENT", "AUTO_INCREMENT")
+                .replace("CREATE INDEX IF NOT EXISTS", "CREATE INDEX");
     }
 
     private List<String> readStatements(String resourcePath) throws IOException {

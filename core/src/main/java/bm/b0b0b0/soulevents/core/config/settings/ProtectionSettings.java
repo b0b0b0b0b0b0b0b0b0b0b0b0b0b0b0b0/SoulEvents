@@ -16,13 +16,16 @@ public class ProtectionSettings extends YamlSerializable {
     public long lootRevealDelayMillis = 100L;
 
     @Comment(@CommentValue("Дебаг LootGuard в консоль: obfuscate, take, reveal, ошибки."))
-    public boolean lootDebugEnabled = true;
+    public boolean lootDebugEnabled = false;
 
     @Comment(@CommentValue("Запретить лить жидкости на арене ивента."))
     public boolean blockFluidGrief = true;
 
     @Comment(@CommentValue("Запретить ломать/ставить блоки на арене ивента."))
     public boolean blockBlockGrief = true;
+
+    @Comment(@CommentValue("Радиус (в блоках) анти-грифф зоны вокруг точки ивента (fallback без WorldGuard; 0 = выключено)."))
+    public int arenaProtectionRadius = 16;
 
     @Comment(@CommentValue("Именованные gate-профили для модулей ивентов."))
     public Map<String, GateProfileSettings> gateProfiles = defaultGateProfiles();

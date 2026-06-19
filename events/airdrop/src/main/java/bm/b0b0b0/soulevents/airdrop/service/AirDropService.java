@@ -88,6 +88,9 @@ public final class AirDropService {
     }
 
     public void setVisualService(AirDropVisualService visualService) {
+        if (this.visualService != null) {
+            this.visualService.shutdown();
+        }
         this.visualService = visualService;
         visualService.setChestCallbacks(
                 sessionId -> sessionRegistry.find(sessionId).map(AirDropSessionRegistry.SessionRecord::isChestIntact).orElse(false),
@@ -183,6 +186,7 @@ public final class AirDropService {
         }
         AirDropSessionRegistry.SessionRecord record = recordOptional.get();
         int clusterIndex = 0;
+        boolean decoyChest = false;
         if (record.clusterEnabled()) {
             Optional<Integer> slotIndex = AirDropClusterChestPlacer.slotIndexAt(record.anchor(), clickedBlock);
             if (slotIndex.isEmpty()) {
@@ -190,10 +194,7 @@ public final class AirDropService {
                 return;
             }
             clusterIndex = slotIndex.get();
-            if (record.isDecoyCluster() && clusterIndex != record.clusterLootSlotIndex()) {
-                messages.send(player, "airdrop.chest-decoy", Map.of());
-                return;
-            }
+            decoyChest = record.isDecoyCluster() && clusterIndex != record.clusterLootSlotIndex();
         }
         Optional<ActiveEvent> active = activeEvent(sessionId);
         if (active.isEmpty()) {
@@ -232,6 +233,10 @@ public final class AirDropService {
         }
         if (type.requiredLoot.enabled && !RequiredItemMatcher.hasRequiredItem(player, type.requiredLoot)) {
             messages.send(player, "airdrop.required-item-missing", Map.of());
+            return;
+        }
+        if (decoyChest) {
+            messages.send(player, "airdrop.chest-decoy", Map.of());
             return;
         }
         final int openedClusterIndex = clusterIndex;
@@ -487,6 +492,10 @@ public final class AirDropService {
             messages.send(player, "command.no-permission", Map.of());
             return;
         }
+        if (typeOptional.get().settings().summon.vaultCost > 0) {
+            messages.send(player, "airdrop.summon-disabled", Map.of());
+            return;
+        }
         spawnInConfiguredWorldAsync(player, typeId, "player", hasBypass(player));
     }
 
@@ -610,7 +619,11 @@ public final class AirDropService {
         Instant lootableAt = computeLootableAt(type);
         api.sessions().setLootableAt(sessionId, lootableAt);
         api.sessions().setPhase(sessionId, EventPhase.PREPARING);
-        sessionRepository.insertSession(sessionId, typeId, blockAnchor, source);
+        sessionRepository.insertSession(sessionId, typeId, blockAnchor, source)
+                .exceptionally(error -> {
+                    plugin.getLogger().warning("AirDrop session insert failed: " + error.getMessage());
+                    return null;
+                });
 
         SchematicPasteOptions options = SchematicPasteOptions.legacy(
                 sessionId,
@@ -686,7 +699,11 @@ public final class AirDropService {
         UUID sessionId = session.sessionId();
         Instant lootableAt = computeLootableAt(type);
         api.sessions().setLootableAt(sessionId, lootableAt);
-        sessionRepository.insertSession(sessionId, typeId, blockAnchor, source);
+        sessionRepository.insertSession(sessionId, typeId, blockAnchor, source)
+                .exceptionally(error -> {
+                    plugin.getLogger().warning("AirDrop session insert failed: " + error.getMessage());
+                    return null;
+                });
         finalizeSessionStart(typeId, definition, blockAnchor, source, sessionId, lootableAt, Optional.empty());
     }
 
@@ -998,7 +1015,11 @@ public final class AirDropService {
         sessionRegistry.remove(sessionId);
         api.protection().loot().clearSession(sessionId);
         api.schematics().undo(sessionId);
-        sessionRepository.endSession(sessionId, phase);
+        sessionRepository.endSession(sessionId, phase)
+                .exceptionally(error -> {
+                    plugin.getLogger().warning("AirDrop session end failed: " + error.getMessage());
+                    return null;
+                });
         api.sessions().end(sessionId);
     }
 

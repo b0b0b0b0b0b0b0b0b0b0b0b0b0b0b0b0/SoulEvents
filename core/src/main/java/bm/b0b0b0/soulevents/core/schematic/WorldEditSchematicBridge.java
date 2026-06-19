@@ -28,41 +28,31 @@ import java.util.concurrent.CompletableFuture;
 
 public final class WorldEditSchematicBridge {
 
-    public CompletableFuture<PasteOutcome> pasteAsync(
-            Path schematicFile,
-            SchematicSettings settings,
+    public Object loadClipboard(Path schematicFile) throws Exception {
+        ClipboardFormat format = ClipboardFormats.findByFile(schematicFile.toFile());
+        if (format == null) {
+            throw new java.io.IOException("Unknown schematic format");
+        }
+        try (InputStream input = Files.newInputStream(schematicFile);
+             ClipboardReader reader = format.getReader(input)) {
+            return reader.read();
+        }
+    }
+
+    public PasteOutcome pasteClipboard(
+            Object clipboardHandle,
             SchematicDefinition.SchematicMetadata metadata,
             Location pasteOrigin,
             boolean ignoreAir
     ) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return paste(schematicFile, settings, metadata, pasteOrigin, ignoreAir);
-            } catch (Exception exception) {
-                return PasteOutcome.failed(exception.getMessage());
-            }
-        });
-    }
-
-    public PasteOutcome paste(
-            Path schematicFile,
-            SchematicSettings settings,
-            SchematicDefinition.SchematicMetadata metadata,
-            Location pasteOrigin,
-            boolean ignoreAir
-    ) throws Exception {
         World world = pasteOrigin.getWorld();
         if (world == null) {
             return PasteOutcome.failed("World is null");
         }
-        ClipboardFormat format = ClipboardFormats.findByFile(schematicFile.toFile());
-        if (format == null) {
-            return PasteOutcome.failed("Unknown schematic format");
+        if (!(clipboardHandle instanceof Clipboard clipboard)) {
+            return PasteOutcome.failed("Invalid clipboard");
         }
-        try (InputStream input = Files.newInputStream(schematicFile);
-             ClipboardReader reader = format.getReader(input);
-             EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
-            Clipboard clipboard = reader.read();
+        try (EditSession editSession = WorldEdit.getInstance().newEditSession(BukkitAdapter.adapt(world))) {
             BlockVector3 to = BlockVector3.at(
                     pasteOrigin.getBlockX(),
                     pasteOrigin.getBlockY(),
@@ -76,6 +66,8 @@ public final class WorldEditSchematicBridge {
             Operations.complete(operation);
             editSession.flushSession();
             return PasteOutcome.success(metadata.blockCount());
+        } catch (Exception exception) {
+            return PasteOutcome.failed(exception.getMessage());
         }
     }
 

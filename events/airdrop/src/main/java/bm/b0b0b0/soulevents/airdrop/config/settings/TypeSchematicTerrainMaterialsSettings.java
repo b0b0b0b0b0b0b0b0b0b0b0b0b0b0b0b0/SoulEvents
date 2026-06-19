@@ -1,74 +1,28 @@
 package bm.b0b0b0.soulevents.airdrop.config.settings;
 
+import bm.b0b0b0.soulevents.api.schematic.SchematicTerrainPreset;
 import net.elytrium.serializer.annotations.Comment;
 import net.elytrium.serializer.annotations.CommentValue;
 import net.elytrium.serializer.language.object.YamlSerializable;
+import org.bukkit.Material;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public final class TypeSchematicTerrainMaterialsSettings extends YamlSerializable {
 
-    @Comment(@CommentValue("Блоки «верхнего слоя» при подгонке рельефа (fill/blend)."))
-    public List<String> naturalTop = defaultNaturalTop();
+    @Comment(@CommentValue("Профиль материалов подгонки рельефа. CUSTOM = только extra/exclude."))
+    public SchematicTerrainPreset preset = SchematicTerrainPreset.OVERWORLD;
 
-    @Comment(@CommentValue("Блоки, которые можно срезать при опускании колонки под footprint."))
-    public List<String> removable = defaultRemovable();
+    @Comment(@CommentValue("Доп. блоки верхнего слоя (Material)."))
+    public List<Material> extraNaturalTop = new ArrayList<>();
 
-    public static List<String> defaultNaturalTop() {
-        return List.of(
-                "GRASS_BLOCK",
-                "PODZOL",
-                "MYCELIUM",
-                "DIRT",
-                "COARSE_DIRT",
-                "ROOTED_DIRT",
-                "SAND",
-                "RED_SAND",
-                "SNOW_BLOCK",
-                "MOSS_BLOCK"
-        );
-    }
+    @Comment(@CommentValue("Доп. блоки, которые можно срезать."))
+    public List<Material> extraRemovable = new ArrayList<>();
 
-    public static List<String> defaultRemovable() {
-        return List.of(
-                "GRASS_BLOCK",
-                "PODZOL",
-                "MYCELIUM",
-                "DIRT",
-                "COARSE_DIRT",
-                "ROOTED_DIRT",
-                "SAND",
-                "RED_SAND",
-                "GRAVEL",
-                "SNOW",
-                "SNOW_BLOCK",
-                "MOSS_BLOCK",
-                "STONE",
-                "COBBLESTONE",
-                "ANDESITE",
-                "DIORITE",
-                "GRANITE",
-                "TALL_GRASS",
-                "SHORT_GRASS",
-                "FERN",
-                "LARGE_FERN",
-                "DEAD_BUSH",
-                "DANDELION",
-                "POPPY",
-                "BLUE_ORCHID",
-                "ALLIUM",
-                "AZURE_BLUET",
-                "RED_TULIP",
-                "ORANGE_TULIP",
-                "WHITE_TULIP",
-                "PINK_TULIP",
-                "OXEYE_DAISY",
-                "CORNFLOWER",
-                "LILY_OF_THE_VALLEY",
-                "SUNFLOWER",
-                "LILAC",
-                "ROSE_BUSH",
-                "PEONY"
-        );
-    }
+    @Comment(@CommentValue("Исключить из верхнего слоя (Material)."))
+    public List<Material> excludeNaturalTop = new ArrayList<>();
+
+    @Comment(@CommentValue("Исключить из срезаемых (Material)."))
+    public List<Material> excludeRemovable = new ArrayList<>();
 }

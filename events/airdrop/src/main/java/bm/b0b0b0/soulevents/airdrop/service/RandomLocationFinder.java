@@ -32,10 +32,16 @@ public final class RandomLocationFinder {
 
     private final FlatSurfaceFinder flatSurfaceFinder;
     private final SchematicService schematics;
+    private final ActiveSpawnExclusion activeSpawnExclusion;
 
-    public RandomLocationFinder(FlatSurfaceFinder flatSurfaceFinder, SchematicService schematics) {
+    public RandomLocationFinder(
+            FlatSurfaceFinder flatSurfaceFinder,
+            SchematicService schematics,
+            ActiveSpawnExclusion activeSpawnExclusion
+    ) {
         this.flatSurfaceFinder = flatSurfaceFinder;
         this.schematics = schematics;
+        this.activeSpawnExclusion = activeSpawnExclusion;
     }
 
     public record Candidate(int x, int z, int chunkX, int chunkZ) {
@@ -183,6 +189,22 @@ public final class RandomLocationFinder {
                         gateResult.regionName()
                 ));
             }
+            Optional<String> activeConflict = activeSpawnExclusion.conflict(
+                    world,
+                    gateLocation,
+                    type.randomSpawn
+            );
+            if (activeConflict.isPresent()) {
+                return CandidateValidation.reject(activeConflict.get());
+            }
+            Optional<String> pasteConflict = activeSpawnExclusion.conflict(
+                    world,
+                    location,
+                    type.randomSpawn
+            );
+            if (pasteConflict.isPresent()) {
+                return CandidateValidation.reject(pasteConflict.get());
+            }
             return CandidateValidation.ok(location);
         }
         if (spawn.requireFlatSurface) {
@@ -220,6 +242,14 @@ public final class RandomLocationFinder {
                         gateResult.regionName()
                 ));
             }
+            Optional<String> activeConflict = activeSpawnExclusion.conflict(
+                    world,
+                    location,
+                    type.randomSpawn
+            );
+            if (activeConflict.isPresent()) {
+                return CandidateValidation.reject(activeConflict.get());
+            }
             return CandidateValidation.ok(location);
         }
         int y = world.getHighestBlockYAt(candidate.x(), candidate.z());
@@ -239,6 +269,14 @@ public final class RandomLocationFinder {
                     gateResult.denial().name(),
                     gateResult.regionName()
             ));
+        }
+        Optional<String> activeConflict = activeSpawnExclusion.conflict(
+                world,
+                location,
+                type.randomSpawn
+        );
+        if (activeConflict.isPresent()) {
+            return CandidateValidation.reject(activeConflict.get());
         }
         return CandidateValidation.ok(location);
     }

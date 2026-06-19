@@ -28,7 +28,22 @@ final class SchematicMarkerLocator {
         Location expected = blockAnchor(expectedChestAnchor(pasteOrigin, metadata));
         List<Location> found = scanPastedRegion(world, pasteOrigin, metadata, marker);
         if (found.size() == 1) {
-            return blockAnchor(found.getFirst());
+            Location markerLocation = blockAnchor(found.getFirst());
+            if (markerLocation.distanceSquared(expected) > 4.0) {
+                plugin.getLogger().warning(
+                        "Schematic '" + schematicId + "': marker "
+                                + markerLocation.getBlockX() + ", "
+                                + markerLocation.getBlockY() + ", "
+                                + markerLocation.getBlockZ()
+                                + " is far from expected chest anchor "
+                                + expected.getBlockX() + ", "
+                                + expected.getBlockY() + ", "
+                                + expected.getBlockZ()
+                                + "; using expected offset"
+                );
+                return blockAnchor(expected);
+            }
+            return markerLocation;
         }
         if (found.isEmpty()) {
             plugin.getLogger().warning(

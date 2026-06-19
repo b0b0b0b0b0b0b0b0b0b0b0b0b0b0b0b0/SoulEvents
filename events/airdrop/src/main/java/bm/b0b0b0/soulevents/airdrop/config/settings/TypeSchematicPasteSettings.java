@@ -10,5 +10,5 @@ public final class TypeSchematicPasteSettings extends YamlSerializable {
     public boolean ignoreAir = false;
 
     @Comment(@CommentValue("Лимит блоков за тик FAWE (0 = без лимита, быстрый режим)."))
-    public int blocksPerTick = 1500;
+    public int blocksPerTick = 0;
 }

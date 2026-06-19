@@ -4,12 +4,14 @@ import bm.b0b0b0.soulevents.api.schematic.SchematicBlendOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPasteOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPlacementOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicSpawnOverrides;
+import bm.b0b0b0.soulevents.core.config.settings.SchematicBlendMaterialsSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicBlendSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicPasteSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicPlacementSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicSettings;
+import bm.b0b0b0.soulevents.core.config.settings.SchematicTerrainMaterialsSettings;
 
-import java.util.List;
+import java.util.ArrayList;
 
 public final class SchematicSpawnSupport {
 
@@ -37,9 +39,11 @@ public final class SchematicSpawnSupport {
         SchematicBlendSettings resolved = new SchematicBlendSettings();
         resolved.enabled = blend.enabled();
         resolved.radius = blend.radius();
-        if (!blend.replaceableMaterials().isEmpty()) {
-            resolved.materials.replaceable = List.copyOf(blend.replaceableMaterials());
+        if (blend.blendPreset() != null) {
+            resolved.materials.preset = blend.blendPreset();
         }
+        resolved.materials.extraReplaceable = new ArrayList<>(blend.extraReplaceable());
+        resolved.materials.excludeReplaceable = new ArrayList<>(blend.excludeReplaceable());
         return resolved;
     }
 
@@ -74,12 +78,20 @@ public final class SchematicSpawnSupport {
         placement.placementProbeStep = source.placementProbeStep();
         placement.rejectLiquids = source.rejectLiquids();
         placement.requireSolidBelow = source.requireSolidBelow();
-        if (!source.naturalTopMaterials().isEmpty()) {
-            placement.terrainMaterials.naturalTop = List.copyOf(source.naturalTopMaterials());
-        }
-        if (!source.removableMaterials().isEmpty()) {
-            placement.terrainMaterials.removable = List.copyOf(source.removableMaterials());
-        }
+        applyTerrainMaterials(placement.terrainMaterials, source);
         return placement;
+    }
+
+    private static void applyTerrainMaterials(
+            SchematicTerrainMaterialsSettings target,
+            SchematicPlacementOverrides source
+    ) {
+        if (source.terrainPreset() != null) {
+            target.preset = source.terrainPreset();
+        }
+        target.extraNaturalTop = new ArrayList<>(source.extraNaturalTop());
+        target.extraRemovable = new ArrayList<>(source.extraRemovable());
+        target.excludeNaturalTop = new ArrayList<>(source.excludeNaturalTop());
+        target.excludeRemovable = new ArrayList<>(source.excludeRemovable());
     }
 }

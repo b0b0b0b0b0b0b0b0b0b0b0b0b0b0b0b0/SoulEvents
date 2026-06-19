@@ -1,9 +1,7 @@
 package bm.b0b0b0.soulevents.core.schematic;
 
-import bm.b0b0b0.soulevents.core.config.settings.SchematicBlendMaterialsSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicBlendSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicPlacementSettings;
-import bm.b0b0b0.soulevents.core.config.settings.SchematicTerrainMaterialsSettings;
 
 public final class SchematicTerrainContext {
 
@@ -22,12 +20,8 @@ public final class SchematicTerrainContext {
             SchematicPlacementSettings placement,
             SchematicBlendSettings blend
     ) {
-        SchematicTerrainMaterialsSettings terrainMaterials = placement.terrainMaterials;
-        SchematicTerrainAdapter adapter = SchematicTerrainAdapter.from(terrainMaterials);
-        SchematicMaterialSet replaceable = new SchematicMaterialSet(
-                blend.materials.replaceable,
-                SchematicBlendMaterialsSettings.defaultReplaceable()
-        );
+        SchematicTerrainAdapter adapter = SchematicTerrainAdapter.from(placement.terrainMaterials);
+        SchematicMaterialSet replaceable = SchematicMaterialSet.blendReplaceable(blend.materials);
         return new SchematicTerrainContext(adapter, new SchematicLandscapeBlender(adapter, replaceable));
     }
 

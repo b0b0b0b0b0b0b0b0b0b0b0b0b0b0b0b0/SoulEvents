@@ -56,4 +56,7 @@ public class RandomSpawnSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Свободных блоков воздуха над каждой точкой следа."))
     public int flatMinAirAbove = 2;
+
+    @Comment(@CommentValue("Мин. расстояние до другого активного аирдропа (блоки, 0 = не проверять)."))
+    public int minBlocksFromActiveSession = 128;
 }

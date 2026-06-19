@@ -32,8 +32,11 @@ public final class SchematicSpawnOverridesFactory {
                 placement.placementProbeStep,
                 placement.rejectLiquids,
                 placement.requireSolidBelow,
-                placement.terrainMaterials.naturalTop,
-                placement.terrainMaterials.removable
+                placement.terrainMaterials.preset,
+                placement.terrainMaterials.extraNaturalTop,
+                placement.terrainMaterials.extraRemovable,
+                placement.terrainMaterials.excludeNaturalTop,
+                placement.terrainMaterials.excludeRemovable
         );
     }
 
@@ -41,7 +44,9 @@ public final class SchematicSpawnOverridesFactory {
         return new SchematicBlendOverrides(
                 blend.enabled,
                 blend.radius,
-                blend.materials.replaceable
+                blend.materials.preset,
+                blend.materials.extraReplaceable,
+                blend.materials.excludeReplaceable
         );
     }
 

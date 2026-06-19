@@ -1,5 +1,7 @@
 package bm.b0b0b0.soulevents.api.schematic;
 
+import org.bukkit.Material;
+
 import java.util.List;
 
 public record SchematicPlacementOverrides(
@@ -11,11 +13,16 @@ public record SchematicPlacementOverrides(
         int placementProbeStep,
         boolean rejectLiquids,
         boolean requireSolidBelow,
-        List<String> naturalTopMaterials,
-        List<String> removableMaterials
+        SchematicTerrainPreset terrainPreset,
+        List<Material> extraNaturalTop,
+        List<Material> extraRemovable,
+        List<Material> excludeNaturalTop,
+        List<Material> excludeRemovable
 ) {
     public SchematicPlacementOverrides {
-        naturalTopMaterials = naturalTopMaterials == null ? List.of() : List.copyOf(naturalTopMaterials);
-        removableMaterials = removableMaterials == null ? List.of() : List.copyOf(removableMaterials);
+        extraNaturalTop = extraNaturalTop == null ? List.of() : List.copyOf(extraNaturalTop);
+        extraRemovable = extraRemovable == null ? List.of() : List.copyOf(extraRemovable);
+        excludeNaturalTop = excludeNaturalTop == null ? List.of() : List.copyOf(excludeNaturalTop);
+        excludeRemovable = excludeRemovable == null ? List.of() : List.copyOf(excludeRemovable);
     }
 }

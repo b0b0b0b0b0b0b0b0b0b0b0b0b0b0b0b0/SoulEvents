@@ -87,7 +87,7 @@ public final class AirDropService {
         this.config = config;
         this.messages = messages;
         this.sessionRepository = sessionRepository;
-        this.spawnWorldResolver = new SpawnWorldResolver(api.placement(), api.schematics());
+        this.spawnWorldResolver = new SpawnWorldResolver(api.placement(), api.schematics(), api);
         this.arenaRegionService = WorldGuardIntegrations.createArenaRegionService(plugin);
         rebuildGates();
     }
@@ -580,7 +580,7 @@ public final class AirDropService {
         if (spawnWorld == null) {
             debug.finishFailedWorld(spawnWorldName, "world not loaded");
             plugin.getLogger().warning(
-                    "[SoulEvents-AirDrop] Spawn failed type=" + typeId
+                    "Spawn failed type=" + typeId
                             + " source=" + source + ": " + debug.failureMessage()
             );
             if (feedback != null) {
@@ -596,7 +596,7 @@ public final class AirDropService {
                     SpawnSearchDebug.gateReason(worldCheck.denial().name(), worldCheck.regionName())
             );
             plugin.getLogger().warning(
-                    "[SoulEvents-AirDrop] Spawn failed type=" + typeId
+                    "Spawn failed type=" + typeId
                             + " source=" + source + ": " + debug.failureMessage()
             );
             if (feedback != null) {
@@ -606,14 +606,14 @@ public final class AirDropService {
             return;
         }
         plugin.getLogger().info(
-                "[SoulEvents-AirDrop] Spawn search type=" + typeId
+                "Spawn search type=" + typeId
                         + " world=" + spawnWorldName
                         + " source=" + source
         );
         spawnWorldResolver.resolveAsync(plugin, definition.settings(), gate, debug, location -> {
             if (location.isEmpty()) {
                 plugin.getLogger().warning(
-                        "[SoulEvents-AirDrop] Spawn failed type=" + typeId
+                        "Spawn failed type=" + typeId
                                 + " source=" + source + ": " + debug.failureMessage()
                 );
                 if (feedback != null) {
@@ -628,7 +628,7 @@ public final class AirDropService {
             }
             if (!tryStart(typeId, definition, location.get(), source, bypassLimits)) {
                 plugin.getLogger().warning(
-                        "[SoulEvents-AirDrop] Spawn failed type=" + typeId
+                        "Spawn failed type=" + typeId
                                 + " source=" + source + ": concurrent limit reached"
                 );
                 if (feedback != null) {
@@ -638,7 +638,7 @@ public final class AirDropService {
                 return;
             }
             plugin.getLogger().info(
-                    "[SoulEvents-AirDrop] Spawn started type=" + typeId
+                    "Spawn started type=" + typeId
                             + " at " + location.get().getBlockX() + ", "
                             + location.get().getBlockY() + ", "
                             + location.get().getBlockZ()
@@ -807,13 +807,13 @@ public final class AirDropService {
         finalizeSessionStart(typeId, definition, blockAnchor, source, sessionId, lootableAt, Optional.empty());
     }
 
-    private boolean canSpawn(String typeId, AirDropTypeSettings type, boolean bypassLimits) {
-        if (bypassLimits) {
-            return true;
-        }
+    private boolean canSpawn(String typeId, AirDropTypeSettings type, boolean bypassConcurrentLimit) {
         List<ActiveEvent> active = api.modules().activeEvents(AirDropModule.MODULE_ID).stream().toList();
         if (active.size() >= config.module().maxConcurrentTotal) {
             return false;
+        }
+        if (bypassConcurrentLimit) {
+            return true;
         }
         long typeActive = active.stream().filter(event -> event.typeId().equals(typeId)).count();
         return typeActive < type.maxConcurrent;

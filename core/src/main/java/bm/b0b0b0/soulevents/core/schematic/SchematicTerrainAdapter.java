@@ -22,8 +22,8 @@ public final class SchematicTerrainAdapter {
 
     public static SchematicTerrainAdapter from(SchematicTerrainMaterialsSettings settings) {
         return new SchematicTerrainAdapter(
-                new SchematicMaterialSet(settings.naturalTop, SchematicTerrainMaterialsSettings.defaultNaturalTop()),
-                new SchematicMaterialSet(settings.removable, SchematicTerrainMaterialsSettings.defaultRemovable())
+                SchematicMaterialSet.terrainNaturalTop(settings),
+                SchematicMaterialSet.terrainRemovable(settings)
         );
     }
 

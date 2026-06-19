@@ -13,6 +13,7 @@ import bm.b0b0b0.soulevents.core.message.YamlMessageService;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.nio.file.Path;
@@ -234,6 +235,62 @@ public final class SchematicServiceImpl implements SchematicService {
             );
         }
 
+        SchematicRegionChunkLoader.ensureLoaded(
+                world,
+                normalizedOrigin,
+                metadata,
+                horizontalCaptureMargin
+        ).whenComplete((ignored, chunkError) -> Bukkit.getScheduler().runTask(plugin, () -> {
+            if (chunkError != null) {
+                plugin.getLogger().log(
+                        java.util.logging.Level.WARNING,
+                        "Schematic chunk preload failed for '" + schematicId + "'",
+                        chunkError
+                );
+                future.complete(SchematicPasteResult.failed(options.sessionId(), "schematic.paste-failed"));
+                return;
+            }
+            startPasteAfterChunksLoaded(
+                    schematicId,
+                    definition,
+                    world,
+                    normalizedOrigin,
+                    metadata,
+                    settings,
+                    placement,
+                    terrainContext,
+                    ignoreAir,
+                    blocksPerTick,
+                    blendEnabled,
+                    effectiveBlendRadius,
+                    horizontalCaptureMargin,
+                    terrainAdapt,
+                    options,
+                    future
+            );
+        }));
+        return future;
+    }
+
+    private void startPasteAfterChunksLoaded(
+            String schematicId,
+            SchematicDefinition definition,
+            World world,
+            Location normalizedOrigin,
+            SchematicDefinition.SchematicMetadata metadata,
+            SchematicSettings settings,
+            SchematicPlacementSettings placement,
+            SchematicTerrainContext terrainContext,
+            boolean ignoreAir,
+            int blocksPerTick,
+            boolean blendEnabled,
+            int effectiveBlendRadius,
+            int horizontalCaptureMargin,
+            int terrainAdapt,
+            SchematicPasteOptions options,
+            CompletableFuture<SchematicPasteResult> future
+    ) {
+        Location expectedChest = resolveChestAnchor(normalizedOrigin, schematicId).orElse(normalizedOrigin);
         SchematicRegionPreparer.prepareAsync(
                 plugin,
                 world,
@@ -295,15 +352,15 @@ public final class SchematicServiceImpl implements SchematicService {
                     ));
                     return;
                 }
-                Location resolvedChest = SchematicMarkerLocator.resolveChestAfterPaste(
+                Location resolvedChest = resolveChestAfterPaste(
                         plugin,
                         schematicId,
                         world,
                         normalizedOrigin,
                         metadata,
-                        settings.marker
+                        settings,
+                        expectedChest
                 );
-                SchematicMarkerLocator.clearMarkerAt(world, resolvedChest, settings.marker);
                 List<WorldEditSchematicBridge.BlockSnapshot> undoSnapshots =
                         new ArrayList<>(prepared.snapshots());
                 if (blendEnabled && effectiveBlendRadius > 0) {
@@ -320,6 +377,12 @@ public final class SchematicServiceImpl implements SchematicService {
                     landscapeBlender.blend(world, bounds, effectiveBlendRadius);
                     sessionUndo.store(options.sessionId(), world.getName(), List.copyOf(undoSnapshots));
                 }
+                SchematicRegionChunkLoader.refreshForPlayers(
+                        world,
+                        normalizedOrigin,
+                        metadata,
+                        horizontalCaptureMargin
+                );
                 plugin.getLogger().info(
                         "Schematic '" + schematicId + "' pasted at "
                                 + normalizedOrigin.getBlockX() + ", "
@@ -341,7 +404,39 @@ public final class SchematicServiceImpl implements SchematicService {
                 ));
             }));
         });
-        return future;
+    }
+
+    private static Location resolveChestAfterPaste(
+            Plugin plugin,
+            String schematicId,
+            World world,
+            Location pasteOrigin,
+            SchematicDefinition.SchematicMetadata metadata,
+            SchematicSettings settings,
+            Location expectedChest
+    ) {
+        if (metadata.markerValidation() == MarkerValidation.OK) {
+            SchematicMarkerLocator.clearMarkerAt(world, expectedChest, settings.marker);
+            return blockAnchor(expectedChest);
+        }
+        Location resolved = SchematicMarkerLocator.resolveChestAfterPaste(
+                plugin,
+                schematicId,
+                world,
+                pasteOrigin,
+                metadata,
+                settings.marker
+        );
+        SchematicMarkerLocator.clearMarkerAt(world, resolved, settings.marker);
+        return resolved;
+    }
+
+    private static Location blockAnchor(Location location) {
+        Location anchor = location.clone();
+        anchor.setX(anchor.getBlockX());
+        anchor.setY(anchor.getBlockY());
+        anchor.setZ(anchor.getBlockZ());
+        return anchor;
     }
 
     @Override

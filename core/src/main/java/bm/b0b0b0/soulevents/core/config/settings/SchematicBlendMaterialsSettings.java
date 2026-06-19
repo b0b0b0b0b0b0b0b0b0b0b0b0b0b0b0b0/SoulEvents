@@ -1,33 +1,22 @@
 package bm.b0b0b0.soulevents.core.config.settings;
 
+import bm.b0b0b0.soulevents.api.schematic.SchematicBlendPreset;
 import net.elytrium.serializer.annotations.Comment;
 import net.elytrium.serializer.annotations.CommentValue;
 import net.elytrium.serializer.language.object.YamlSerializable;
+import org.bukkit.Material;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public final class SchematicBlendMaterialsSettings extends YamlSerializable {
 
-    @Comment(@CommentValue("Блоки, которые blend может заменить на верхний слой/грунт."))
-    public List<String> replaceable = defaultReplaceable();
+    @Comment(@CommentValue("Профиль replaceable для blend. CUSTOM = только extra/exclude."))
+    public SchematicBlendPreset preset = SchematicBlendPreset.OVERWORLD;
 
-    public static List<String> defaultReplaceable() {
-        return List.of(
-                "STONE",
-                "COBBLESTONE",
-                "DEEPSLATE",
-                "COBBLED_DEEPSLATE",
-                "ANDESITE",
-                "DIORITE",
-                "GRANITE",
-                "DIRT",
-                "GRASS_BLOCK",
-                "COARSE_DIRT",
-                "SAND",
-                "GRAVEL",
-                "PODZOL",
-                "MYCELIUM",
-                "MOSS_BLOCK"
-        );
-    }
+    @Comment(@CommentValue("Доп. replaceable блоки (Material)."))
+    public List<Material> extraReplaceable = new ArrayList<>();
+
+    @Comment(@CommentValue("Исключить из replaceable (Material)."))
+    public List<Material> excludeReplaceable = new ArrayList<>();
 }

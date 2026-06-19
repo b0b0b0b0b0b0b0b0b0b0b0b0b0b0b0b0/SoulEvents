@@ -24,7 +24,7 @@ public final class RequirementsGuiSettings {
     @Comment(@CommentValue("Справка по экрану (только текст)."))
     public int guideSlot = 13;
 
-    public String backMaterial = Material.ARROW.name();
+    public String backMaterial = Material.LIGHT_GRAY_DYE.name();
     public String permissionToggleMaterial = Material.IRON_DOOR.name();
     public String matchModeMaterial = Material.COMPARATOR.name();
     public String customItemToggleMaterial = Material.TRIPWIRE_HOOK.name();

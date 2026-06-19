@@ -18,7 +18,7 @@ public final class RequiredItemsGuiSettings {
     @Comment(@CommentValue("Сколько верхних слотов редактируемы (0..N-1). Хватит на полный сет + оружие."))
     public int editableSlotCount = 45;
 
-    public String backMaterial = Material.ARROW.name();
+    public String backMaterial = Material.LIME_DYE.name();
     public String fillerMaterial = Material.GRAY_STAINED_GLASS_PANE.name();
     public String guideMaterial = Material.BOOK.name();
 }

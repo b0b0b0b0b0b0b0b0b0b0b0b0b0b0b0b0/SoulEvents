@@ -1,10 +1,11 @@
 package bm.b0b0b0.soulevents.airdrop.integration;
 
 import bm.b0b0b0.soulevents.airdrop.config.settings.ArenaWorldGuardSettings;
+import bm.b0b0b0.soulevents.api.schematic.SchematicWorldBounds;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldguard.WorldGuard;
-import com.sk89q.worldguard.protection.flags.Flags;
+import com.sk89q.worldguard.protection.flags.Flag;
 import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.managers.storage.StorageException;
@@ -17,24 +18,32 @@ import org.bukkit.World;
 import org.bukkit.plugin.Plugin;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Level;
 
 public final class AirDropArenaRegionService implements ArenaRegionService {
 
     private final Plugin plugin;
-    private final Map<UUID, String> regionIds = new HashMap<>();
+    private final Map<UUID, RegionRef> regions = new HashMap<>();
 
     public AirDropArenaRegionService(Plugin plugin) {
         this.plugin = plugin;
     }
 
-    public void create(UUID sessionId, Location center, int horizontalRadius, ArenaWorldGuardSettings settings) {
+    @Override
+    public void create(
+            UUID sessionId,
+            Location anchor,
+            ArenaWorldGuardSettings settings,
+            Optional<SchematicWorldBounds> schematicBounds
+    ) {
         if (!settings.createTempRegion || !isWorldGuardPresent()) {
             return;
         }
-        World world = center.getWorld();
+        World world = anchor.getWorld();
         if (world == null) {
             return;
         }
@@ -43,82 +52,143 @@ public final class AirDropArenaRegionService implements ArenaRegionService {
         if (manager == null) {
             return;
         }
+
         String regionId = WorldGuardConstants.AIRDROP_REGION_PREFIX + sessionId.toString().substring(0, 8);
-        int x = center.getBlockX();
-        int y = center.getBlockY();
-        int z = center.getBlockZ();
-        int vertical = Math.max(8, settings.verticalRadius);
-        BlockVector3 min = BlockVector3.at(
-                x - horizontalRadius,
-                Math.max(world.getMinHeight(), y - vertical),
-                z - horizontalRadius
-        );
-        BlockVector3 max = BlockVector3.at(
-                x + horizontalRadius,
-                Math.min(world.getMaxHeight() - 1, y + vertical),
-                z + horizontalRadius
-        );
+        RegionRef existing = regions.get(sessionId);
+        if (existing != null && existing.regionId().equals(regionId) && existing.worldName().equals(world.getName())) {
+            ProtectedRegion current = manager.getRegion(regionId);
+            if (current != null) {
+                return;
+            }
+        } else if (existing != null) {
+            remove(sessionId);
+        }
+
+        BlockVector3 min;
+        BlockVector3 max;
+        if (schematicBounds.isPresent()) {
+            SchematicWorldBounds bounds = schematicBounds.get();
+            int margin = Math.max(0, settings.marginWithSchematic);
+            min = BlockVector3.at(bounds.minX() - margin, bounds.minY(), bounds.minZ() - margin);
+            max = BlockVector3.at(bounds.maxX() + margin, bounds.maxY(), bounds.maxZ() + margin);
+        } else {
+            int margin = Math.max(1, settings.marginWithoutSchematic);
+            int x = anchor.getBlockX();
+            int y = anchor.getBlockY();
+            int z = anchor.getBlockZ();
+            min = BlockVector3.at(x - margin, y, z - margin);
+            max = BlockVector3.at(x + margin, y, z + margin);
+        }
+        if (settings.expandVertical) {
+            min = BlockVector3.at(min.x(), world.getMinHeight(), min.z());
+            max = BlockVector3.at(max.x(), world.getMaxHeight() - 1, max.z());
+        } else {
+            int verticalMargin = Math.max(0, settings.verticalMargin);
+            min = BlockVector3.at(
+                    min.x(),
+                    Math.max(world.getMinHeight(), min.y() - verticalMargin),
+                    min.z()
+            );
+            max = BlockVector3.at(
+                    max.x(),
+                    Math.min(world.getMaxHeight() - 1, max.y() + verticalMargin),
+                    max.z()
+            );
+        }
+
         ProtectedCuboidRegion region = new ProtectedCuboidRegion(regionId, min, max);
         region.setPriority(settings.regionPriority);
-        applyArenaFlags(region);
+        applyArenaFlags(region, settings);
         manager.addRegion(region);
-        regionIds.put(sessionId, regionId);
+        ArenaRegionBounds bounds = new ArenaRegionBounds(
+                world.getName(),
+                min.x(),
+                min.y(),
+                min.z(),
+                max.x(),
+                max.y(),
+                max.z()
+        );
+        regions.put(sessionId, new RegionRef(world.getName(), regionId, bounds));
         saveAsync(manager);
     }
 
-    public void remove(UUID sessionId) {
-        String regionId = regionIds.remove(sessionId);
-        if (regionId == null || !isWorldGuardPresent()) {
-            return;
+    @Override
+    public Optional<UUID> sessionAt(Location location) {
+        if (location.getWorld() == null) {
+            return Optional.empty();
         }
-        for (World world : Bukkit.getWorlds()) {
-            RegionManager manager = WorldGuard.getInstance().getPlatform().getRegionContainer()
-                    .get(BukkitAdapter.adapt(world));
-            if (manager == null) {
-                continue;
+        for (var entry : regions.entrySet()) {
+            if (entry.getValue().bounds().contains(location)) {
+                return Optional.of(entry.getKey());
             }
-            ProtectedRegion region = manager.getRegion(regionId);
-            if (region == null) {
-                continue;
-            }
-            manager.removeRegion(regionId);
-            saveAsync(manager);
-            return;
         }
+        return Optional.empty();
     }
 
+    @Override
+    public void remove(UUID sessionId) {
+        RegionRef ref = regions.remove(sessionId);
+        if (ref == null || !isWorldGuardPresent()) {
+            return;
+        }
+        World world = Bukkit.getWorld(ref.worldName());
+        if (world == null) {
+            return;
+        }
+        RegionManager manager = WorldGuard.getInstance().getPlatform().getRegionContainer()
+                .get(BukkitAdapter.adapt(world));
+        if (manager == null) {
+            return;
+        }
+        ProtectedRegion region = manager.getRegion(ref.regionId());
+        if (region == null) {
+            return;
+        }
+        manager.removeRegion(ref.regionId());
+        saveAsync(manager);
+    }
+
+    @Override
     public void shutdown() {
-        for (UUID sessionId : regionIds.keySet().stream().toList()) {
+        for (UUID sessionId : regions.keySet().stream().toList()) {
             remove(sessionId);
         }
     }
 
-    private void applyArenaFlags(ProtectedRegion region) {
-        allow(region, Flags.PVP);
-        allow(region, Flags.TNT);
-        allow(region, Flags.CREEPER_EXPLOSION);
-        allow(region, Flags.OTHER_EXPLOSION);
-        allow(region, Flags.FIRE_SPREAD);
-        allow(region, Flags.LAVA_FIRE);
-        allow(region, Flags.LIGHTER);
-        allow(region, Flags.GHAST_FIREBALL);
-        allow(region, Flags.BLOCK_BREAK);
-        allow(region, Flags.BLOCK_PLACE);
-        allow(region, Flags.MOB_DAMAGE);
-        allow(region, Flags.ITEM_PICKUP);
-        allow(region, Flags.ITEM_DROP);
-        allow(region, Flags.USE);
-        allow(region, Flags.INTERACT);
-        allow(region, Flags.CHEST_ACCESS);
-        allow(region, Flags.INVINCIBILITY, StateFlag.State.DENY);
+    private void applyArenaFlags(ProtectedRegion region, ArenaWorldGuardSettings settings) {
+        if (settings.allowFlags == null || settings.allowFlags.isEmpty()) {
+            allowAllStateFlags(region);
+        } else {
+            applyStateFlags(region, settings.allowFlags, StateFlag.State.ALLOW);
+        }
+        applyStateFlags(region, settings.denyFlags, StateFlag.State.DENY);
+        if (settings.allowFlags != null && !settings.allowFlags.isEmpty()) {
+            applyStateFlags(region, settings.allowFlags, StateFlag.State.ALLOW);
+        }
     }
 
-    private static void allow(ProtectedRegion region, StateFlag flag) {
-        region.setFlag(flag, StateFlag.State.ALLOW);
+    private static void allowAllStateFlags(ProtectedRegion region) {
+        for (Flag<?> flag : WorldGuard.getInstance().getFlagRegistry()) {
+            if (flag instanceof StateFlag stateFlag) {
+                region.setFlag(stateFlag, StateFlag.State.ALLOW);
+            }
+        }
     }
 
-    private static void allow(ProtectedRegion region, StateFlag flag, StateFlag.State state) {
-        region.setFlag(flag, state);
+    private static void applyStateFlags(ProtectedRegion region, List<String> flagNames, StateFlag.State state) {
+        if (flagNames == null || flagNames.isEmpty()) {
+            return;
+        }
+        for (String flagName : flagNames) {
+            if (flagName == null || flagName.isBlank()) {
+                continue;
+            }
+            Flag<?> flag = WorldGuard.getInstance().getFlagRegistry().get(flagName.trim());
+            if (flag instanceof StateFlag stateFlag) {
+                region.setFlag(stateFlag, state);
+            }
+        }
     }
 
     private void saveAsync(RegionManager manager) {
@@ -135,5 +205,8 @@ public final class AirDropArenaRegionService implements ArenaRegionService {
 
     private static boolean isWorldGuardPresent() {
         return Bukkit.getPluginManager().getPlugin("WorldGuard") != null;
+    }
+
+    private record RegionRef(String worldName, String regionId, ArenaRegionBounds bounds) {
     }
 }

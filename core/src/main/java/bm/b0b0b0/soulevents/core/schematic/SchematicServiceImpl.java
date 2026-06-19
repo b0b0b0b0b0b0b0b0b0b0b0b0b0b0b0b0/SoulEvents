@@ -4,6 +4,7 @@ import bm.b0b0b0.soulevents.api.schematic.SchematicPasteOptions;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPasteResult;
 import bm.b0b0b0.soulevents.api.schematic.SchematicProfile;
 import bm.b0b0b0.soulevents.api.schematic.SchematicService;
+import bm.b0b0b0.soulevents.api.schematic.SchematicWorldBounds;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceOffset;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -36,6 +37,10 @@ public final class SchematicServiceImpl implements SchematicService {
         catalog.reload();
     }
 
+    public Optional<SchematicDefinition> definition(String schematicId) {
+        return catalog.get(schematicId);
+    }
+
     @Override
     public Collection<String> schematicIds() {
         return catalog.ids();
@@ -44,6 +49,39 @@ public final class SchematicServiceImpl implements SchematicService {
     @Override
     public Optional<SchematicProfile> profile(String schematicId) {
         return catalog.profile(schematicId);
+    }
+
+    @Override
+    public Optional<SchematicWorldBounds> worldBounds(String schematicId, Location pasteOrigin) {
+        if (pasteOrigin.getWorld() == null) {
+            return Optional.empty();
+        }
+        return catalog.get(schematicId)
+                .filter(SchematicDefinition::isReady)
+                .map(definition -> toWorldBounds(pasteOrigin, definition.metadata()));
+    }
+
+    private static SchematicWorldBounds toWorldBounds(
+            Location pasteOrigin,
+            SchematicDefinition.SchematicMetadata metadata
+    ) {
+        int baseX = pasteOrigin.getBlockX();
+        int baseY = pasteOrigin.getBlockY();
+        int baseZ = pasteOrigin.getBlockZ();
+        int minDx = metadata.regionMinX() - metadata.originX();
+        int maxDx = metadata.regionMaxX() - metadata.originX();
+        int minDy = metadata.regionMinY() - metadata.originY();
+        int maxDy = metadata.regionMaxY() - metadata.originY();
+        int minDz = metadata.regionMinZ() - metadata.originZ();
+        int maxDz = metadata.regionMaxZ() - metadata.originZ();
+        return new SchematicWorldBounds(
+                baseX + minDx,
+                baseY + minDy,
+                baseZ + minDz,
+                baseX + maxDx,
+                baseY + maxDy,
+                baseZ + maxDz
+        );
     }
 
     @Override

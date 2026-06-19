@@ -27,7 +27,7 @@ public final class LootPoolGuiSettings {
     @Comment(@CommentValue("Максимум страниц пула."))
     public int maxPages = 5;
 
-    public String backMaterial = Material.ARROW.name();
+    public String backMaterial = Material.LIME_DYE.name();
     public String prevPageMaterial = Material.LIGHT_GRAY_DYE.name();
     public String nextPageMaterial = Material.GRAY_DYE.name();
     public String pageInfoMaterial = Material.PAPER.name();

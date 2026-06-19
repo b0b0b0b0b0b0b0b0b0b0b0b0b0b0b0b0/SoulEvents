@@ -16,6 +16,8 @@ public interface SchematicService {
 
     Optional<SchematicProfile> profile(String schematicId);
 
+    Optional<SchematicWorldBounds> worldBounds(String schematicId, Location pasteOrigin);
+
     List<FlatSurfaceOffset> footprint(String schematicId);
 
     Optional<Location> resolvePasteOrigin(World world, int blockX, int blockZ, String schematicId);

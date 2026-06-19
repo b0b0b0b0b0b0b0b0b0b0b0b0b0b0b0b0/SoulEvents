@@ -4,6 +4,7 @@ import bm.b0b0b0.soulevents.api.SoulEventsApi;
 import bm.b0b0b0.soulevents.api.module.ActiveEvent;
 import bm.b0b0b0.soulevents.api.module.EventPhase;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPasteOptions;
+import bm.b0b0b0.soulevents.api.schematic.SchematicWorldBounds;
 import bm.b0b0b0.soulevents.api.world.WorldPlacementResult;
 import bm.b0b0b0.soulevents.airdrop.config.AirDropPluginConfig;
 import bm.b0b0b0.soulevents.airdrop.config.AirDropTypeDefinition;
@@ -146,6 +147,10 @@ public final class AirDropService {
 
     public AirDropPluginConfig config() {
         return config;
+    }
+
+    public ArenaRegionService arenaRegions() {
+        return arenaRegionService;
     }
 
     public AirDropMessageService messages() {
@@ -613,6 +618,9 @@ public final class AirDropService {
                 type.blendRadius,
                 false
         );
+        Optional<SchematicWorldBounds> schematicBounds = api.schematics()
+                .worldBounds(type.schematicId, pasteOrigin);
+        arenaRegionService.create(sessionId, blockAnchor, type.arenaWorldGuard, schematicBounds);
         api.schematics().paste(type.schematicId, pasteOrigin, options).thenAccept(result ->
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     if (!result.success()) {
@@ -620,7 +628,7 @@ public final class AirDropService {
                         return;
                     }
                     Location chestAnchor = blockAnchor(result.chestAnchor());
-                    finalizeSessionStart(typeId, definition, chestAnchor, source, sessionId, lootableAt);
+                    finalizeSessionStart(typeId, definition, chestAnchor, source, sessionId, lootableAt, schematicBounds);
                 })
         );
     }
@@ -631,7 +639,8 @@ public final class AirDropService {
             Location blockAnchor,
             String source,
             UUID sessionId,
-            Instant lootableAt
+            Instant lootableAt,
+            Optional<SchematicWorldBounds> schematicBounds
     ) {
         AirDropTypeSettings type = definition.settings();
         Block anchorBlock = blockAnchor.getBlock();
@@ -651,7 +660,7 @@ public final class AirDropService {
                 cluster.clusterLootSlotIndex()
         );
         assignLootChests(sessionId, definition);
-        arenaRegionService.create(sessionId, blockAnchor, type.arenaRadius, type.arenaWorldGuard);
+        arenaRegionService.create(sessionId, blockAnchor, type.arenaWorldGuard, schematicBounds);
 
         if (visualService != null) {
             visualService.playSpawn(definition, blockAnchor, sessionId, lootableAt, chestMaterial);
@@ -678,7 +687,7 @@ public final class AirDropService {
         Instant lootableAt = computeLootableAt(type);
         api.sessions().setLootableAt(sessionId, lootableAt);
         sessionRepository.insertSession(sessionId, typeId, blockAnchor, source);
-        finalizeSessionStart(typeId, definition, blockAnchor, source, sessionId, lootableAt);
+        finalizeSessionStart(typeId, definition, blockAnchor, source, sessionId, lootableAt, Optional.empty());
     }
 
     private boolean canSpawn(String typeId, AirDropTypeSettings type, boolean bypassLimits) {

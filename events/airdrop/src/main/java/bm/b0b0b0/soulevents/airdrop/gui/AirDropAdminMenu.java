@@ -56,10 +56,6 @@ public final class AirDropAdminMenu implements InventoryHolder {
         if (event.getClickedInventory() == null || event.getRawSlot() != event.getSlot()) {
             return;
         }
-        if (event.getRawSlot() == hub.closeSlot) {
-            player.closeInventory();
-            return;
-        }
         if (event.getRawSlot() == hub.createSlot) {
             guiFactory.openCreate(player);
             return;
@@ -78,11 +74,6 @@ public final class AirDropAdminMenu implements InventoryHolder {
         slotTypes.clear();
         AdminHubGuiSettings hub = config.gui().adminHub;
         TypeListGuiSettings list = config.gui().typeList;
-        inventory.setItem(hub.closeSlot, icon(
-                Material.matchMaterial(hub.closeMaterial),
-                messages.resolve("gui.admin.close", Map.of()),
-                List.of()
-        ));
         inventory.setItem(hub.createSlot, icon(
                 Material.matchMaterial(hub.createMaterial),
                 messages.resolve("gui.admin.create", Map.of()),

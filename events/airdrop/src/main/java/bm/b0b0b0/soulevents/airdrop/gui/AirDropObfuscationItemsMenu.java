@@ -203,7 +203,7 @@ public final class AirDropObfuscationItemsMenu implements InventoryHolder {
     }
 
     private ItemStack icon(Material material, Component name, List<Component> lore) {
-        ItemStack stack = new ItemStack(material == null ? Material.ARROW : material);
+        ItemStack stack = new ItemStack(material == null ? Material.LIME_DYE : material);
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {
             meta.displayName(name);

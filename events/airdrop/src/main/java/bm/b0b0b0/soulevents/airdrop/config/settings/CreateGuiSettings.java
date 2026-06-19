@@ -20,5 +20,5 @@ public final class CreateGuiSettings {
     public String commonMaterial = Material.CHEST.name();
     public String rareMaterial = Material.ENDER_CHEST.name();
     public String donateMaterial = Material.GOLD_BLOCK.name();
-    public String backMaterial = Material.ARROW.name();
+    public String backMaterial = Material.LIGHT_GRAY_DYE.name();
 }

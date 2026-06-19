@@ -92,6 +92,11 @@ public final class SchematicCatalog {
         Path file = definition.directory().resolve(definition.settings().file);
         try {
             SchematicDefinition.SchematicMetadata metadata = scanner.scan(file, definition.settings());
+            if (metadata.markerValidation() != MarkerValidation.OK
+                    && metadata.markerValidation() != MarkerValidation.MANUAL) {
+                logMarkerFailure(definition.id(), metadata);
+                return metadata;
+            }
             plugin.getLogger().info(
                     "Schematic '" + definition.id() + "' loaded: "
                             + metadata.sizeX() + "x" + metadata.sizeY() + "x" + metadata.sizeZ()
@@ -103,6 +108,25 @@ public final class SchematicCatalog {
         } catch (IOException exception) {
             plugin.getLogger().log(Level.SEVERE, "Failed to scan schematic " + definition.id(), exception);
             return null;
+        }
+    }
+
+    private void logMarkerFailure(String id, SchematicDefinition.SchematicMetadata metadata) {
+        String block = metadata.markerBlock();
+        switch (metadata.markerValidation()) {
+            case AMBIGUOUS -> plugin.getLogger().severe(
+                    "Schematic '" + id + "' rejected: found " + metadata.markerCount() + " marker blocks ("
+                            + block + "), need exactly 1. Paste disabled. Fix: backup world, set a rare marker.block "
+                            + "in schematics/" + id + "/settings.yml, leave that block only at the chest anchor in the "
+                            + "build, //schem save, /soulevents reload."
+            );
+            case NOT_FOUND -> plugin.getLogger().severe(
+                    "Schematic '" + id + "' rejected: marker block " + block + " not found in .schem. "
+                            + "Paste disabled. Place one " + block + " at the chest anchor or set manual chestOffset "
+                            + "with marker.autoDetect: false."
+            );
+            default -> {
+            }
         }
     }
 

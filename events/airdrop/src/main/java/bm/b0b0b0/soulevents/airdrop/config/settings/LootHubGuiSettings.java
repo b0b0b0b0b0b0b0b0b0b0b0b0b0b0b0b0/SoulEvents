@@ -27,7 +27,7 @@ public final class LootHubGuiSettings {
     @Comment(@CommentValue("Слот «+» для occupiedSlots."))
     public int occupiedPlusSlot = 10;
 
-    public String backMaterial = Material.ARROW.name();
+    public String backMaterial = Material.LIGHT_GRAY_DYE.name();
     public String obfuscationMaterial = Material.COAL.name();
     public String poolMaterial = Material.CHEST.name();
     public String occupiedMinusMaterial = Material.RED_STAINED_GLASS_PANE.name();

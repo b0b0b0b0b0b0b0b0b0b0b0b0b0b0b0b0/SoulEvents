@@ -37,8 +37,8 @@ public final class AirDropTypeSettings extends YamlSerializable {
     @Comment(@CommentValue("Профиль gate из protection.yml ядра SoulEvents."))
     public String gateProfileId = "default";
 
-    @Comment(@CommentValue("Радиус защиты арены (блоки от сундука)."))
-    public int arenaRadius = 24;
+    @Comment(@CommentValue("Устарело: используйте arenaWorldGuard.marginWithoutSchematic."))
+    public int arenaRadius = 50;
 
     @Comment(@CommentValue("ID схематики в папке schematics/ ядра."))
     public String schematicId = "";
@@ -67,7 +67,7 @@ public final class AirDropTypeSettings extends YamlSerializable {
     @Comment(@CommentValue("Кластер из 4 сундуков вокруг точки спавна."))
     public ChestClusterSettings chestCluster = ChestClusterSettings.defaults();
 
-    @Comment(@CommentValue("Временный WG-регион арены (PvP, ломать, TNT — всё разрешено)."))
+    @Comment(@CommentValue("Временный WG-регион: все флаги ALLOW, deny — взрывы/жидкости (см. arenaWorldGuard)."))
     public ArenaWorldGuardSettings arenaWorldGuard = new ArenaWorldGuardSettings();
 
     @Comment(@CommentValue("Очистка после открытия сундука."))

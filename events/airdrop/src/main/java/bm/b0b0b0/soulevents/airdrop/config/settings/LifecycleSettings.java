@@ -21,6 +21,9 @@ public final class LifecycleSettings extends YamlSerializable {
     @Comment(@CommentValue("Показывать BossBar с таймером исчезновения."))
     public boolean bossBarEnabled = true;
 
+    @Comment(@CommentValue("Lang-ключ BossBar до открытия сундука (ожидание)."))
+    public String bossBarWaitingKey = "airdrop.bossbar.waiting";
+
     @Comment(@CommentValue("Lang-ключ BossBar, пока в сундуке есть лут."))
     public String bossBarDespawnKey = "airdrop.bossbar.despawn";
 

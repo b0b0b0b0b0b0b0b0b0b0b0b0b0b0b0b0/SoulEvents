@@ -4,6 +4,7 @@ import bm.b0b0b0.soulevents.airdrop.config.settings.LocaleSettings;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -11,6 +12,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -104,7 +107,23 @@ public final class AirDropMessageService {
 
     private void loadBundle(File langFolder, String fileName) {
         File file = new File(langFolder, fileName);
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+        YamlConfiguration yaml = new YamlConfiguration();
+        try {
+            yaml.load(new InputStreamReader(Files.newInputStream(file.toPath()), StandardCharsets.UTF_8));
+        } catch (IOException | InvalidConfigurationException exception) {
+            plugin.getLogger().warning("Broken lang/" + fileName + ", restoring from jar: " + exception.getMessage());
+            if (!file.delete()) {
+                plugin.getLogger().severe("Failed to delete broken lang/" + fileName);
+                return;
+            }
+            copyDefaultLang(langFolder, fileName);
+            try {
+                yaml.load(new InputStreamReader(Files.newInputStream(file.toPath()), StandardCharsets.UTF_8));
+            } catch (IOException | InvalidConfigurationException retryException) {
+                plugin.getLogger().severe("Cannot load lang/" + fileName + ": " + retryException.getMessage());
+                return;
+            }
+        }
         Map<String, String> messages = new HashMap<>();
         for (String messageKey : yaml.getKeys(true)) {
             if (yaml.isString(messageKey)) {

@@ -14,7 +14,13 @@ public record SchematicDefinition(
 ) {
 
     public boolean isReady() {
-        return metadata != null;
+        if (metadata == null) {
+            return false;
+        }
+        return switch (metadata.markerValidation()) {
+            case OK, MANUAL -> true;
+            case NOT_FOUND, AMBIGUOUS -> false;
+        };
     }
 
     public record SchematicMetadata(
@@ -34,6 +40,9 @@ public record SchematicDefinition(
             int chestOffsetY,
             int chestOffsetZ,
             boolean markerDetected,
+            MarkerValidation markerValidation,
+            int markerCount,
+            String markerBlock,
             List<FlatSurfaceOffset> footprint,
             List<FlatSurfaceOffset> surfaceProbe,
             int blockCount

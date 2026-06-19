@@ -30,10 +30,10 @@ public final class TypeSettingsGuiSettings {
     @Comment(@CommentValue("Слот «Требования для открытия»."))
     public int requirementsSlot = 40;
 
-    public String summonMaterial = Material.EMERALD.name();
+    public String summonMaterial = Material.LIME_DYE.name();
     public String teleportMaterial = Material.COMPASS.name();
     public String multiSummonMaterial = Material.TNT.name();
     public String lootInfoMaterial = Material.WRITTEN_BOOK.name();
     public String requirementsMaterial = Material.NAME_TAG.name();
-    public String backMaterial = Material.ARROW.name();
+    public String backMaterial = Material.LIGHT_GRAY_DYE.name();
 }

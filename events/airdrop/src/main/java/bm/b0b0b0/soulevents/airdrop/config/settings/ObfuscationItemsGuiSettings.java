@@ -22,7 +22,7 @@ public final class ObfuscationItemsGuiSettings {
     @Comment(@CommentValue("Справка (только текст)."))
     public int guideSlot = 4;
 
-    public String backMaterial = Material.ARROW.name();
+    public String backMaterial = Material.LIME_DYE.name();
     public String fillerMaterial = Material.BARRIER.name();
     public String guideMaterial = Material.BOOK.name();
 }

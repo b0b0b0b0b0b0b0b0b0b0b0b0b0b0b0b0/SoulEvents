@@ -61,32 +61,43 @@ public final class SchematicMarkerScanner {
         int sizeZ = max.z() - min.z() + 1;
 
         SchematicMarkerSettings marker = settings.marker;
+        String markerBlockName = marker.block.toUpperCase(Locale.ROOT);
         int chestOffsetX;
         int chestOffsetY;
         int chestOffsetZ;
         boolean markerDetected;
+        MarkerValidation markerValidation;
+        int markerCount;
         if (marker.autoDetect) {
             List<BlockVector3> markers = findMarkers(clipboard, region, marker.block);
-            if (markers.size() > 1) {
-                plugin.getLogger().warning("Schematic has " + markers.size() + " marker blocks; expected 1.");
-            }
-            if (markers.isEmpty()) {
-                chestOffsetX = marker.chestOffsetX;
-                chestOffsetY = marker.chestOffsetY;
-                chestOffsetZ = marker.chestOffsetZ;
-                markerDetected = false;
-            } else {
+            markerCount = markers.size();
+            if (markerCount == 1) {
                 BlockVector3 markerPos = markers.getFirst();
                 chestOffsetX = markerPos.x() - origin.x();
                 chestOffsetY = markerPos.y() - origin.y();
                 chestOffsetZ = markerPos.z() - origin.z();
                 markerDetected = true;
+                markerValidation = MarkerValidation.OK;
+            } else if (markerCount == 0) {
+                chestOffsetX = marker.chestOffsetX;
+                chestOffsetY = marker.chestOffsetY;
+                chestOffsetZ = marker.chestOffsetZ;
+                markerDetected = false;
+                markerValidation = MarkerValidation.NOT_FOUND;
+            } else {
+                chestOffsetX = marker.chestOffsetX;
+                chestOffsetY = marker.chestOffsetY;
+                chestOffsetZ = marker.chestOffsetZ;
+                markerDetected = false;
+                markerValidation = MarkerValidation.AMBIGUOUS;
             }
         } else {
+            markerCount = 0;
             chestOffsetX = marker.chestOffsetX;
             chestOffsetY = marker.chestOffsetY;
             chestOffsetZ = marker.chestOffsetZ;
             markerDetected = false;
+            markerValidation = MarkerValidation.MANUAL;
         }
 
         List<FlatSurfaceOffset> footprint = scanFootprint(clipboard, region, min.y());
@@ -110,6 +121,9 @@ public final class SchematicMarkerScanner {
                 chestOffsetY,
                 chestOffsetZ,
                 markerDetected,
+                markerValidation,
+                markerCount,
+                markerBlockName,
                 List.copyOf(footprint),
                 List.copyOf(surfaceProbe),
                 blockCount

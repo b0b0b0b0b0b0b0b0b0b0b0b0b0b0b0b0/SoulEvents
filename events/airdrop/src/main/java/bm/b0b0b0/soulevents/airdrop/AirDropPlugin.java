@@ -9,6 +9,8 @@ import bm.b0b0b0.soulevents.airdrop.database.DataSourceProvider;
 import bm.b0b0b0.soulevents.airdrop.database.DatabaseBootstrap;
 import bm.b0b0b0.soulevents.airdrop.gui.AirDropGuiFactory;
 import bm.b0b0b0.soulevents.airdrop.gui.AirDropGuiListener;
+import bm.b0b0b0.soulevents.airdrop.integration.ArenaRegionService;
+import bm.b0b0b0.soulevents.airdrop.listener.ArenaRegionEnforcementListener;
 import bm.b0b0b0.soulevents.airdrop.listener.AirDropChestListener;
 import bm.b0b0b0.soulevents.airdrop.message.AirDropMessageService;
 import bm.b0b0b0.soulevents.airdrop.message.AirDropStartupConsolePresenter;
@@ -70,6 +72,14 @@ public final class AirDropPlugin extends JavaPlugin {
         api.modules().register(module);
         getServer().getPluginManager().registerEvents(new AirDropGuiListener(), this);
         getServer().getPluginManager().registerEvents(new AirDropChestListener(module.service()), this);
+        getServer().getPluginManager().registerEvents(
+                new ArenaRegionEnforcementListener(
+                        module.service(),
+                        config,
+                        module.service().arenaRegions()
+                ),
+                this
+        );
         module.onEnable();
     }
 

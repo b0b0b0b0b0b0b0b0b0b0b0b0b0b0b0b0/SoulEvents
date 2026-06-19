@@ -26,49 +26,75 @@ final class SchematicMarkerLocator {
     ) {
         Material marker = SchematicMarkerScanner.parseMarkerMaterial(markerSettings.block);
         Location expected = blockAnchor(expectedChestAnchor(pasteOrigin, metadata));
+        Block expectedBlock = world.getBlockAt(
+                expected.getBlockX(),
+                expected.getBlockY(),
+                expected.getBlockZ()
+        );
+        if (expectedBlock.getType() == marker) {
+            logMarkerUsed(plugin, schematicId, markerSettings.block, expected, "schematic offset");
+            return expected;
+        }
+
         List<Location> found = scanPastedRegion(world, pasteOrigin, metadata, marker);
         if (found.size() == 1) {
             Location markerLocation = blockAnchor(found.getFirst());
-            if (markerLocation.distanceSquared(expected) > 4.0) {
-                plugin.getLogger().warning(
-                        "Schematic '" + schematicId + "': marker "
+            logMarkerUsed(plugin, schematicId, markerSettings.block, markerLocation, "pasted region");
+            if (!markerLocation.equals(expected)) {
+                plugin.getLogger().info(
+                        "Schematic '" + schematicId + "': marker offset in .schem ("
+                                + metadata.chestOffsetX() + ", "
+                                + metadata.chestOffsetY() + ", "
+                                + metadata.chestOffsetZ() + ") differs from pasted "
+                                + markerSettings.block
+                                + " at "
                                 + markerLocation.getBlockX() + ", "
                                 + markerLocation.getBlockY() + ", "
                                 + markerLocation.getBlockZ()
-                                + " is far from expected chest anchor "
-                                + expected.getBlockX() + ", "
-                                + expected.getBlockY() + ", "
-                                + expected.getBlockZ()
-                                + "; using expected offset"
                 );
-                return blockAnchor(expected);
             }
             return markerLocation;
         }
         if (found.isEmpty()) {
-            plugin.getLogger().warning(
+            plugin.getLogger().severe(
                     "Schematic '" + schematicId + "': marker " + markerSettings.block
-                            + " not found in pasted region; using chest offset ("
+                            + " not found in pasted region. Place exactly one "
+                            + markerSettings.block
+                            + " in the .schem at the chest anchor, //schem save, /soulevents reload. "
+                            + "Fallback chest offset ("
                             + metadata.chestOffsetX() + ", "
                             + metadata.chestOffsetY() + ", "
-                            + metadata.chestOffsetZ() + ") from "
+                            + metadata.chestOffsetZ() + ") from paste "
                             + pasteOrigin.getBlockX() + ", "
                             + pasteOrigin.getBlockY() + ", "
                             + pasteOrigin.getBlockZ()
             );
             return expected;
         }
+
+        Location fromSchematic = found.stream()
+                .map(SchematicMarkerLocator::blockAnchor)
+                .filter(location -> location.equals(expected))
+                .findFirst()
+                .orElse(null);
+        if (fromSchematic != null) {
+            logMarkerUsed(plugin, schematicId, markerSettings.block, fromSchematic, "schematic offset among "
+                    + found.size() + " markers");
+            return fromSchematic;
+        }
+
         Location closest = found.stream()
+                .map(SchematicMarkerLocator::blockAnchor)
                 .min(Comparator.comparingDouble(location -> location.distanceSquared(expected)))
                 .orElse(expected);
         plugin.getLogger().warning(
-                "Schematic '" + schematicId + "': found " + found.size() + " marker blocks after paste; "
-                        + "using closest to expected chest anchor "
-                        + expected.getBlockX() + ", "
-                        + expected.getBlockY() + ", "
-                        + expected.getBlockZ()
+                "Schematic '" + schematicId + "': found " + found.size() + " "
+                        + markerSettings.block + " blocks in pasted region; using closest to schematic offset at "
+                        + closest.getBlockX() + ", "
+                        + closest.getBlockY() + ", "
+                        + closest.getBlockZ()
         );
-        return blockAnchor(closest);
+        return closest;
     }
 
     static void clearMarkerAt(
@@ -96,6 +122,22 @@ final class SchematicMarkerLocator {
         if (block.getType() == marker) {
             block.setType(Material.AIR, false);
         }
+    }
+
+    private static void logMarkerUsed(
+            Plugin plugin,
+            String schematicId,
+            String markerBlock,
+            Location location,
+            String source
+    ) {
+        plugin.getLogger().info(
+                "Schematic '" + schematicId + "': chest marker " + markerBlock + " at "
+                        + location.getBlockX() + ", "
+                        + location.getBlockY() + ", "
+                        + location.getBlockZ()
+                        + " (" + source + ")"
+        );
     }
 
     private static List<Location> scanPastedRegion(

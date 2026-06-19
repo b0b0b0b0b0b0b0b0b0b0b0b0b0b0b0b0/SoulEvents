@@ -290,7 +290,6 @@ public final class SchematicServiceImpl implements SchematicService {
             SchematicPasteOptions options,
             CompletableFuture<SchematicPasteResult> future
     ) {
-        Location expectedChest = resolveChestAnchor(normalizedOrigin, schematicId).orElse(normalizedOrigin);
         SchematicRegionPreparer.prepareAsync(
                 plugin,
                 world,
@@ -358,8 +357,7 @@ public final class SchematicServiceImpl implements SchematicService {
                         world,
                         normalizedOrigin,
                         metadata,
-                        settings,
-                        expectedChest
+                        settings
                 );
                 List<WorldEditSchematicBridge.BlockSnapshot> undoSnapshots =
                         new ArrayList<>(prepared.snapshots());
@@ -412,13 +410,8 @@ public final class SchematicServiceImpl implements SchematicService {
             World world,
             Location pasteOrigin,
             SchematicDefinition.SchematicMetadata metadata,
-            SchematicSettings settings,
-            Location expectedChest
+            SchematicSettings settings
     ) {
-        if (metadata.markerValidation() == MarkerValidation.OK) {
-            SchematicMarkerLocator.clearMarkerAt(world, expectedChest, settings.marker);
-            return blockAnchor(expectedChest);
-        }
         Location resolved = SchematicMarkerLocator.resolveChestAfterPaste(
                 plugin,
                 schematicId,

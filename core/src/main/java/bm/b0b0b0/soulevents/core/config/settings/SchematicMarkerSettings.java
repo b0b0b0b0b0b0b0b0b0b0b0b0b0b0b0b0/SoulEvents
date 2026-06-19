@@ -6,7 +6,7 @@ import net.elytrium.serializer.language.object.YamlSerializable;
 
 public final class SchematicMarkerSettings extends YamlSerializable {
 
-    @Comment(@CommentValue("Блок-маркер точки сундука. Должен встречаться в .schem РОВНО 1 раз. Не BEDROCK, если им декорирована вся постройка — возьми редкий блок (STRUCTURE_VOID, LIGHT_BLUE_CONCRETE…)."))
+    @Comment(@CommentValue("Блок-маркер точки сундука. Положи РОВНО 1 такой блок в .schem на месте сундука перед //schem save. При вставке ищется в объёме схемы; точка копирования (origin) не используется."))
     public String block = "BEDROCK";
 
     @Comment(@CommentValue("Искать маркер при загрузке .schem."))

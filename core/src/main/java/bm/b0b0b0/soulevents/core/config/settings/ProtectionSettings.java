@@ -27,6 +27,15 @@ public class ProtectionSettings extends YamlSerializable {
     @Comment(@CommentValue("Именованные gate-профили для модулей ивентов."))
     public Map<String, GateProfileSettings> gateProfiles = defaultGateProfiles();
 
+    @Comment(@CommentValue("Профили эффектов для pre-open и других фаз ивентов."))
+    public Map<String, EffectProfileSettings> effectProfiles = defaultEffectProfiles();
+
+    private static Map<String, EffectProfileSettings> defaultEffectProfiles() {
+        Map<String, EffectProfileSettings> profiles = new HashMap<>();
+        profiles.put("default", new EffectProfileSettings());
+        return profiles;
+    }
+
     private static Map<String, GateProfileSettings> defaultGateProfiles() {
         Map<String, GateProfileSettings> profiles = new HashMap<>();
         profiles.put("default", new GateProfileSettings());

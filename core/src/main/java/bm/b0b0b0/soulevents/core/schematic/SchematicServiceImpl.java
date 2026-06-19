@@ -154,6 +154,13 @@ public final class SchematicServiceImpl implements SchematicService {
         boolean ignoreAir = options.ignoreAirOverride() != null
                 ? options.ignoreAirOverride()
                 : definition.settings().paste.ignoreAir;
+        boolean blendEnabled = options.landscapeBlendOverride() != null
+                ? options.landscapeBlendOverride()
+                : definition.settings().blend.enabled;
+        int blendRadius = options.blendRadiusOverride() != null
+                ? options.blendRadiusOverride()
+                : definition.settings().blend.radius;
+        int captureMargin = blendEnabled ? Math.max(0, blendRadius) : 0;
 
         CompletableFuture<SchematicPasteResult> future = new CompletableFuture<>();
         Bukkit.getScheduler().runTask(plugin, () -> {
@@ -169,7 +176,8 @@ public final class SchematicServiceImpl implements SchematicService {
             List<WorldEditSchematicBridge.BlockSnapshot> snapshots = worldEditBridge.captureRegion(
                     world,
                     normalizedOrigin,
-                    metadata
+                    metadata,
+                    captureMargin
             );
             sessionUndo.store(options.sessionId(), world.getName(), snapshots);
             Path schematicFile = definition.directory().resolve(definition.settings().file);
@@ -196,6 +204,10 @@ public final class SchematicServiceImpl implements SchematicService {
                     return;
                 }
                 worldEditBridge.clearMarker(world, normalizedOrigin, metadata, definition.settings());
+                if (blendEnabled && blendRadius > 0) {
+                    SchematicWorldBounds bounds = toWorldBounds(normalizedOrigin, metadata);
+                    SchematicLandscapeBlender.blend(world, bounds, blendRadius);
+                }
                 future.complete(new SchematicPasteResult(
                         options.sessionId(),
                         true,

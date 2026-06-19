@@ -14,7 +14,9 @@ import bm.b0b0b0.soulevents.airdrop.integration.WorldGuardIntegrations;
 import bm.b0b0b0.soulevents.api.world.WorldGuardProbe;
 import bm.b0b0b0.soulevents.airdrop.message.AirDropMessageService;
 import bm.b0b0b0.soulevents.airdrop.repository.SqlAirDropSessionRepository;
+import bm.b0b0b0.soulevents.airdrop.integration.VaultEconomyService;
 import bm.b0b0b0.soulevents.airdrop.service.AirDropDespawnBossBarService;
+import bm.b0b0b0.soulevents.airdrop.service.AirDropPreOpenService;
 import bm.b0b0b0.soulevents.airdrop.service.AirDropService;
 import bm.b0b0b0.soulevents.airdrop.service.AirDropVisualService;
 import org.bukkit.plugin.Plugin;
@@ -47,6 +49,10 @@ public final class AirDropModule implements EventModule {
         this.messages = messages;
         this.sessionRepository = sessionRepository;
         this.service = new AirDropService(api, plugin, config, messages, sessionRepository);
+        VaultEconomyService vaultEconomy = new VaultEconomyService(plugin);
+        vaultEconomy.hook();
+        service.setVaultEconomy(vaultEconomy);
+        service.setPreOpenService(new AirDropPreOpenService(plugin, api));
         service.setVisualService(new AirDropVisualService(plugin, messages));
         service.setDespawnBossBarService(new AirDropDespawnBossBarService(plugin, messages));
     }
@@ -64,6 +70,10 @@ public final class AirDropModule implements EventModule {
         this.messages = messages;
         this.guiFactory = guiFactory;
         service.reload(config);
+        VaultEconomyService vaultEconomy = new VaultEconomyService(plugin);
+        vaultEconomy.hook();
+        service.setVaultEconomy(vaultEconomy);
+        service.setPreOpenService(new AirDropPreOpenService(plugin, api));
         service.setVisualService(new AirDropVisualService(plugin, messages));
         service.setDespawnBossBarService(new AirDropDespawnBossBarService(plugin, messages));
     }

@@ -23,8 +23,9 @@ import bm.b0b0b0.soulevents.api.protection.LootGuardService;
 import bm.b0b0b0.soulevents.api.protection.ObfuscatedLootRef;
 import bm.b0b0b0.soulevents.airdrop.gate.WorldPlacementGate;
 import bm.b0b0b0.soulevents.airdrop.integration.ArenaRegionService;
-import bm.b0b0b0.soulevents.airdrop.integration.WorldGuardIntegrations;
+import bm.b0b0b0.soulevents.airdrop.integration.VaultEconomyService;
 import bm.b0b0b0.soulevents.api.world.WorldGuardProbe;
+import bm.b0b0b0.soulevents.airdrop.integration.WorldGuardIntegrations;
 import bm.b0b0b0.soulevents.airdrop.message.AirDropMessageService;
 import bm.b0b0b0.soulevents.airdrop.module.AirDropModule;
 import bm.b0b0b0.soulevents.airdrop.repository.SqlAirDropSessionRepository;
@@ -69,6 +70,8 @@ public final class AirDropService {
     private AirDropPluginConfig config;
     private AirDropVisualService visualService;
     private AirDropDespawnBossBarService despawnBossBarService;
+    private VaultEconomyService vaultEconomy;
+    private AirDropPreOpenService preOpenService;
     private Map<String, WorldPlacementGate> gates = Map.of();
 
     public AirDropService(
@@ -113,6 +116,14 @@ public final class AirDropService {
                 config::type
         );
         despawnBossBarService.start();
+    }
+
+    public void setVaultEconomy(VaultEconomyService vaultEconomy) {
+        this.vaultEconomy = vaultEconomy;
+    }
+
+    public void setPreOpenService(AirDropPreOpenService preOpenService) {
+        this.preOpenService = preOpenService;
     }
 
     public void handleChestMissing(UUID sessionId) {
@@ -479,13 +490,53 @@ public final class AirDropService {
             messages.send(player, "airdrop.unknown-type", Map.of("type", typeId));
             return;
         }
-        if (!typeOptional.get().settings().summon.playerSummonEnabled) {
+        AirDropTypeDefinition definition = typeOptional.get();
+        AirDropTypeSettings type = definition.settings();
+        if (!type.summon.playerSummonEnabled) {
             messages.send(player, "airdrop.summon-disabled", Map.of());
             return;
         }
-        if (!player.hasPermission("soulevents.airdrop.summon")
-                && !player.hasPermission("soulevents.airdrop.summon." + typeId)) {
+        if (!player.hasPermission(AirDropPermissions.SUMMON)
+                && !player.hasPermission(AirDropPermissions.summonForType(typeId))) {
             messages.send(player, "command.no-permission", Map.of());
+            return;
+        }
+        double cost = type.summon.vaultCost;
+        if (cost > 0.0) {
+            if (vaultEconomy == null || !vaultEconomy.available()) {
+                messages.send(player, "airdrop.vault-missing", Map.of(
+                        "type_name", resolveTypeName(definition)
+                ));
+                return;
+            }
+            if (!vaultEconomy.has(player, cost)) {
+                messages.send(player, "airdrop.vault-insufficient", Map.of(
+                        "type_name", resolveTypeName(definition),
+                        "cost", vaultEconomy.format(cost),
+                        "balance", vaultEconomy.format(vaultEconomy.balance(player))
+                ));
+                return;
+            }
+            if (!vaultEconomy.withdraw(player, cost)) {
+                messages.send(player, "airdrop.vault-charge-failed", Map.of(
+                        "type_name", resolveTypeName(definition),
+                        "cost", vaultEconomy.format(cost)
+                ));
+                return;
+            }
+            messages.send(player, "airdrop.vault-charged", Map.of(
+                    "type_name", resolveTypeName(definition),
+                    "cost", vaultEconomy.format(cost)
+            ));
+            spawnInConfiguredWorldAsync(player, typeId, "player", hasBypass(player), success -> {
+                if (!success) {
+                    vaultEconomy.deposit(player, cost);
+                    messages.send(player, "airdrop.vault-refunded", Map.of(
+                            "type_name", resolveTypeName(definition),
+                            "cost", vaultEconomy.format(cost)
+                    ));
+                }
+            });
             return;
         }
         spawnInConfiguredWorldAsync(player, typeId, "player", hasBypass(player));
@@ -572,6 +623,9 @@ public final class AirDropService {
         }
         if (despawnBossBarService != null) {
             despawnBossBarService.stop();
+        }
+        if (preOpenService != null) {
+            preOpenService.shutdown();
         }
     }
 
@@ -670,6 +724,9 @@ public final class AirDropService {
         api.sessions().setPhase(sessionId, EventPhase.ACTIVE);
         if (type.preOpenBeacon.enabled || type.preOpenMobs.enabled) {
             api.sessions().setPhase(sessionId, EventPhase.PRE_OPEN);
+            if (preOpenService != null) {
+                preOpenService.start(sessionId, definition, blockAnchor, lootableAt);
+            }
         }
         if (type.broadcast.enabled && type.broadcast.spawnEnabled) {
             messages.broadcast(type.broadcast.messageKey, placeholders(typeId, definition, blockAnchor, null));
@@ -893,6 +950,9 @@ public final class AirDropService {
         }
         long delaySeconds = Math.max(0L, java.time.Duration.between(Instant.now(), lootableAt).toSeconds());
         if (delaySeconds <= 0L) {
+            if (preOpenService != null) {
+                preOpenService.stop(sessionId);
+            }
             broadcastLifecycle(sessionId, typeId, definition, anchor, broadcast, broadcast.unlockedMessageKey, true, null);
             return;
         }
@@ -901,6 +961,9 @@ public final class AirDropService {
                 () -> {
                     if (sessionRegistry.find(sessionId).isEmpty()) {
                         return;
+                    }
+                    if (preOpenService != null) {
+                        preOpenService.stop(sessionId);
                     }
                     broadcastLifecycle(
                             sessionId,
@@ -945,9 +1008,18 @@ public final class AirDropService {
 
     private String formatCost(AirDropTypeSettings type) {
         if (type.summon.vaultCost <= 0.0) {
-            return "0";
+            return vaultEconomy != null ? vaultEconomy.format(0.0) : "0";
+        }
+        if (vaultEconomy != null && vaultEconomy.available()) {
+            return vaultEconomy.format(type.summon.vaultCost);
         }
         return Double.toString(type.summon.vaultCost);
+    }
+
+    private String resolveTypeName(AirDropTypeDefinition definition) {
+        return PlainTextComponentSerializer.plainText().serialize(
+                messages.resolve(definition.settings().displayNameKey, Map.of())
+        );
     }
 
     private void sendPlacementError(CommandSender sender, WorldPlacementResult result) {
@@ -992,6 +1064,9 @@ public final class AirDropService {
             }
         }
         restoreAnchorBlock(sessionId);
+        if (preOpenService != null) {
+            preOpenService.stop(sessionId);
+        }
         if (visualService != null) {
             visualService.remove(sessionId);
         }
@@ -1015,6 +1090,6 @@ public final class AirDropService {
     }
 
     private static boolean hasBypass(CommandSender sender) {
-        return sender.hasPermission("soulevents.airdrop.bypass");
+        return sender.hasPermission(AirDropPermissions.BYPASS);
     }
 }

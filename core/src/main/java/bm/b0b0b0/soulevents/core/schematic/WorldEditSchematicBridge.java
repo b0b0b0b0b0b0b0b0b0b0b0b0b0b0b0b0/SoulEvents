@@ -84,16 +84,26 @@ public final class WorldEditSchematicBridge {
             Location pasteOrigin,
             SchematicDefinition.SchematicMetadata metadata
     ) {
+        return captureRegion(world, pasteOrigin, metadata, 0);
+    }
+
+    public List<BlockSnapshot> captureRegion(
+            World world,
+            Location pasteOrigin,
+            SchematicDefinition.SchematicMetadata metadata,
+            int horizontalMargin
+    ) {
         List<BlockSnapshot> snapshots = new ArrayList<>();
+        int margin = Math.max(0, horizontalMargin);
         int baseX = pasteOrigin.getBlockX();
         int baseY = pasteOrigin.getBlockY();
         int baseZ = pasteOrigin.getBlockZ();
-        int minDx = metadata.regionMinX() - metadata.originX();
-        int maxDx = metadata.regionMaxX() - metadata.originX();
+        int minDx = metadata.regionMinX() - metadata.originX() - margin;
+        int maxDx = metadata.regionMaxX() - metadata.originX() + margin;
         int minDy = metadata.regionMinY() - metadata.originY();
         int maxDy = metadata.regionMaxY() - metadata.originY();
-        int minDz = metadata.regionMinZ() - metadata.originZ();
-        int maxDz = metadata.regionMaxZ() - metadata.originZ();
+        int minDz = metadata.regionMinZ() - metadata.originZ() - margin;
+        int maxDz = metadata.regionMaxZ() - metadata.originZ() + margin;
 
         for (int dx = minDx; dx <= maxDx; dx++) {
             for (int dz = minDz; dz <= maxDz; dz++) {

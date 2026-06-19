@@ -12,6 +12,9 @@ public class PreOpenBeaconSettings extends YamlSerializable {
     @Comment(@CommentValue("Секунд до того, как сундук можно будет открыть."))
     public int delaySeconds = 60;
 
-    @Comment(@CommentValue("ID профиля эффектов (ядро, effect resolver)."))
+    @Comment(@CommentValue("Радиус «beacon смерти» (блоки). 0 = из профиля эффектов core."))
+    public int radius = 0;
+
+    @Comment(@CommentValue("ID профиля эффектов (ядро, protection.yml → effectProfiles)."))
     public String effectProfileId = "default";
 }

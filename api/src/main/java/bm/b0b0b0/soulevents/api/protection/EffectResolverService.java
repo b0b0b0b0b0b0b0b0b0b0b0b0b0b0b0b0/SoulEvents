@@ -15,5 +15,11 @@ public interface EffectResolverService {
 
     boolean isAmplified(UUID sessionId, Player player, PotionEffect effect);
 
+    List<PotionEffect> profileEffects(String profileId);
+
+    int profileRadius(String profileId);
+
+    int profileTickInterval(String profileId);
+
     void reload();
 }

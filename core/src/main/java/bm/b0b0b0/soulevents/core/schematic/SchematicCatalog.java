@@ -153,6 +153,7 @@ public final class SchematicCatalog {
                             "chestX", String.valueOf(metadata.chestOffsetX()),
                             "chestY", String.valueOf(metadata.chestOffsetY()),
                             "chestZ", String.valueOf(metadata.chestOffsetZ()),
+                            "markers", String.valueOf(metadata.markerCount()),
                             "markerNote", metadata.markerDetected() ? " [marker]" : " [manual offset]"
                     )
             );
@@ -167,10 +168,8 @@ public final class SchematicCatalog {
         String block = metadata.markerBlock();
         switch (metadata.markerValidation()) {
             case AMBIGUOUS -> plugin.getLogger().severe(
-                    "Schematic '" + id + "' rejected: found " + metadata.markerCount() + " marker blocks ("
-                            + block + "), need exactly 1. Paste disabled. Fix: backup world, set a rare marker.block "
-                            + "in schematics/" + id + ".yml, leave that block only at the chest anchor in the "
-                            + "build, //schem save, /soulevents reload."
+                    "Schematic '" + id + "' rejected: legacy ambiguous marker state (" + metadata.markerCount()
+                            + " " + block + "). Rescan with /soulevents reload."
             );
             case NOT_FOUND -> plugin.getLogger().severe(
                     "Schematic '" + id + "' rejected: marker block " + block + " not found in .schem. "
@@ -216,6 +215,7 @@ public final class SchematicCatalog {
                 metadata.chestOffsetX(),
                 metadata.chestOffsetY(),
                 metadata.chestOffsetZ(),
+                metadata.markerCount(),
                 settings.placement.verticalOffset,
                 settings.placement.maxSurfaceDelta,
                 settings.placement.minAirAbove,

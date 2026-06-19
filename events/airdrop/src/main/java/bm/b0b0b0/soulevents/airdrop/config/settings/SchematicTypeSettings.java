@@ -6,7 +6,7 @@ import net.elytrium.serializer.language.object.YamlSerializable;
 
 public final class SchematicTypeSettings extends YamlSerializable {
 
-    public static final String BUNDLED_SCHEMATIC_ID = "test_arena";
+    public static final String BUNDLED_SCHEMATIC_ID = "test_arena2";
 
     @Comment(@CommentValue("Вставлять схему из plugins/SoulEvents/schematics/ при спавне."))
     public boolean enabled = true;
@@ -22,4 +22,7 @@ public final class SchematicTypeSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Сглаживание краёв после paste."))
     public TypeSchematicBlendSettings blend = new TypeSchematicBlendSettings();
+
+    @Comment(@CommentValue("Bedrock-маркеры в .schem: сколько точек лута активировать за спавн."))
+    public TypeSchematicMarkerSettings marker = new TypeSchematicMarkerSettings();
 }

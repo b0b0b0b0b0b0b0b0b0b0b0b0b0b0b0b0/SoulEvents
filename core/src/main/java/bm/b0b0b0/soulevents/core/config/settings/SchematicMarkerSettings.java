@@ -6,13 +6,13 @@ import net.elytrium.serializer.language.object.YamlSerializable;
 
 public final class SchematicMarkerSettings extends YamlSerializable {
 
-    @Comment(@CommentValue("Блок-маркер точки сундука. Положи РОВНО 1 такой блок в .schem на месте сундука перед //schem save. При вставке ищется в объёме схемы; точка копирования (origin) не используется."))
+    @Comment(@CommentValue("Блок-маркер точки сундука. Можно несколько в .schem — плагин выберет случайно (см. schematic.marker.spawnCount)."))
     public String block = "BEDROCK";
 
     @Comment(@CommentValue("Искать маркер при загрузке .schem."))
     public boolean autoDetect = true;
 
-    @Comment(@CommentValue("Удалить маркер при вставке (заменить на AIR)."))
+    @Comment(@CommentValue("Удалить все маркеры в объёме схемы после paste (заменить на AIR), в т.ч. не выбранные для лута."))
     public boolean replaceWithAir = true;
 
     @Comment(@CommentValue("Ручной offset сундука от origin схемы, если autoDetect: false."))

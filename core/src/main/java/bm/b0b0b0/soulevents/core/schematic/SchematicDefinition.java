@@ -1,5 +1,6 @@
 package bm.b0b0b0.soulevents.core.schematic;
 
+import bm.b0b0b0.soulevents.api.schematic.SchematicMarkerOffset;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceOffset;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicSettings;
 
@@ -19,7 +20,7 @@ public record SchematicDefinition(
             return false;
         }
         return switch (metadata.markerValidation()) {
-            case OK, MANUAL -> true;
+            case OK, MANUAL -> metadata.markerCount() >= 1;
             case NOT_FOUND, AMBIGUOUS -> false;
         };
     }
@@ -44,6 +45,7 @@ public record SchematicDefinition(
             MarkerValidation markerValidation,
             int markerCount,
             String markerBlock,
+            List<SchematicMarkerOffset> markerOffsets,
             List<FlatSurfaceOffset> footprint,
             List<FlatSurfaceOffset> surfaceProbe,
             int blockCount

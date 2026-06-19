@@ -6,7 +6,9 @@ import bm.b0b0b0.soulevents.airdrop.config.settings.VisualSettings;
 import bm.b0b0b0.soulevents.airdrop.message.AirDropMessageService;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,6 +30,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.Transformation;
+import org.joml.AxisAngle4f;
+import org.joml.Vector3f;
 
 public final class AirDropVisualService {
 
@@ -66,18 +71,34 @@ public final class AirDropVisualService {
 
     public void playSpawn(
             AirDropTypeDefinition definition,
+            List<Location> anchors,
+            UUID sessionId,
+            Instant lootableAt,
+            Material chestMaterial
+    ) {
+        if (anchors == null || anchors.isEmpty()) {
+            return;
+        }
+        AirDropTypeSettings type = definition.settings();
+        List<Location> blockAnchors = anchors.stream().map(AirDropVisualService::blockAnchor).toList();
+        if (type.visual.spawnEffectsEnabled) {
+            for (Location anchor : blockAnchors) {
+                playSpawnBurst(anchor, type);
+            }
+        }
+        if (type.visual.hologramEnabled || type.visual.ambientEffectsEnabled) {
+            spawnVisuals(definition, blockAnchors, sessionId, lootableAt);
+        }
+    }
+
+    public void playSpawn(
+            AirDropTypeDefinition definition,
             Location anchor,
             UUID sessionId,
             Instant lootableAt,
             Material chestMaterial
     ) {
-        AirDropTypeSettings type = definition.settings();
-        if (type.visual.spawnEffectsEnabled) {
-            playSpawnBurst(anchor, type);
-        }
-        if (type.visual.hologramEnabled || type.visual.ambientEffectsEnabled) {
-            spawnVisuals(definition, blockAnchor(anchor), sessionId, lootableAt);
-        }
+        playSpawn(definition, List.of(anchor), sessionId, lootableAt, chestMaterial);
     }
 
     public void remove(UUID sessionId) {
@@ -86,7 +107,9 @@ public final class AirDropVisualService {
             return;
         }
         visual.task().cancel();
-        removeEntity(visual.entityId());
+        for (UUID entityId : visual.entityIds()) {
+            removeEntity(entityId);
+        }
     }
 
     public void shutdown() {
@@ -118,21 +141,28 @@ public final class AirDropVisualService {
 
     private void spawnVisuals(
             AirDropTypeDefinition definition,
-            Location blockAnchor,
+            List<Location> blockAnchors,
             UUID sessionId,
             Instant lootableAt
     ) {
         remove(sessionId);
-        HologramContext context = new HologramContext(sessionId, definition, blockAnchor.clone(), lootableAt);
-        UUID entityId = null;
-        if (definition.settings().visual.hologramEnabled) {
-            TextDisplay display = createDisplay(context);
-            if (display != null) {
-                entityId = display.getUniqueId();
+        VisualSettings visual = definition.settings().visual;
+        List<Location> hologramAnchors = visual.hologramPerLootPoint || blockAnchors.size() == 1
+                ? blockAnchors
+                : List.of(blockAnchors.getFirst());
+        HologramContext context = new HologramContext(sessionId, definition, blockAnchors, hologramAnchors, lootableAt);
+        List<UUID> entityIds = new ArrayList<>();
+        if (visual.hologramEnabled) {
+            for (Location anchor : hologramAnchors) {
+                TextDisplay display = createDisplay(context, anchor);
+                if (display != null) {
+                    entityIds.add(display.getUniqueId());
+                }
             }
         }
-        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> tickVisual(sessionId), 10L, 10L);
-        visuals.put(sessionId, new ActiveVisual(entityId, task, context));
+        long interval = Math.max(1, visual.hologramTickIntervalTicks);
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> tickVisual(sessionId), interval, interval);
+        visuals.put(sessionId, new ActiveVisual(entityIds, task, context));
     }
 
     private void tickVisual(UUID sessionId) {
@@ -149,44 +179,61 @@ public final class AirDropVisualService {
         }
         HologramContext context = active.context();
         VisualSettings visual = context.definition().settings().visual;
-        Location blockAnchor = context.blockAnchor();
-        updateHologram(active, context, visual, blockAnchor);
-        if (visual.ambientEffectsEnabled && hasNearbyViewer(blockAnchor)) {
-            try {
-                playAmbientEffects(blockAnchor, visual);
-            } catch (RuntimeException exception) {
-                plugin.getLogger().log(
-                        Level.WARNING,
-                        "Ambient effects failed for airdrop session " + sessionId,
-                        exception
-                );
+        updateHolograms(active, context, visual);
+        if (visual.ambientEffectsEnabled) {
+            for (Location blockAnchor : context.blockAnchors()) {
+                if (hasNearbyViewer(blockAnchor, visual.ambientViewerRadius)) {
+                    try {
+                        playAmbientEffects(blockAnchor, visual);
+                    } catch (RuntimeException exception) {
+                        plugin.getLogger().log(
+                                Level.WARNING,
+                                "Ambient effects failed for airdrop session " + sessionId,
+                                exception
+                        );
+                    }
+                }
             }
         }
     }
 
-    private void updateHologram(ActiveVisual active, HologramContext context, VisualSettings visual, Location blockAnchor) {
+    private void updateHolograms(ActiveVisual active, HologramContext context, VisualSettings visual) {
         if (!visual.hologramEnabled) {
             return;
         }
         UUID sessionId = context.sessionId();
-        if (active.entityId() == null) {
-            TextDisplay respawned = createDisplay(context);
-            if (respawned != null) {
-                visuals.put(sessionId, new ActiveVisual(respawned.getUniqueId(), active.task(), context));
-            }
-            return;
-        }
-        TextDisplay display = findDisplay(active.entityId());
-        if (display == null || !display.isValid()) {
-            TextDisplay respawned = createDisplay(context);
+        List<Location> hologramAnchors = context.hologramAnchors();
+        List<UUID> entityIds = new ArrayList<>(active.entityIds());
+        while (entityIds.size() < hologramAnchors.size()) {
+            TextDisplay respawned = createDisplay(context, hologramAnchors.get(entityIds.size()));
             if (respawned == null) {
-                return;
+                break;
             }
-            visuals.put(sessionId, new ActiveVisual(respawned.getUniqueId(), active.task(), context));
-            return;
+            entityIds.add(respawned.getUniqueId());
         }
-        display.teleport(hologramLocation(blockAnchor, visual.hologramOffsetY));
-        display.text(buildHologramText(context));
+        if (entityIds.size() != active.entityIds().size()) {
+            visuals.put(sessionId, new ActiveVisual(entityIds, active.task(), context));
+        }
+        Component text = buildHologramText(context);
+        for (int index = 0; index < hologramAnchors.size() && index < entityIds.size(); index++) {
+            Location blockAnchor = hologramAnchors.get(index);
+            UUID entityId = entityIds.get(index);
+            TextDisplay display = findDisplay(entityId);
+            if (display == null || !display.isValid()) {
+                TextDisplay respawned = createDisplay(context, blockAnchor);
+                if (respawned != null) {
+                    entityIds.set(index, respawned.getUniqueId());
+                    display = respawned;
+                }
+            }
+            if (display == null) {
+                continue;
+            }
+            applyDisplaySettings(display, visual);
+            display.teleport(hologramLocation(blockAnchor, visual));
+            display.text(text);
+        }
+        visuals.put(sessionId, new ActiveVisual(entityIds, active.task(), context));
     }
 
     private void playAmbientEffects(Location blockAnchor, VisualSettings visual) {
@@ -201,12 +248,12 @@ public final class AirDropVisualService {
         world.spawnParticle(Particle.ENCHANT, base.clone().add(0, 0.75, 0), 8, 0.42, 0.35, 0.42, 0.6);
     }
 
-    private boolean hasNearbyViewer(Location blockAnchor) {
+    private boolean hasNearbyViewer(Location blockAnchor, int radius) {
         World world = blockAnchor.getWorld();
         if (world == null) {
             return false;
         }
-        double radiusSquared = 72.0 * 72.0;
+        double radiusSquared = (double) Math.max(1, radius) * Math.max(1, radius);
         for (Player player : world.getPlayers()) {
             if (player.getLocation().distanceSquared(blockAnchor) <= radiusSquared) {
                 return true;
@@ -215,8 +262,7 @@ public final class AirDropVisualService {
         return false;
     }
 
-    private TextDisplay createDisplay(HologramContext context) {
-        Location blockAnchor = context.blockAnchor();
+    private TextDisplay createDisplay(HologramContext context, Location blockAnchor) {
         World world = blockAnchor.getWorld();
         if (world == null) {
             return null;
@@ -225,23 +271,77 @@ public final class AirDropVisualService {
         if (!chunk.isLoaded()) {
             return null;
         }
-        double offsetY = context.definition().settings().visual.hologramOffsetY;
-        return world.spawn(hologramLocation(blockAnchor, offsetY), TextDisplay.class, entity -> {
+        VisualSettings visual = context.definition().settings().visual;
+        return world.spawn(hologramLocation(blockAnchor, visual), TextDisplay.class, entity -> {
             entity.text(buildHologramText(context));
-            entity.setBillboard(Display.Billboard.CENTER);
-            entity.setSeeThrough(true);
-            entity.setShadowed(true);
-            entity.setDefaultBackground(false);
-            entity.setBackgroundColor(Color.fromARGB(90, 0, 0, 0));
-            entity.setAlignment(TextDisplay.TextAlignment.CENTER);
-            entity.setPersistent(true);
-            entity.setInvulnerable(true);
-            entity.setVisibleByDefault(true);
+            applyDisplaySettings(entity, visual);
         });
     }
 
-    private static Location hologramLocation(Location blockAnchor, double offsetY) {
-        return blockAnchor.clone().add(0.5, offsetY, 0.5);
+    private static void applyDisplaySettings(TextDisplay entity, VisualSettings visual) {
+        entity.setBillboard(parseBillboard(visual.hologramBillboard));
+        entity.setSeeThrough(visual.hologramSeeThrough);
+        entity.setShadowed(visual.hologramShadowed);
+        entity.setDefaultBackground(!visual.hologramBackgroundEnabled);
+        if (visual.hologramBackgroundEnabled) {
+            entity.setBackgroundColor(Color.fromARGB(
+                    clampColor(visual.hologramBackgroundAlpha),
+                    clampColor(visual.hologramBackgroundRed),
+                    clampColor(visual.hologramBackgroundGreen),
+                    clampColor(visual.hologramBackgroundBlue)
+            ));
+        }
+        entity.setAlignment(parseAlignment(visual.hologramAlignment));
+        entity.setLineWidth(Math.max(1, visual.hologramLineWidth));
+        entity.setTextOpacity((byte) clampColor(visual.hologramTextOpacity));
+        entity.setViewRange(Math.max(1.0f, visual.hologramViewRange));
+        entity.setTransformation(new Transformation(
+                new Vector3f(0.0f, 0.0f, 0.0f),
+                new AxisAngle4f(0.0f, 0.0f, 0.0f, 1.0f),
+                new Vector3f(
+                        Math.max(0.01f, visual.hologramScaleX),
+                        Math.max(0.01f, visual.hologramScaleY),
+                        Math.max(0.01f, visual.hologramScaleZ)
+                ),
+                new AxisAngle4f(0.0f, 0.0f, 0.0f, 1.0f)
+        ));
+        entity.setPersistent(true);
+        entity.setInvulnerable(true);
+        entity.setVisibleByDefault(true);
+    }
+
+    private static int clampColor(int value) {
+        return Math.max(0, Math.min(255, value));
+    }
+
+    private static Display.Billboard parseBillboard(String value) {
+        if (value == null || value.isBlank()) {
+            return Display.Billboard.CENTER;
+        }
+        try {
+            return Display.Billboard.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            return Display.Billboard.CENTER;
+        }
+    }
+
+    private static TextDisplay.TextAlignment parseAlignment(String value) {
+        if (value == null || value.isBlank()) {
+            return TextDisplay.TextAlignment.CENTER;
+        }
+        try {
+            return TextDisplay.TextAlignment.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            return TextDisplay.TextAlignment.CENTER;
+        }
+    }
+
+    private static Location hologramLocation(Location blockAnchor, VisualSettings visual) {
+        return blockAnchor.clone().add(
+                0.5 + visual.hologramOffsetX,
+                visual.hologramOffsetY,
+                0.5 + visual.hologramOffsetZ
+        );
     }
 
     private static Location blockAnchor(Location anchor) {
@@ -279,7 +379,7 @@ public final class AirDropVisualService {
         if (Instant.now().isBefore(context.lootableAt())) {
             long seconds = Math.max(0L, Duration.between(Instant.now(), context.lootableAt()).toSeconds());
             placeholders.put("timer", formatTimer(seconds));
-            return messages.resolve("airdrop.hologram.body-waiting", placeholders);
+            return messages.resolve(visual.hologramWaitingKey, placeholders);
         }
         boolean looted = Boolean.TRUE.equals(lootedCheck.apply(context.sessionId()));
         boolean chestEmpty = Boolean.TRUE.equals(chestGuiEmptyCheck.apply(context.sessionId()));
@@ -322,11 +422,12 @@ public final class AirDropVisualService {
     private record HologramContext(
             UUID sessionId,
             AirDropTypeDefinition definition,
-            Location blockAnchor,
+            List<Location> blockAnchors,
+            List<Location> hologramAnchors,
             Instant lootableAt
     ) {
     }
 
-    private record ActiveVisual(UUID entityId, BukkitTask task, HologramContext context) {
+    private record ActiveVisual(List<UUID> entityIds, BukkitTask task, HologramContext context) {
     }
 }

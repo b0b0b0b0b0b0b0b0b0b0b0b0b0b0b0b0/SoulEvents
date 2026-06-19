@@ -2,9 +2,11 @@ package bm.b0b0b0.soulevents.airdrop.service;
 
 import bm.b0b0b0.soulevents.airdrop.config.settings.SchematicTypeSettings;
 import bm.b0b0b0.soulevents.airdrop.config.settings.TypeSchematicBlendSettings;
+import bm.b0b0b0.soulevents.airdrop.config.settings.TypeSchematicMarkerSettings;
 import bm.b0b0b0.soulevents.airdrop.config.settings.TypeSchematicPasteSettings;
 import bm.b0b0b0.soulevents.airdrop.config.settings.TypeSchematicPlacementSettings;
 import bm.b0b0b0.soulevents.api.schematic.SchematicBlendOverrides;
+import bm.b0b0b0.soulevents.api.schematic.SchematicMarkerOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPasteOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPlacementOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicSpawnOverrides;
@@ -18,8 +20,13 @@ public final class SchematicSpawnOverridesFactory {
         return new SchematicSpawnOverrides(
                 placement(schematic.placement),
                 blend(schematic.blend),
-                paste(schematic.paste)
+                paste(schematic.paste),
+                marker(schematic.marker)
         );
+    }
+
+    private static SchematicMarkerOverrides marker(TypeSchematicMarkerSettings marker) {
+        return new SchematicMarkerOverrides(marker.spawnCount);
     }
 
     private static SchematicPlacementOverrides placement(TypeSchematicPlacementSettings placement) {

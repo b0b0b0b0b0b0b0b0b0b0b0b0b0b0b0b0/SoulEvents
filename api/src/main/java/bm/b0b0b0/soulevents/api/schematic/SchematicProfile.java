@@ -12,6 +12,7 @@ public record SchematicProfile(
         int chestOffsetX,
         int chestOffsetY,
         int chestOffsetZ,
+        int markerCount,
         int verticalOffset,
         int maxSurfaceDelta,
         int minAirAbove,

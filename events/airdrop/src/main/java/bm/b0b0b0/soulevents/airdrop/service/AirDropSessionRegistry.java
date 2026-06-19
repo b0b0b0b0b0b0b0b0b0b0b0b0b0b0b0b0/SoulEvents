@@ -17,27 +17,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class AirDropSessionRegistry {
 
+    public static final int LOOT_POINT_STRIDE = 10;
+
     private final ConcurrentHashMap<UUID, SessionRecord> sessions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<BlockKey, UUID> blockIndex = new ConcurrentHashMap<>();
 
-    public void register(
-            UUID sessionId,
-            Location anchor,
-            Material chestMaterial,
-            Material originalMaterial,
-            BlockData originalBlockData,
-            boolean clusterEnabled,
-            List<ReplacedBlock> clusterBlocks,
-            int clusterLootSlotIndex
-    ) {
+    public void register(UUID sessionId, List<LootPoint> lootPoints, Material chestMaterial) {
         SessionRecord record = new SessionRecord(
-                anchor.clone(),
+                lootPoints == null ? List.of() : List.copyOf(lootPoints),
                 chestMaterial,
-                originalMaterial,
-                originalBlockData,
-                clusterEnabled,
-                clusterBlocks == null ? List.of() : List.copyOf(clusterBlocks),
-                clusterLootSlotIndex,
                 null,
                 null,
                 List.of(),
@@ -72,6 +60,27 @@ public final class AirDropSessionRegistry {
         return Optional.ofNullable(blockIndex.get(BlockKey.of(location)));
     }
 
+    public static int flatChestIndex(int pointIndex, int clusterIndex) {
+        return pointIndex * LOOT_POINT_STRIDE + clusterIndex;
+    }
+
+    public static int sequentialChestIndex(List<LootPoint> lootPoints, int pointIndex, int clusterIndex) {
+        int index = 0;
+        for (int currentPoint = 0; currentPoint < pointIndex; currentPoint++) {
+            LootPoint point = lootPoints.get(currentPoint);
+            index += point.clusterEnabled() ? AirDropClusterChestPlacer.CLUSTER_CHEST_COUNT : 1;
+        }
+        return index + clusterIndex;
+    }
+
+    public static int totalChestSlots(List<LootPoint> lootPoints) {
+        int total = 0;
+        for (LootPoint point : lootPoints) {
+            total += point.clusterEnabled() ? AirDropClusterChestPlacer.CLUSTER_CHEST_COUNT : 1;
+        }
+        return total;
+    }
+
     private void indexSession(UUID sessionId, SessionRecord record) {
         if (record == null) {
             return;
@@ -92,10 +101,12 @@ public final class AirDropSessionRegistry {
 
     private static List<BlockKey> blockKeysFor(SessionRecord record) {
         List<BlockKey> keys = new ArrayList<>();
-        keys.add(BlockKey.of(record.anchor()));
-        if (record.clusterEnabled()) {
-            for (ReplacedBlock block : record.clusterBlocks()) {
-                keys.add(BlockKey.of(block.location()));
+        for (LootPoint point : record.lootPoints()) {
+            keys.add(BlockKey.of(point.anchor()));
+            if (point.clusterEnabled()) {
+                for (ReplacedBlock block : point.clusterBlocks()) {
+                    keys.add(BlockKey.of(block.location()));
+                }
             }
         }
         return keys;
@@ -174,14 +185,36 @@ public final class AirDropSessionRegistry {
         }
     }
 
-    public record SessionRecord(
+    public record LootPoint(
             Location anchor,
-            Material chestMaterial,
             Material originalMaterial,
             BlockData originalBlockData,
             boolean clusterEnabled,
             List<ReplacedBlock> clusterBlocks,
-            int clusterLootSlotIndex,
+            int clusterLootSlotIndex
+    ) {
+
+        public boolean isDecoyCluster() {
+            return clusterEnabled && clusterLootSlotIndex >= 0;
+        }
+
+        public boolean isChestIntact(Material chestMaterial) {
+            if (anchor.getWorld() == null) {
+                return false;
+            }
+            if (clusterEnabled) {
+                return AirDropClusterChestPlacer.areClusterChestsIntact(anchor, chestMaterial);
+            }
+            return anchor.getBlock().getType() == chestMaterial;
+        }
+    }
+
+    public record ChestClickTarget(int pointIndex, int clusterIndex) {
+    }
+
+    public record SessionRecord(
+            List<LootPoint> lootPoints,
+            Material chestMaterial,
             BukkitTask unlockBroadcastTask,
             BukkitTask cleanupTask,
             List<AirDropChestHolder> lootChests,
@@ -190,11 +223,52 @@ public final class AirDropSessionRegistry {
             boolean looted
     ) {
 
-        public Optional<AirDropChestHolder> lootChest(int clusterIndex) {
-            if (lootChests == null || clusterIndex < 0 || clusterIndex >= lootChests.size()) {
+        public Location anchor() {
+            return lootPoints.isEmpty() ? null : lootPoints.getFirst().anchor();
+        }
+
+        public boolean clusterEnabled() {
+            return lootPoints.size() == 1 && lootPoints.getFirst().clusterEnabled();
+        }
+
+        public List<ReplacedBlock> clusterBlocks() {
+            return lootPoints.size() == 1 ? lootPoints.getFirst().clusterBlocks() : List.of();
+        }
+
+        public int clusterLootSlotIndex() {
+            return lootPoints.size() == 1 ? lootPoints.getFirst().clusterLootSlotIndex() : -1;
+        }
+
+        public Material originalMaterial() {
+            return lootPoints.isEmpty() ? Material.AIR : lootPoints.getFirst().originalMaterial();
+        }
+
+        public BlockData originalBlockData() {
+            return lootPoints.isEmpty() ? null : lootPoints.getFirst().originalBlockData();
+        }
+
+        public Optional<ChestClickTarget> resolveClick(Location clickedBlock) {
+            for (int pointIndex = 0; pointIndex < lootPoints.size(); pointIndex++) {
+                LootPoint point = lootPoints.get(pointIndex);
+                if (!point.clusterEnabled()) {
+                    if (sameBlock(point.anchor(), clickedBlock)) {
+                        return Optional.of(new ChestClickTarget(pointIndex, 0));
+                    }
+                    continue;
+                }
+                Optional<Integer> slotIndex = AirDropClusterChestPlacer.slotIndexAt(point.anchor(), clickedBlock);
+                if (slotIndex.isPresent()) {
+                    return Optional.of(new ChestClickTarget(pointIndex, slotIndex.get()));
+                }
+            }
+            return Optional.empty();
+        }
+
+        public Optional<AirDropChestHolder> lootChest(int flatIndex) {
+            if (lootChests == null || flatIndex < 0 || flatIndex >= lootChests.size()) {
                 return Optional.empty();
             }
-            AirDropChestHolder holder = lootChests.get(clusterIndex);
+            AirDropChestHolder holder = lootChests.get(flatIndex);
             if (holder == null) {
                 return Optional.empty();
             }
@@ -211,13 +285,8 @@ public final class AirDropSessionRegistry {
 
         public SessionRecord withUnlockBroadcastTask(BukkitTask unlockBroadcastTask) {
             return new SessionRecord(
-                    anchor,
+                    lootPoints,
                     chestMaterial,
-                    originalMaterial,
-                    originalBlockData,
-                    clusterEnabled,
-                    clusterBlocks,
-                    clusterLootSlotIndex,
                     unlockBroadcastTask,
                     cleanupTask,
                     lootChests,
@@ -230,13 +299,8 @@ public final class AirDropSessionRegistry {
         public SessionRecord withCleanupTask(BukkitTask cleanupTask, Instant cleanupAt) {
             cancelTask(this.cleanupTask);
             return new SessionRecord(
-                    anchor,
+                    lootPoints,
                     chestMaterial,
-                    originalMaterial,
-                    originalBlockData,
-                    clusterEnabled,
-                    clusterBlocks,
-                    clusterLootSlotIndex,
                     unlockBroadcastTask,
                     cleanupTask,
                     lootChests,
@@ -248,13 +312,8 @@ public final class AirDropSessionRegistry {
 
         public SessionRecord withOpened() {
             return new SessionRecord(
-                    anchor,
+                    lootPoints,
                     chestMaterial,
-                    originalMaterial,
-                    originalBlockData,
-                    clusterEnabled,
-                    clusterBlocks,
-                    clusterLootSlotIndex,
                     unlockBroadcastTask,
                     cleanupTask,
                     lootChests,
@@ -275,13 +334,8 @@ public final class AirDropSessionRegistry {
                 boolean looted
         ) {
             return new SessionRecord(
-                    anchor,
+                    lootPoints,
                     chestMaterial,
-                    originalMaterial,
-                    originalBlockData,
-                    clusterEnabled,
-                    clusterBlocks,
-                    clusterLootSlotIndex,
                     unlockBroadcastTask,
                     cleanupTask,
                     lootChests == null ? List.of() : List.copyOf(lootChests),
@@ -292,17 +346,24 @@ public final class AirDropSessionRegistry {
         }
 
         public boolean isChestIntact() {
-            if (anchor.getWorld() == null) {
-                return false;
+            for (LootPoint point : lootPoints) {
+                if (!point.isChestIntact(chestMaterial)) {
+                    return false;
+                }
             }
-            if (clusterEnabled) {
-                return AirDropClusterChestPlacer.areClusterChestsIntact(anchor, chestMaterial);
-            }
-            return anchor.getBlock().getType() == chestMaterial;
+            return !lootPoints.isEmpty();
         }
 
         public boolean isDecoyCluster() {
-            return clusterEnabled && clusterLootSlotIndex >= 0;
+            return lootPoints.size() == 1 && lootPoints.getFirst().isDecoyCluster();
+        }
+
+        private static boolean sameBlock(Location left, Location right) {
+            return left.getBlockX() == right.getBlockX()
+                    && left.getBlockY() == right.getBlockY()
+                    && left.getBlockZ() == right.getBlockZ()
+                    && left.getWorld() != null
+                    && left.getWorld().equals(right.getWorld());
         }
     }
 }

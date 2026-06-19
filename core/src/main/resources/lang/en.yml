@@ -16,7 +16,7 @@ startup.module.airdrop: "  AirDrop: ready"
 
 startup.schematic.bundled: "  Installed bundled schematic: <file>"
 
-startup.schematic.loaded: "  Schematic <id> loaded: <size>, footprint <footprint>, probe <probe>, chest (<chestX>, <chestY>, <chestZ>)<markerNote>"
+startup.schematic.loaded: "  Schematic <id> loaded: <size>, footprint <footprint>, probe <probe>, markers <markers>, chest (<chestX>, <chestY>, <chestZ>)<markerNote>"
 
 startup.schematic.folder-empty: "  schematics/ folder is empty — drop .schem files into plugins/SoulEvents/schematics/"
 
@@ -38,7 +38,7 @@ schematic.list-entry-invalid: "<yellow><id></yellow> <red>— marker <block>: fo
 schematic.unknown: "<red>Schematic <id> not found.</red>"
 schematic.scan-failed: "<red>Schematic <id>: failed to read .schem (see console).</red>"
 schematic.scan-started: "<green>Schematic rescan started (<id>).</green>"
-schematic.info: "<green>Schematic <id></green> <gray>|</gray> <white><size></white> <gray>| chest offset</gray> <white><chest></white> <gray>| vertical</gray> <white><vertical></white> <gray>| footprint</gray> <white><footprint></white> <gray>| probe</gray> <white><probe></white>"
+schematic.info: "<green>Schematic <id></green> <gray>|</gray> <white><size></white> <gray>| markers</gray> <white><markers></white> <gray>| chest offset</gray> <white><chest></white> <gray>| vertical</gray> <white><vertical></white> <gray>| footprint</gray> <white><footprint></white> <gray>| probe</gray> <white><probe></white>"
 schematic.info-invalid: "<red>Schematic <id> is not ready — paste and spawn disabled.</red>"
 schematic.marker-ambiguous: "<red>.schem contains <count> <block> blocks. Exactly one chest anchor is required.</red>"
 schematic.marker-missing: "<red>Marker block <block> not found in .schem.</red>"

@@ -3,6 +3,7 @@ package bm.b0b0b0.soulevents.core.schematic;
 import bm.b0b0b0.soulevents.api.schematic.SchematicBlendOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPasteOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPlacementOverrides;
+import bm.b0b0b0.soulevents.api.schematic.SchematicMarkerOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicSpawnOverrides;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicBlendMaterialsSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicBlendSettings;
@@ -66,6 +67,13 @@ public final class SchematicSpawnSupport {
             return overrides.paste().blocksPerTick();
         }
         return defaults.paste.blocksPerTick;
+    }
+
+    public static int resolveMarkerSpawnCount(SchematicSpawnOverrides overrides) {
+        if (overrides != null && overrides.marker() != null) {
+            return overrides.marker().effectiveSpawnCount();
+        }
+        return SchematicMarkerOverrides.defaults().effectiveSpawnCount();
     }
 
     private static SchematicPlacementSettings toPlacement(SchematicPlacementOverrides source) {

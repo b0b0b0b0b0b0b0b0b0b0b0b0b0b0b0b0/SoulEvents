@@ -213,6 +213,7 @@ public final class SchematicServiceImpl implements SchematicService {
         final int effectiveBlendRadius = resolveBlendRadius(blendEnabled, blendRadius, metadata);
         final int horizontalCaptureMargin = blendEnabled ? Math.max(0, effectiveBlendRadius) : 0;
 
+        final int markerSpawnCount = SchematicSpawnSupport.resolveMarkerSpawnCount(overrides);
         CompletableFuture<SchematicPasteResult> future = new CompletableFuture<>();
         int captureBlocks = SchematicRegionBounds.estimateUndoCaptureBlockCount(
                 metadata,
@@ -265,6 +266,7 @@ public final class SchematicServiceImpl implements SchematicService {
                     effectiveBlendRadius,
                     horizontalCaptureMargin,
                     terrainAdapt,
+                    markerSpawnCount,
                     options,
                     future
             );
@@ -287,6 +289,7 @@ public final class SchematicServiceImpl implements SchematicService {
             int effectiveBlendRadius,
             int horizontalCaptureMargin,
             int terrainAdapt,
+            int markerSpawnCount,
             SchematicPasteOptions options,
             CompletableFuture<SchematicPasteResult> future
     ) {
@@ -351,14 +354,16 @@ public final class SchematicServiceImpl implements SchematicService {
                     ));
                     return;
                 }
-                Location resolvedChest = resolveChestAfterPaste(
+                List<Location> resolvedChests = resolveChestAnchorsAfterPaste(
                         plugin,
                         schematicId,
                         world,
                         normalizedOrigin,
                         metadata,
-                        settings
+                        settings,
+                        markerSpawnCount
                 );
+                Location resolvedChest = resolvedChests.getFirst();
                 List<WorldEditSchematicBridge.BlockSnapshot> undoSnapshots =
                         new ArrayList<>(prepared.snapshots());
                 if (blendEnabled && effectiveBlendRadius > 0) {
@@ -386,7 +391,8 @@ public final class SchematicServiceImpl implements SchematicService {
                                 + normalizedOrigin.getBlockX() + ", "
                                 + normalizedOrigin.getBlockY() + ", "
                                 + normalizedOrigin.getBlockZ()
-                                + " chest="
+                                + " chests=" + resolvedChests.size()
+                                + " primary="
                                 + resolvedChest.getBlockX() + ", "
                                 + resolvedChest.getBlockY() + ", "
                                 + resolvedChest.getBlockZ()
@@ -397,6 +403,7 @@ public final class SchematicServiceImpl implements SchematicService {
                         true,
                         normalizedOrigin.clone(),
                         resolvedChest.clone(),
+                        resolvedChests.stream().map(Location::clone).toList(),
                         outcome.blockCount(),
                         Optional.empty()
                 ));
@@ -404,23 +411,37 @@ public final class SchematicServiceImpl implements SchematicService {
         });
     }
 
-    private static Location resolveChestAfterPaste(
+    private static List<Location> resolveChestAnchorsAfterPaste(
             Plugin plugin,
             String schematicId,
             World world,
             Location pasteOrigin,
             SchematicDefinition.SchematicMetadata metadata,
-            SchematicSettings settings
+            SchematicSettings settings,
+            int markerSpawnCount
     ) {
-        Location resolved = SchematicMarkerLocator.resolveChestAfterPaste(
+        List<Location> resolved = SchematicMarkerLocator.resolveChestAnchorsAfterPaste(
                 plugin,
                 schematicId,
                 world,
                 pasteOrigin,
                 metadata,
+                settings.marker,
+                markerSpawnCount
+        );
+        int clearedMarkers = SchematicMarkerLocator.clearAllMarkersInPastedRegion(
+                world,
+                pasteOrigin,
+                metadata,
                 settings.marker
         );
-        SchematicMarkerLocator.clearMarkerAt(world, resolved, settings.marker);
+        if (clearedMarkers > resolved.size()) {
+            plugin.getLogger().info(
+                    "Schematic '" + schematicId + "': cleared " + clearedMarkers + " "
+                            + settings.marker.block + " marker block(s) in pasted region ("
+                            + resolved.size() + " used for chests)"
+            );
+        }
         return resolved;
     }
 

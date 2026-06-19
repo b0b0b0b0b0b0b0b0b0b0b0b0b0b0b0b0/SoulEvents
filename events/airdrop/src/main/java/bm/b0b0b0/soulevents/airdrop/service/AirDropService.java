@@ -150,7 +150,7 @@ public final class AirDropService {
             endSession(sessionId, "ANCHOR_LOST");
             return;
         }
-        ensureLootChest(sessionId, definition.get(), record);
+        ensureLootChests(sessionId, definition.get(), record);
     }
 
     public void reload(AirDropPluginConfig config) {
@@ -195,15 +195,15 @@ public final class AirDropService {
             return;
         }
         AirDropSessionRegistry.SessionRecord record = recordOptional.get();
-        int clusterIndex = 0;
-        if (record.clusterEnabled()) {
-            Optional<Integer> slotIndex = AirDropClusterChestPlacer.slotIndexAt(record.anchor(), clickedBlock);
-            if (slotIndex.isEmpty()) {
-                messages.send(player, "airdrop.chest-open-failed", Map.of());
-                return;
-            }
-            clusterIndex = slotIndex.get();
+        AirDropSessionRegistry.ChestClickTarget clickTarget = record.resolveClick(clickedBlock)
+                .orElse(null);
+        if (clickTarget == null) {
+            messages.send(player, "airdrop.chest-open-failed", Map.of());
+            return;
         }
+        int pointIndex = clickTarget.pointIndex();
+        int clusterIndex = clickTarget.clusterIndex();
+        AirDropSessionRegistry.LootPoint lootPoint = record.lootPoints().get(pointIndex);
         Optional<ActiveEvent> active = activeEvent(sessionId);
         if (active.isEmpty()) {
             messages.send(player, "airdrop.chest-unavailable", Map.of());
@@ -243,16 +243,16 @@ public final class AirDropService {
             messages.send(player, "airdrop.required-item-missing", Map.of());
             return;
         }
-        if (record.clusterEnabled() && record.isDecoyCluster() && clusterIndex != record.clusterLootSlotIndex()) {
+        if (lootPoint.isDecoyCluster() && clusterIndex != lootPoint.clusterLootSlotIndex()) {
             messages.send(player, "airdrop.chest-decoy", Map.of());
             return;
         }
-        final int openedClusterIndex = clusterIndex;
-        AirDropChestHolder holder = record.lootChest(openedClusterIndex).orElse(null);
+        final int holderIndex = AirDropSessionRegistry.sequentialChestIndex(record.lootPoints(), pointIndex, clusterIndex);
+        AirDropChestHolder holder = record.lootChest(holderIndex).orElse(null);
         if (holder == null) {
-            ensureLootChest(sessionId, definition, record);
+            ensureLootChests(sessionId, definition, record);
             holder = sessionRegistry.find(sessionId)
-                    .flatMap(current -> current.lootChest(openedClusterIndex))
+                    .flatMap(current -> current.lootChest(holderIndex))
                     .orElse(null);
         }
         if (holder == null) {
@@ -326,16 +326,21 @@ public final class AirDropService {
         if (!record.hasLootChests()) {
             return false;
         }
-        for (int index = 0; index < record.lootChests().size(); index++) {
-            if (record.isDecoyCluster() && index != record.clusterLootSlotIndex()) {
-                continue;
-            }
-            AirDropChestHolder holder = record.lootChest(index).orElse(null);
-            if (holder == null) {
-                continue;
-            }
-            if (!isInventoryEmpty(holder.getInventory())) {
-                return false;
+        for (int pointIndex = 0; pointIndex < record.lootPoints().size(); pointIndex++) {
+            AirDropSessionRegistry.LootPoint point = record.lootPoints().get(pointIndex);
+            int chestCount = point.clusterEnabled() ? AirDropClusterChestPlacer.CLUSTER_CHEST_COUNT : 1;
+            for (int clusterIndex = 0; clusterIndex < chestCount; clusterIndex++) {
+                if (point.isDecoyCluster() && clusterIndex != point.clusterLootSlotIndex()) {
+                    continue;
+                }
+                int holderIndex = AirDropSessionRegistry.sequentialChestIndex(record.lootPoints(), pointIndex, clusterIndex);
+                AirDropChestHolder holder = record.lootChest(holderIndex).orElse(null);
+                if (holder == null) {
+                    continue;
+                }
+                if (!isInventoryEmpty(holder.getInventory())) {
+                    return false;
+                }
             }
         }
         return true;
@@ -742,7 +747,18 @@ public final class AirDropService {
                         return;
                     }
                     Location chestAnchor = blockAnchor(result.chestAnchor());
-                    finalizeSessionStart(typeId, definition, chestAnchor, source, sessionId, lootableAt, schematicBounds);
+                    List<Location> chestAnchors = result.chestAnchors().stream()
+                            .map(AirDropService::blockAnchor)
+                            .toList();
+                    finalizeSessionStart(
+                            typeId,
+                            definition,
+                            chestAnchors,
+                            source,
+                            sessionId,
+                            lootableAt,
+                            schematicBounds
+                    );
                 })
         );
     }
@@ -750,34 +766,33 @@ public final class AirDropService {
     private void finalizeSessionStart(
             String typeId,
             AirDropTypeDefinition definition,
-            Location blockAnchor,
+            List<Location> lootAnchors,
             String source,
             UUID sessionId,
             Instant lootableAt,
             Optional<SchematicWorldBounds> schematicBounds
     ) {
+        if (lootAnchors.isEmpty()) {
+            plugin.getLogger().warning("AirDrop finalize skipped: no loot anchors session=" + sessionId);
+            endSession(sessionId, "SCHEMATIC_FAILED");
+            return;
+        }
         AirDropTypeSettings type = definition.settings();
-        Block anchorBlock = blockAnchor.getBlock();
-        Material originalMaterial = anchorBlock.getType();
-        BlockData originalBlockData = anchorBlock.getBlockData().clone();
+        Location blockAnchor = lootAnchors.getFirst();
         Material chestMaterial = resolveChestMaterial(definition, type);
-
-        ClusterSetup cluster = installChestBlocks(blockAnchor, chestMaterial, type);
-        sessionRegistry.register(
-                sessionId,
-                blockAnchor,
-                chestMaterial,
-                originalMaterial,
-                originalBlockData,
-                cluster.clusterEnabled(),
-                cluster.clusterBlocks(),
-                cluster.clusterLootSlotIndex()
-        );
+        if (lootAnchors.size() > 1 && type.chestCluster.enabled) {
+            plugin.getLogger().info(
+                    "AirDrop type=" + typeId + ": chestCluster disabled for multi-marker spawn ("
+                            + lootAnchors.size() + " points)"
+            );
+        }
+        List<AirDropSessionRegistry.LootPoint> lootPoints = installLootPoints(lootAnchors, chestMaterial, type);
+        sessionRegistry.register(sessionId, lootPoints, chestMaterial);
         assignLootChests(sessionId, definition);
         arenaRegionService.create(sessionId, blockAnchor, type.arenaWorldGuard, schematicBounds);
 
         if (visualService != null) {
-            visualService.playSpawn(definition, blockAnchor, sessionId, lootableAt, chestMaterial);
+            visualService.playSpawn(definition, lootAnchors, sessionId, lootableAt, chestMaterial);
         }
 
         api.sessions().setPhase(sessionId, EventPhase.ACTIVE);
@@ -794,6 +809,26 @@ public final class AirDropService {
         int maxActiveSeconds = Math.max(1, type.lifecycle.maxActiveSecondsAfterLootable);
         Instant despawnAt = lootableAt.plusSeconds(maxActiveSeconds);
         scheduleSessionEnd(sessionId, despawnAt, "EXPIRED");
+    }
+
+    private void finalizeSessionStart(
+            String typeId,
+            AirDropTypeDefinition definition,
+            Location blockAnchor,
+            String source,
+            UUID sessionId,
+            Instant lootableAt,
+            Optional<SchematicWorldBounds> schematicBounds
+    ) {
+        finalizeSessionStart(
+                typeId,
+                definition,
+                List.of(blockAnchor),
+                source,
+                sessionId,
+                lootableAt,
+                schematicBounds
+        );
     }
 
     private void startSession(String typeId, AirDropTypeDefinition definition, Location anchor, String source) {
@@ -858,30 +893,60 @@ public final class AirDropService {
         return fromLoot;
     }
 
-    private ClusterSetup installChestBlocks(Location anchor, Material chestMaterial, AirDropTypeSettings type) {
-        if (type.chestCluster.enabled) {
-            AirDropClusterChestPlacer.ClusterPlacement placement = AirDropClusterChestPlacer.install(
-                    anchor,
-                    chestMaterial,
-                    type.chestCluster.isDecoyMode()
-            );
-            return new ClusterSetup(true, placement.replacedBlocks(), placement.lootSlotIndex());
+    private List<AirDropSessionRegistry.LootPoint> installLootPoints(
+            List<Location> anchors,
+            Material chestMaterial,
+            AirDropTypeSettings type
+    ) {
+        boolean clusterEnabled = type.chestCluster.enabled && anchors.size() == 1;
+        List<AirDropSessionRegistry.LootPoint> points = new ArrayList<>(anchors.size());
+        for (Location anchor : anchors) {
+            Location resolved = blockAnchor(anchor);
+            Block block = resolved.getBlock();
+            Material originalMaterial = block.getType();
+            BlockData originalBlockData = block.getBlockData().clone();
+            if (clusterEnabled) {
+                AirDropClusterChestPlacer.ClusterPlacement placement = AirDropClusterChestPlacer.install(
+                        resolved,
+                        chestMaterial,
+                        type.chestCluster.isDecoyMode()
+                );
+                points.add(new AirDropSessionRegistry.LootPoint(
+                        resolved,
+                        originalMaterial,
+                        originalBlockData,
+                        true,
+                        placement.replacedBlocks(),
+                        placement.lootSlotIndex()
+                ));
+            } else {
+                block.setType(chestMaterial);
+                points.add(new AirDropSessionRegistry.LootPoint(
+                        resolved,
+                        originalMaterial,
+                        originalBlockData,
+                        false,
+                        List.of(),
+                        -1
+                ));
+            }
         }
-        anchor.getBlock().setType(chestMaterial);
-        return new ClusterSetup(false, List.of(), -1);
+        return points;
     }
 
     private void reinstallChestBlocks(AirDropSessionRegistry.SessionRecord record) {
-        if (record.clusterEnabled()) {
-            AirDropClusterChestPlacer.install(
-                    record.anchor(),
-                    record.chestMaterial(),
-                    record.isDecoyCluster(),
-                    record.clusterLootSlotIndex()
-            );
-            return;
+        for (AirDropSessionRegistry.LootPoint point : record.lootPoints()) {
+            if (point.clusterEnabled()) {
+                AirDropClusterChestPlacer.install(
+                        point.anchor(),
+                        record.chestMaterial(),
+                        point.isDecoyCluster(),
+                        point.clusterLootSlotIndex()
+                );
+            } else {
+                point.anchor().getBlock().setType(record.chestMaterial());
+            }
         }
-        record.anchor().getBlock().setType(record.chestMaterial());
     }
 
     private void assignLootChests(UUID sessionId, AirDropTypeDefinition definition) {
@@ -892,14 +957,27 @@ public final class AirDropService {
         AirDropSessionRegistry.SessionRecord record = recordOptional.get();
         LootTableSettings loot = definition.loot();
         int chestSize = normalizeChestSize(loot.chestSize);
-        int chestCount = record.clusterEnabled() ? AirDropClusterChestPlacer.CLUSTER_CHEST_COUNT : 1;
-        List<AirDropChestHolder> holders = new ArrayList<>(chestCount);
-        for (int clusterIndex = 0; clusterIndex < chestCount; clusterIndex++) {
-            if (record.isDecoyCluster() && clusterIndex != record.clusterLootSlotIndex()) {
-                holders.add(createLootChest(sessionId, definition, loot, chestSize, clusterIndex, List.of()));
-                continue;
+        List<AirDropChestHolder> holders = new ArrayList<>(
+                AirDropSessionRegistry.totalChestSlots(record.lootPoints())
+        );
+        for (int pointIndex = 0; pointIndex < record.lootPoints().size(); pointIndex++) {
+            AirDropSessionRegistry.LootPoint point = record.lootPoints().get(pointIndex);
+            int chestCount = point.clusterEnabled() ? AirDropClusterChestPlacer.CLUSTER_CHEST_COUNT : 1;
+            for (int clusterIndex = 0; clusterIndex < chestCount; clusterIndex++) {
+                int flatIndex = AirDropSessionRegistry.flatChestIndex(pointIndex, clusterIndex);
+                if (point.isDecoyCluster() && clusterIndex != point.clusterLootSlotIndex()) {
+                    holders.add(createLootChest(sessionId, definition, loot, chestSize, flatIndex, List.of()));
+                    continue;
+                }
+                holders.add(createLootChest(
+                        sessionId,
+                        definition,
+                        loot,
+                        chestSize,
+                        flatIndex,
+                        lootRollService.roll(loot, chestSize)
+                ));
             }
-            holders.add(createLootChest(sessionId, definition, loot, chestSize, clusterIndex, lootRollService.roll(loot, chestSize)));
         }
         sessionRegistry.assignLootChests(sessionId, holders);
     }
@@ -909,7 +987,7 @@ public final class AirDropService {
             AirDropTypeDefinition definition,
             LootTableSettings loot,
             int chestSize,
-            int clusterIndex,
+            int flatIndex,
             List<ItemStack> rolled
     ) {
         AirDropChestHolder holder = new AirDropChestHolder(
@@ -918,14 +996,14 @@ public final class AirDropService {
                         "type_name", PlainTextComponentSerializer.plainText().serialize(
                                 messages.resolve(definition.settings().displayNameKey, Map.of())
                         ),
-                        "chest", Integer.toString(clusterIndex + 1)
+                        "chest", Integer.toString(flatIndex + 1)
                 )),
                 chestSize
         );
         ItemStack[] contents = holder.getInventory().getContents();
         List<ItemStack> masks = SerializedItemStackCodec.decodeAll(loot.obfuscationItemsBase64);
         List<Integer> targetSlots = lootRollService.randomChestSlots(chestSize, rolled.size());
-        int slotOffset = clusterIndex * LOOT_SLOT_STRIDE;
+        int slotOffset = flatIndex * LOOT_SLOT_STRIDE;
         for (int index = 0; index < rolled.size() && index < targetSlots.size(); index++) {
             int chestSlot = targetSlots.get(index);
             if (chestSlot < 0 || chestSlot >= contents.length) {
@@ -950,7 +1028,7 @@ public final class AirDropService {
         return masks.get(ThreadLocalRandom.current().nextInt(masks.size()));
     }
 
-    private void ensureLootChest(
+    private void ensureLootChests(
             UUID sessionId,
             AirDropTypeDefinition definition,
             AirDropSessionRegistry.SessionRecord record
@@ -966,13 +1044,6 @@ public final class AirDropService {
     private static int normalizeChestSize(int chestSize) {
         int normalized = Math.max(9, Math.min(54, chestSize));
         return normalized - (normalized % 9);
-    }
-
-    private record ClusterSetup(
-            boolean clusterEnabled,
-            List<AirDropClusterChestPlacer.ReplacedBlock> clusterBlocks,
-            int clusterLootSlotIndex
-    ) {
     }
 
     private Map<String, String> placeholders(
@@ -1139,11 +1210,13 @@ public final class AirDropService {
 
     private void restoreAnchorBlock(UUID sessionId) {
         sessionRegistry.find(sessionId).ifPresent(record -> {
-            AirDropClusterChestPlacer.restore(record.clusterBlocks());
-            Block block = record.anchor().getBlock();
-            block.setType(record.originalMaterial());
-            if (record.originalBlockData() != null) {
-                block.setBlockData(record.originalBlockData());
+            for (AirDropSessionRegistry.LootPoint point : record.lootPoints()) {
+                AirDropClusterChestPlacer.restore(point.clusterBlocks());
+                Block block = point.anchor().getBlock();
+                block.setType(point.originalMaterial());
+                if (point.originalBlockData() != null) {
+                    block.setBlockData(point.originalBlockData());
+                }
             }
         });
     }

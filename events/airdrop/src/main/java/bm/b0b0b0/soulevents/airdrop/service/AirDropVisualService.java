@@ -292,6 +292,12 @@ public final class AirDropVisualService {
             }
             return messages.resolve(visual.hologramLootedKey, placeholders);
         }
+        Optional<Instant> cleanupAt = cleanupAtProvider.apply(context.sessionId());
+        if (cleanupAt.isPresent()) {
+            long seconds = Math.max(0L, Duration.between(Instant.now(), cleanupAt.get()).toSeconds());
+            placeholders.put("despawn_timer", formatTimer(seconds));
+            return messages.resolve(visual.hologramLootableDespawnKey, placeholders);
+        }
         return messages.resolve(visual.hologramLootableKey, placeholders);
     }
 

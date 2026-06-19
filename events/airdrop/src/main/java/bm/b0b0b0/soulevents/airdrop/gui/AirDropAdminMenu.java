@@ -9,7 +9,6 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
@@ -17,7 +16,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +68,7 @@ public final class AirDropAdminMenu implements InventoryHolder {
         if (typeId == null) {
             return;
         }
-        if (event.getClick() == ClickType.LEFT) {
+        if (event.isLeftClick() || event.isRightClick()) {
             guiFactory.openTypeSettings(player, typeId);
         }
     }
@@ -87,31 +86,29 @@ public final class AirDropAdminMenu implements InventoryHolder {
         inventory.setItem(hub.createSlot, icon(
                 Material.matchMaterial(hub.createMaterial),
                 messages.resolve("gui.admin.create", Map.of()),
-                List.of(messages.resolve("gui.admin.create-lore", Map.of()))
+                messages.resolveLore("gui.admin.create-lore", Map.of())
         ));
         int slot = list.startSlot;
-        for (AirDropTypeDefinition definition : config.types()) {
+        List<AirDropTypeDefinition> sortedTypes = config.types().stream()
+                .sorted(Comparator.comparing(AirDropTypeDefinition::id, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+        for (AirDropTypeDefinition definition : sortedTypes) {
             if (slot >= inventory.getSize()) {
                 break;
             }
             Material material = definition.settings().enabled
                     ? Material.matchMaterial(list.defaultIconMaterial)
                     : Material.matchMaterial(list.disabledIconMaterial);
-            List<Component> lore = new ArrayList<>();
-            lore.add(messages.resolve(
-                    definition.settings().enabled ? "gui.admin.type-enabled" : "gui.admin.type-disabled",
-                    Map.of()
+            List<Component> lore = messages.resolveLore("gui.admin.type-lore", Map.of(
+                    "interval", Long.toString(definition.settings().intervalMinutes),
+                    "world", definition.settings().worldPlacement.spawnWorld,
+                    "loot", definition.lootTableId(),
+                    "type", definition.id(),
+                    "state", messages.resolvePlain(
+                            definition.settings().enabled ? "gui.admin.type-enabled" : "gui.admin.type-disabled",
+                            Map.of()
+                    )
             ));
-            lore.add(messages.resolve("gui.admin.type-lore-interval", Map.of(
-                    "interval", Long.toString(definition.settings().intervalMinutes)
-            )));
-            lore.add(messages.resolve("gui.admin.type-lore-world", Map.of(
-                    "world", definition.settings().worldPlacement.spawnWorld
-            )));
-            lore.add(messages.resolve("gui.admin.type-lore-loot", Map.of(
-                    "loot", definition.lootTableId()
-            )));
-            lore.add(messages.resolve("gui.admin.type-lore-open", Map.of()));
             inventory.setItem(slot, icon(
                     material,
                     messages.resolve(definition.settings().displayNameKey, Map.of()),

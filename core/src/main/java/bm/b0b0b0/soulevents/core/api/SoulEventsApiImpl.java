@@ -83,6 +83,10 @@ public final class SoulEventsApiImpl implements SoulEventsApi {
         return messages;
     }
 
+    public SchematicServiceImpl schematicService() {
+        return schematics;
+    }
+
     public void reload(PluginConfig config) {
         protection.reload(config);
         schematics.reload();
@@ -93,5 +97,6 @@ public final class SoulEventsApiImpl implements SoulEventsApi {
     public void shutdown() {
         scheduler.cancelAll();
         sessions.clear();
+        schematics.shutdown();
     }
 }

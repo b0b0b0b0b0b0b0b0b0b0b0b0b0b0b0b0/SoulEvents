@@ -71,7 +71,6 @@ public final class AirDropPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new AirDropGuiListener(), this);
         getServer().getPluginManager().registerEvents(new AirDropChestListener(module.service()), this);
         module.onEnable();
-        startupConsole.logRegistered();
     }
 
     public void reloadLocalConfig() {

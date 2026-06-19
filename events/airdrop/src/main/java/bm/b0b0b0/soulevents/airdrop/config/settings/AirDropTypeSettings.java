@@ -55,7 +55,10 @@ public final class AirDropTypeSettings extends YamlSerializable {
     @Comment(@CommentValue("Волна мобов перед открытием."))
     public PreOpenMobsSettings preOpenMobs = new PreOpenMobsSettings();
 
-    @Comment(@CommentValue("Особый предмет для открытия сундука."))
+    @Comment(@CommentValue("Право на открытие сундука."))
+    public OpenPermissionSettings openPermission = new OpenPermissionSettings();
+
+    @Comment(@CommentValue("Кастомный предмет в руке для открытия сундука."))
     public RequiredLootSettings requiredLoot = new RequiredLootSettings();
 
     @Comment(@CommentValue("Эффекты и голограмма при спавне."))

@@ -11,19 +11,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public final class EventModuleRegistryImpl implements EventModuleRegistry {
 
     private final Map<String, EventModule> modules = new LinkedHashMap<>();
     private final EventSessionControllerImpl sessions;
+    private Consumer<EventModule> registerListener;
 
     public EventModuleRegistryImpl(EventSessionControllerImpl sessions) {
         this.sessions = sessions;
     }
 
     @Override
+    public void setRegisterListener(Consumer<EventModule> listener) {
+        this.registerListener = listener;
+    }
+
+    @Override
     public void register(EventModule module) {
         modules.put(module.id(), module);
+        if (registerListener != null) {
+            registerListener.accept(module);
+        }
     }
 
     @Override

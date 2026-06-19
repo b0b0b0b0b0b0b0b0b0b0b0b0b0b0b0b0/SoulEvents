@@ -23,13 +23,33 @@ public final class StartupConsolePresenter {
         line(console, "startup.banner.intro");
         line(console, "startup.banner.version", Map.of("version", plugin.getPluginMeta().getVersion()));
         blank(console);
-        line(console, "startup.banner.init");
     }
 
-    public void logStartupComplete(EventModuleRegistry moduleRegistry) {
+    public void beginInitialization() {
+        line(console(), "startup.banner.init");
+    }
+
+    public void logIntegration(String key, Map<String, String> placeholders) {
+        line(console(), key, placeholders);
+    }
+
+    public void logModule(String moduleId) {
+        String moduleKey = "startup.module." + moduleId;
+        if (messageService.hasPlain(moduleKey)) {
+            line(console(), moduleKey);
+            return;
+        }
+        line(console(), "startup.module.generic", Map.of("module", moduleId));
+    }
+
+    public void logStartupFooter(EventModuleRegistry moduleRegistry) {
         ConsoleCommandSender console = console();
+        int count = moduleRegistry == null ? 0 : moduleRegistry.modules().size();
+        if (count == 0) {
+            line(console, "startup.modules.none");
+        }
+        blank(console);
         line(console, "startup.banner.separator");
-        logModules(console, moduleRegistry);
         coloredLine(console, "startup.loaded", ConsolePalette::green);
         line(console, "startup.banner.separator");
         blank(console);
@@ -39,21 +59,9 @@ public final class StartupConsolePresenter {
         ConsoleCommandSender console = console();
         blank(console);
         line(console, "startup.banner.separator");
-        line(console, "startup.banner.intro");
-        line(console, "startup.banner.version", Map.of("version", plugin.getPluginMeta().getVersion()));
-        blank(console);
-        line(console, "startup.banner.init");
-        line(console, "startup.reload-complete");
+        coloredLine(console, "startup.reload-complete", ConsolePalette::green);
         line(console, "startup.banner.separator");
         blank(console);
-    }
-
-    private void logModules(ConsoleCommandSender console, EventModuleRegistry moduleRegistry) {
-        int count = moduleRegistry.modules().size();
-        if (count == 0) {
-            return;
-        }
-        line(console, "startup.modules.line", Map.of("count", String.valueOf(count)));
     }
 
     private ConsoleCommandSender console() {

@@ -5,6 +5,10 @@ api-version: '1.21'
 authors: [ b0b0b0 ]
 load: STARTUP
 
+softdepend:
+  - FastAsyncWorldEdit
+  - WorldEdit
+
 libraries:
   - net.elytrium:serializer:1.1.1
 

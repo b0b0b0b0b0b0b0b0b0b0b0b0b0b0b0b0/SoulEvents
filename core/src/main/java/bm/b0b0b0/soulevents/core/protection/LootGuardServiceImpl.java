@@ -73,13 +73,34 @@ public final class LootGuardServiceImpl implements LootGuardService {
 
     @Override
     public ItemStack obfuscate(ItemStack real, UUID sessionId, int slotIndex) {
+        return obfuscate(real, sessionId, slotIndex, null);
+    }
+
+    @Override
+    public ItemStack obfuscate(ItemStack real, UUID sessionId, int slotIndex, ItemStack maskTemplate) {
         RevealKey key = new RevealKey(sessionId, slotIndex);
         if (claimedSlots.contains(key)) {
             debugWarn("obfuscate skipped claimed session=" + sessionId + " slot=" + slotIndex);
-            ItemStack fake = new ItemStack(Material.COAL, real.getAmount());
-            return fake;
+            return createMask(maskTemplate, sessionId, slotIndex);
         }
-        ItemStack fake = new ItemStack(Material.COAL, real.getAmount());
+        ItemStack fake = createMask(maskTemplate, sessionId, slotIndex);
+        pendingReveal.put(key, real.clone());
+        debug("obfuscate session=" + sessionId
+                + " slot=" + slotIndex
+                + " real=" + describe(real)
+                + " mask=" + describe(fake)
+                + " pending=" + pendingReveal.size());
+        return fake;
+    }
+
+    private ItemStack createMask(ItemStack maskTemplate, UUID sessionId, int slotIndex) {
+        ItemStack fake;
+        if (maskTemplate == null || maskTemplate.getType().isAir()) {
+            fake = new ItemStack(Material.COAL, 1);
+        } else {
+            fake = maskTemplate.clone();
+            fake.setAmount(1);
+        }
         ItemMeta meta = fake.getItemMeta();
         if (meta != null) {
             PersistentDataContainer container = meta.getPersistentDataContainer();
@@ -87,17 +108,12 @@ public final class LootGuardServiceImpl implements LootGuardService {
             container.set(slotKey, PersistentDataType.INTEGER, slotIndex);
             fake.setItemMeta(meta);
         }
-        pendingReveal.put(key, real.clone());
-        debug("obfuscate session=" + sessionId
-                + " slot=" + slotIndex
-                + " real=" + describe(real)
-                + " pending=" + pendingReveal.size());
         return fake;
     }
 
     @Override
     public Optional<ObfuscatedLootRef> obfuscatedRef(ItemStack item) {
-        if (item == null || item.getType() != Material.COAL) {
+        if (item == null || item.getType().isAir()) {
             return Optional.empty();
         }
         ItemMeta meta = item.getItemMeta();
@@ -279,7 +295,7 @@ public final class LootGuardServiceImpl implements LootGuardService {
                     + " -> " + describe(real));
             return;
         }
-        debugWarn("completeReveal BURN loot (no matching coal) player=" + player.getName()
+        debugWarn("completeReveal BURN loot (no matching mask) player=" + player.getName()
                 + " session=" + playerKey.sessionId()
                 + " slot=" + playerKey.slotIndex()
                 + " real=" + describe(real));

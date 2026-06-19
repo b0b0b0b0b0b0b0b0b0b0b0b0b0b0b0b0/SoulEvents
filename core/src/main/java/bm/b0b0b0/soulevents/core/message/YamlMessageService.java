@@ -50,6 +50,10 @@ public final class YamlMessageService implements MessageService {
         return raw.replace("<newline>", "\n");
     }
 
+    public boolean hasPlain(String key) {
+        return messages.containsKey(key);
+    }
+
     @Override
     public void reload() {
         messages.clear();

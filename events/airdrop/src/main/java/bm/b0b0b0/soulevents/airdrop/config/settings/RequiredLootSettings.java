@@ -9,9 +9,20 @@ import java.util.List;
 
 public class RequiredLootSettings extends YamlSerializable {
 
-    @Comment(@CommentValue("Для открытия сундука нужен особый предмет в руке."))
+    @Comment(@CommentValue("Нужны кастомные предметы из списка ниже."))
     public boolean enabled = false;
 
-    @Comment(@CommentValue("Подходящие предметы — Base64 ItemStack (список)."))
+    @Comment(@CommentValue("ALL — каждый шаблон должен быть у игрока (инвентарь + броня + руки). ANY — хотя бы один."))
+    public String matchMode = "ALL";
+
+    @Comment(@CommentValue("Шаблоны — Base64 ItemStack.serializeAsBytes(). Полный NBT/PDC, любой размер. GUI: до 45 слотов."))
     public List<String> requiredItemsBase64 = new ArrayList<>();
+
+    public boolean isAnyMatch() {
+        return "ANY".equalsIgnoreCase(matchMode) || "ONE".equalsIgnoreCase(matchMode);
+    }
+
+    public void cycleMatchMode() {
+        matchMode = isAnyMatch() ? "ALL" : "ANY";
+    }
 }

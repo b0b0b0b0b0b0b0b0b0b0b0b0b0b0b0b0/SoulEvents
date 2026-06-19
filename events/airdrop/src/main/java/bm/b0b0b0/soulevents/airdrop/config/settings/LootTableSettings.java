@@ -17,8 +17,17 @@ public final class LootTableSettings extends YamlSerializable {
     @Comment(@CommentValue("Слотов в GUI лута (9, 18, 27, 36, 45, 54)."))
     public int chestSize = 54;
 
-    @Comment(@CommentValue("Минимум стаков после ролла (добирает повторным проходом по таблице)."))
+    @Comment(@CommentValue("Минимум стаков после ролла (добирает повторным проходом по таблице). Используется если poolItemsBase64 пуст."))
     public int minItemStacks = 6;
+
+    @Comment(@CommentValue("Сколько ячеек сундука заполнить (рандомные слоты). Максимум — chestSize."))
+    public int occupiedSlots = 6;
+
+    @Comment(@CommentValue("Пул лута из GUI (Base64). Если не пуст — ролл из пула, иначе entries/extraItems."))
+    public List<String> poolItemsBase64 = new ArrayList<>();
+
+    @Comment(@CommentValue("Маски обфускации вместо угля (до 3, Base64). Пусто — COAL."))
+    public List<String> obfuscationItemsBase64 = new ArrayList<>();
 
     @Comment(@CommentValue("Взвешенные записи лута."))
     public List<LootEntrySettings> entries = defaultEntries();

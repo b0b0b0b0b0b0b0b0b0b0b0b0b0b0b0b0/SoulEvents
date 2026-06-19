@@ -9,6 +9,7 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -142,6 +143,10 @@ public final class AirDropSessionRegistry {
         for (UUID sessionId : sessions.keySet().stream().toList()) {
             remove(sessionId);
         }
+    }
+
+    public Map<UUID, SessionRecord> snapshot() {
+        return Map.copyOf(sessions);
     }
 
     private static void cancelTask(BukkitTask task) {

@@ -33,7 +33,27 @@ public final class AirDropGuiFactory {
         new AirDropTypeSettingsMenu(config, messages, service, this, typeId).open(player);
     }
 
+    public void openRequirements(Player player, String typeId) {
+        new AirDropRequirementsMenu(plugin, config, messages, this, typeId).open(player);
+    }
+
+    public void openRequiredItems(Player player, String typeId) {
+        new AirDropRequiredItemsMenu(plugin, config, messages, this, typeId).open(player);
+    }
+
     public void openCreate(Player player) {
         new AirDropCreateMenu(plugin, config, messages, this).open(player);
+    }
+
+    public void openLootHub(Player player, String typeId) {
+        new AirDropLootHubMenu(plugin, config, messages, this, typeId).open(player);
+    }
+
+    public void openObfuscationItems(Player player, String typeId) {
+        new AirDropObfuscationItemsMenu(plugin, config, messages, this, typeId).open(player);
+    }
+
+    public void openLootPool(Player player, String typeId, int page) {
+        new AirDropLootPoolMenu(plugin, config, messages, this, typeId, page).open(player);
     }
 }

@@ -105,17 +105,17 @@ public final class AirDropCreateMenu implements InventoryHolder {
         inventory.setItem(gui.commonSlot, icon(
                 Material.matchMaterial(gui.commonMaterial),
                 messages.resolve("gui.create.common", Map.of()),
-                List.of(messages.resolve("gui.create.common-lore", Map.of()))
+                messages.resolveLore("gui.create.common-lore", Map.of())
         ));
         inventory.setItem(gui.rareSlot, icon(
                 Material.matchMaterial(gui.rareMaterial),
                 messages.resolve("gui.create.rare", Map.of()),
-                List.of(messages.resolve("gui.create.rare-lore", Map.of()))
+                messages.resolveLore("gui.create.rare-lore", Map.of())
         ));
         inventory.setItem(gui.donateSlot, icon(
                 Material.matchMaterial(gui.donateMaterial),
                 messages.resolve("gui.create.donate", Map.of()),
-                List.of(messages.resolve("gui.create.donate-lore", Map.of()))
+                messages.resolveLore("gui.create.donate-lore", Map.of())
         ));
     }
 

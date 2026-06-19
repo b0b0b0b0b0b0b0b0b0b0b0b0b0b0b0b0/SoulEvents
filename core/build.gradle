@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     compileOnly('io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT')
+    compileOnly('com.sk89q.worldedit:worldedit-bukkit:7.3.9')
     implementation(project(':api'))
     implementation('net.elytrium:serializer:1.1.1')
 }

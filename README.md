@@ -31,10 +31,94 @@
 |---------|----------|
 | `/soulevents reload` | Перезагрузка core + всех модулей |
 | `/soulevents modules` | Список зарегистрированных модулей |
+| `/soulevents schematic list` | Список схематик |
+| `/soulevents schematic info <id>` | Информация о схеме |
+| `/soulevents schematic scan <id>` | Перескан `.schem` |
 
 **Права:** `soulevents.admin` (default: op)
 
 **Конфиги (папка плагина):** `config.yml`, `protection.yml`, `lang/`
+
+---
+
+## Схематики
+
+Схематики живут в **ядре** (`plugins/SoulEvents/schematics/`). Модули (AirDrop и др.) только ссылаются на `schematicId` в своём типе.
+
+**Зависимость:** [FastAsyncWorldEdit](https://modrinth.com/plugin/fastasyncworldedit) или WorldEdit (softdepend). Без них каталог загрузится, но paste и scan `.schem` не работают.
+
+### Структура папки
+
+```
+plugins/SoulEvents/schematics/
+  military_pad/
+    pad.schem           ← FAWE / WorldEdit clipboard
+    settings.yml        ← настройки этой схемы (Elytrium)
+  desert_ruin/
+    ruin.schem
+    settings.yml
+```
+
+ID схемы = **имя папки** (`military_pad`).
+
+### Как собрать схему (FAWE)
+
+1. Построй площадку в flat/creative.
+2. Поставь **один BEDROCK** (или другой блок из `marker.block`) — точка будущего сундука.
+3. Выдели всё → `//copy` → `//schem save military_pad`.
+4. Положи файл в `schematics/military_pad/pad.schem`.
+5. При первом `reload` создастся `settings.yml` с дефолтами — подкрути `placement.verticalOffset` если нужно.
+
+### settings.yml (дефолты в Java)
+
+| Секция | Назначение |
+|--------|------------|
+| `file` | имя `.schem` в папке |
+| `placement.verticalOffset` | ± блоков по Y после привязки к земле |
+| `placement.maxSurfaceDelta` | допустимый перепад высот площадки |
+| `placement.minAirAbove` | воздух над верхом схемы |
+| `placement.safetyMargin` | кольцо проверки вокруг (обрывы, вода) |
+| `marker.block` | блок-маркер сундука (по умолчанию `BEDROCK`) |
+| `marker.autoDetect` | искать маркер в `.schem` при reload |
+| `marker.chestOffsetX/Y/Z` | ручной offset, если `autoDetect: false` |
+| `paste.ignoreAir` | не вставлять воздух из схемы |
+| `blend.enabled` / `blend.radius` | сглаживание краёв (override из типа аирдропа) |
+
+### Размещение на карте
+
+Ядро ищет **ровную поверхность** под весь footprint схемы:
+
+- низ bounding box ложится на землю (`surfaceSnap`);
+- без воды/лавы в зоне;
+- объём схемы не врезается в скалу (clearance check);
+- над площадкой достаточно воздуха.
+
+Поиск точки — **асинхронно** (подгрузка чанков), paste — через **очередь** (одна операция за раз, без лагов main thread).
+
+### Пайплайн спавна (AirDrop + схема)
+
+1. Async: кандидат XZ → `resolvePasteOrigin` с footprint схемы.
+2. Сессия в фазе `PREPARING`.
+3. Async queue: FAWE paste + snapshot для undo.
+4. Main thread: маркер → AIR, сундук на offset, лут, голограмма.
+
+### Команды
+
+| Команда | Описание |
+|---------|----------|
+| `/soulevents schematic list` | Список схем |
+| `/soulevents schematic info <id>` | Размер, offset сундука, probe |
+| `/soulevents schematic scan <id>` | Перескан `.schem` (reload каталога) |
+
+### Подключение к типу аирдропа
+
+В `types/<id>.yml`:
+
+```yaml
+schematicId: military_pad
+landscapeBlend: true   # override blend схемы
+blendRadius: 4
+```
 
 ---
 

@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
 import java.util.stream.Stream;
 
 public final class TypeDirectoryLoader {
@@ -34,6 +35,7 @@ public final class TypeDirectoryLoader {
         Map<String, AirDropTypeDefinition> types = new LinkedHashMap<>();
         try (Stream<Path> paths = Files.list(typesDir)) {
             paths.filter(path -> path.getFileName().toString().endsWith(".yml"))
+                    .sorted(Comparator.comparing(path -> path.getFileName().toString(), String.CASE_INSENSITIVE_ORDER))
                     .forEach(path -> loadType(plugin, path, lootDir, types));
         } catch (IOException exception) {
             plugin.getLogger().severe("Failed to load types: " + exception.getMessage());
@@ -72,7 +74,10 @@ public final class TypeDirectoryLoader {
                 settings.intervalMinutes = 0L;
                 settings.summon.playerSummonEnabled = true;
                 settings.summon.vaultCost = 1000.0;
+                settings.openPermission.enabled = true;
+                settings.openPermission.permission = "soulevents.airdrop.open.donate";
                 settings.requiredLoot.enabled = true;
+                settings.requiredLoot.matchMode = "ALL";
             }
             default -> {
             }

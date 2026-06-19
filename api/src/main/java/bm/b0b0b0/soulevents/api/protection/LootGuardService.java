@@ -14,6 +14,8 @@ public interface LootGuardService {
 
     ItemStack obfuscate(ItemStack real, UUID sessionId, int slotIndex);
 
+    ItemStack obfuscate(ItemStack real, UUID sessionId, int slotIndex, ItemStack maskTemplate);
+
     Optional<ObfuscatedLootRef> obfuscatedRef(ItemStack item);
 
     boolean isSlotClaimed(UUID sessionId, int slotIndex);

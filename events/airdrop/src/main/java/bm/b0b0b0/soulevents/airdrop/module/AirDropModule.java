@@ -14,6 +14,7 @@ import bm.b0b0b0.soulevents.airdrop.integration.WorldGuardIntegrations;
 import bm.b0b0b0.soulevents.api.world.WorldGuardProbe;
 import bm.b0b0b0.soulevents.airdrop.message.AirDropMessageService;
 import bm.b0b0b0.soulevents.airdrop.repository.SqlAirDropSessionRepository;
+import bm.b0b0b0.soulevents.airdrop.service.AirDropDespawnBossBarService;
 import bm.b0b0b0.soulevents.airdrop.service.AirDropService;
 import bm.b0b0b0.soulevents.airdrop.service.AirDropVisualService;
 import org.bukkit.plugin.Plugin;
@@ -47,6 +48,7 @@ public final class AirDropModule implements EventModule {
         this.sessionRepository = sessionRepository;
         this.service = new AirDropService(api, plugin, config, messages, sessionRepository);
         service.setVisualService(new AirDropVisualService(plugin, messages));
+        service.setDespawnBossBarService(new AirDropDespawnBossBarService(plugin, messages));
     }
 
     public AirDropService service() {
@@ -61,8 +63,9 @@ public final class AirDropModule implements EventModule {
         this.config = config;
         this.messages = messages;
         this.guiFactory = guiFactory;
-        service.setVisualService(new AirDropVisualService(plugin, messages));
         service.reload(config);
+        service.setVisualService(new AirDropVisualService(plugin, messages));
+        service.setDespawnBossBarService(new AirDropDespawnBossBarService(plugin, messages));
     }
 
     @Override

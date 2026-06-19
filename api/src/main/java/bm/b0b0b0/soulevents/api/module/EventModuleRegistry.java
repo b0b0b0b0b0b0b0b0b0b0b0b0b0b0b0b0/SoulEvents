@@ -3,10 +3,13 @@ package bm.b0b0b0.soulevents.api.module;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public interface EventModuleRegistry {
 
     void register(EventModule module);
+
+    void setRegisterListener(Consumer<EventModule> listener);
 
     void unregister(String moduleId);
 

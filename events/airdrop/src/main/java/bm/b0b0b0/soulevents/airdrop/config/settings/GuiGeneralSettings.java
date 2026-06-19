@@ -19,5 +19,20 @@ public final class GuiGeneralSettings extends YamlSerializable {
     public TypeSettingsGuiSettings typeSettings = new TypeSettingsGuiSettings();
 
     @NewLine
+    public RequirementsGuiSettings requirements = new RequirementsGuiSettings();
+
+    @NewLine
+    public RequiredItemsGuiSettings requiredItems = new RequiredItemsGuiSettings();
+
+    @NewLine
     public CreateGuiSettings create = new CreateGuiSettings();
+
+    @NewLine
+    public LootHubGuiSettings lootHub = new LootHubGuiSettings();
+
+    @NewLine
+    public ObfuscationItemsGuiSettings obfuscationItems = new ObfuscationItemsGuiSettings();
+
+    @NewLine
+    public LootPoolGuiSettings lootPool = new LootPoolGuiSettings();
 }

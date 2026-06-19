@@ -5,6 +5,7 @@ import bm.b0b0b0.soulevents.airdrop.config.settings.RandomSpawnSettings;
 import bm.b0b0b0.soulevents.airdrop.gate.WorldPlacementGate;
 import bm.b0b0b0.soulevents.airdrop.integration.WorldGuardIntegrations;
 import bm.b0b0b0.soulevents.airdrop.integration.WorldGuardRegionIndex;
+import bm.b0b0b0.soulevents.api.schematic.SchematicService;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceFinder;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceOffset;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceRequirements;
@@ -23,9 +24,11 @@ import java.util.function.Consumer;
 public final class RandomLocationFinder {
 
     private final FlatSurfaceFinder flatSurfaceFinder;
+    private final SchematicService schematics;
 
-    public RandomLocationFinder(FlatSurfaceFinder flatSurfaceFinder) {
+    public RandomLocationFinder(FlatSurfaceFinder flatSurfaceFinder, SchematicService schematics) {
         this.flatSurfaceFinder = flatSurfaceFinder;
+        this.schematics = schematics;
     }
 
     public record Candidate(int x, int z, int chunkX, int chunkZ) {
@@ -66,6 +69,24 @@ public final class RandomLocationFinder {
             return Optional.empty();
         }
         RandomSpawnSettings spawn = type.randomSpawn;
+        if (!type.schematicId.isEmpty()) {
+            Optional<Location> schematicOrigin = schematics.resolvePasteOrigin(
+                    world,
+                    candidate.x(),
+                    candidate.z(),
+                    type.schematicId
+            );
+            if (schematicOrigin.isEmpty()) {
+                return Optional.empty();
+            }
+            Location location = schematicOrigin.get();
+            Optional<Location> chestLocation = schematics.resolveChestAnchor(location, type.schematicId);
+            Location gateLocation = chestLocation.orElse(location);
+            if (gate.checkLocation(gateLocation, regionIndex).allowed()) {
+                return Optional.of(location);
+            }
+            return Optional.empty();
+        }
         Optional<Location> surfaceLocation;
         if (spawn.requireFlatSurface) {
             FlatSurfaceRequirements requirements = new FlatSurfaceRequirements(
@@ -104,11 +125,18 @@ public final class RandomLocationFinder {
         return Optional.empty();
     }
 
-    public static List<FlatSurfaceOffset> footprintFor(AirDropTypeSettings type) {
+    public static List<FlatSurfaceOffset> footprintFor(AirDropTypeSettings type, SchematicService schematics) {
+        if (type.schematicId != null && !type.schematicId.isEmpty()) {
+            return schematics.footprint(type.schematicId);
+        }
         if (type.chestCluster.enabled) {
             return AirDropClusterChestPlacer.footprintOffsets();
         }
         return List.of(new FlatSurfaceOffset(0, 0));
+    }
+
+    public List<FlatSurfaceOffset> footprintFor(AirDropTypeSettings type) {
+        return footprintFor(type, schematics);
     }
 
     public void findAsync(

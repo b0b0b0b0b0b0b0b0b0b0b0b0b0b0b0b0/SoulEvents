@@ -23,6 +23,9 @@ public final class VisualSettings {
     @Comment(@CommentValue("Lang-ключ когда сундук открыт и в нём есть лут."))
     public String hologramLootableKey = "airdrop.hologram.lootable";
 
+    @Comment(@CommentValue("Голограмма: можно лутать + таймер исчезновения."))
+    public String hologramLootableDespawnKey = "airdrop.hologram.lootable-despawn";
+
     @Comment(@CommentValue("Lang-ключ когда сундук опустошён (ещё без таймера удаления)."))
     public String hologramLootedKey = "airdrop.hologram.looted";
 

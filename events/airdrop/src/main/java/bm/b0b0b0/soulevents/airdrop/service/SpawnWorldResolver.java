@@ -2,6 +2,7 @@ package bm.b0b0b0.soulevents.airdrop.service;
 
 import bm.b0b0b0.soulevents.airdrop.config.settings.AirDropTypeSettings;
 import bm.b0b0b0.soulevents.airdrop.gate.WorldPlacementGate;
+import bm.b0b0b0.soulevents.api.schematic.SchematicService;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceFinder;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -15,8 +16,8 @@ public final class SpawnWorldResolver {
 
     private final RandomLocationFinder locationFinder;
 
-    public SpawnWorldResolver(FlatSurfaceFinder flatSurfaceFinder) {
-        this.locationFinder = new RandomLocationFinder(flatSurfaceFinder);
+    public SpawnWorldResolver(FlatSurfaceFinder flatSurfaceFinder, SchematicService schematics) {
+        this.locationFinder = new RandomLocationFinder(flatSurfaceFinder, schematics);
     }
 
     public void resolveAsync(

@@ -13,7 +13,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class AirDropMessageService {
@@ -67,7 +69,23 @@ public final class AirDropMessageService {
         return raw.replace("<newline>", "\n");
     }
 
-    private String resolveRaw(String key) {
+    public List<Component> resolveLore(String prefix, Map<String, String> placeholders) {
+        List<Component> lore = new ArrayList<>();
+        for (int index = 1; index <= 16; index++) {
+            String key = prefix + "." + index;
+            String raw = resolveRawOrNull(key);
+            if (raw == null) {
+                break;
+            }
+            for (Map.Entry<String, String> entry : placeholders.entrySet()) {
+                raw = raw.replace('<' + entry.getKey() + '>', entry.getValue());
+            }
+            lore.add(miniMessage.deserialize(raw));
+        }
+        return lore;
+    }
+
+    private String resolveRawOrNull(String key) {
         Map<String, String> primary = bundles.get(localeSettings.defaultLocale);
         if (primary != null && primary.containsKey(key)) {
             return primary.get(key);
@@ -76,7 +94,12 @@ public final class AirDropMessageService {
         if (fallback != null && fallback.containsKey(key)) {
             return fallback.get(key);
         }
-        return key;
+        return null;
+    }
+
+    private String resolveRaw(String key) {
+        String raw = resolveRawOrNull(key);
+        return raw == null ? key : raw;
     }
 
     private void loadBundle(File langFolder, String fileName) {

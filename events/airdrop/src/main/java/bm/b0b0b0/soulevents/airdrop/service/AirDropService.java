@@ -11,7 +11,9 @@ import bm.b0b0b0.soulevents.airdrop.config.settings.AirDropTypeSettings;
 import bm.b0b0b0.soulevents.airdrop.chest.AirDropChestHolder;
 import bm.b0b0b0.soulevents.airdrop.config.settings.BroadcastSettings;
 import bm.b0b0b0.soulevents.airdrop.config.settings.LootTableSettings;
-import bm.b0b0b0.soulevents.airdrop.config.settings.RequiredLootSettings;
+import bm.b0b0b0.soulevents.airdrop.config.TypeConfigPersistence;
+import bm.b0b0b0.soulevents.airdrop.util.RequiredItemMatcher;
+import bm.b0b0b0.soulevents.airdrop.util.SerializedItemStackCodec;
 import bm.b0b0b0.soulevents.airdrop.config.settings.WorldPlacementSettings;
 import bm.b0b0b0.soulevents.api.protection.GateContext;
 import bm.b0b0b0.soulevents.api.protection.GateResult;
@@ -39,7 +41,6 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -47,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
 public final class AirDropService {
@@ -64,6 +66,7 @@ public final class AirDropService {
     private ArenaRegionService arenaRegionService;
     private AirDropPluginConfig config;
     private AirDropVisualService visualService;
+    private AirDropDespawnBossBarService despawnBossBarService;
     private Map<String, WorldPlacementGate> gates = Map.of();
 
     public AirDropService(
@@ -78,7 +81,7 @@ public final class AirDropService {
         this.config = config;
         this.messages = messages;
         this.sessionRepository = sessionRepository;
-        this.spawnWorldResolver = new SpawnWorldResolver(api.placement());
+        this.spawnWorldResolver = new SpawnWorldResolver(api.placement(), api.schematics());
         this.arenaRegionService = WorldGuardIntegrations.createArenaRegionService(plugin);
         rebuildGates();
     }
@@ -95,6 +98,19 @@ public final class AirDropService {
                 sessionId -> sessionRegistry.find(sessionId).map(this::isSessionChestGuiEmpty).orElse(false),
                 this::notifyChestGuiEmpty
         );
+    }
+
+    public void setDespawnBossBarService(AirDropDespawnBossBarService despawnBossBarService) {
+        if (this.despawnBossBarService != null) {
+            this.despawnBossBarService.stop();
+        }
+        this.despawnBossBarService = despawnBossBarService;
+        despawnBossBarService.wire(
+                sessionRegistry::snapshot,
+                this::activeEvent,
+                config::type
+        );
+        despawnBossBarService.start();
     }
 
     public void handleChestMissing(UUID sessionId) {
@@ -202,7 +218,14 @@ public final class AirDropService {
             sendGateDenial(player, gate);
             return;
         }
-        if (type.requiredLoot.enabled && !hasRequiredLoot(player, type.requiredLoot)) {
+        if (type.openPermission.enabled) {
+            String permission = TypeConfigPersistence.resolveOpenPermission(active.get().typeId(), type.openPermission.permission);
+            if (!player.hasPermission(permission)) {
+                messages.send(player, "airdrop.open-permission-denied", Map.of("permission", permission));
+                return;
+            }
+        }
+        if (type.requiredLoot.enabled && !RequiredItemMatcher.hasRequiredItem(player, type.requiredLoot)) {
             messages.send(player, "airdrop.required-item-missing", Map.of());
             return;
         }
@@ -233,28 +256,6 @@ public final class AirDropService {
             return;
         }
         messages.send(player, messageKey, Map.of());
-    }
-
-    private static boolean hasRequiredLoot(Player player, RequiredLootSettings requiredLoot) {
-        if (requiredLoot.requiredItemsBase64.isEmpty()) {
-            return false;
-        }
-        ItemStack held = player.getInventory().getItemInMainHand();
-        for (String encoded : requiredLoot.requiredItemsBase64) {
-            ItemStack required = decodeItem(encoded);
-            if (required != null && held.isSimilar(required)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static ItemStack decodeItem(String encoded) {
-        try {
-            return ItemStack.deserializeBytes(Base64.getDecoder().decode(encoded));
-        } catch (IllegalArgumentException exception) {
-            return null;
-        }
     }
 
     private static String formatOpenTimer(long seconds) {
@@ -365,12 +366,17 @@ public final class AirDropService {
         );
         int cleanupSeconds = Math.max(1, type.lifecycle.cleanupSecondsAfterLooted);
         Instant cleanupAt = Instant.now().plusSeconds(cleanupSeconds);
+        scheduleSessionEnd(sessionId, cleanupAt, "LOOTED");
+    }
+
+    private void scheduleSessionEnd(UUID sessionId, Instant endAt, String phase) {
+        long delaySeconds = Math.max(0L, Duration.between(Instant.now(), endAt).toSeconds());
         BukkitTask task = Bukkit.getScheduler().runTaskLater(
                 plugin,
-                () -> endSession(sessionId, "LOOTED"),
-                cleanupSeconds * 20L
+                () -> endSession(sessionId, phase),
+                delaySeconds * 20L
         );
-        sessionRegistry.rescheduleCleanup(sessionId, task, cleanupAt);
+        sessionRegistry.rescheduleCleanup(sessionId, task, endAt);
     }
 
     public void spawnScheduled(String typeId) {
@@ -558,6 +564,9 @@ public final class AirDropService {
         if (visualService != null) {
             visualService.shutdown();
         }
+        if (despawnBossBarService != null) {
+            despawnBossBarService.stop();
+        }
     }
 
     private boolean tryStart(
@@ -570,35 +579,66 @@ public final class AirDropService {
         if (!canSpawn(typeId, definition.settings(), bypassLimits)) {
             return false;
         }
+        if (!definition.settings().schematicId.isEmpty()) {
+            startSessionWithSchematic(typeId, definition, anchor, source);
+            return true;
+        }
         startSession(typeId, definition, anchor, source);
         return true;
     }
 
-    private boolean canSpawn(String typeId, AirDropTypeSettings type, boolean bypassLimits) {
-        if (bypassLimits) {
-            return true;
+    private void startSessionWithSchematic(
+            String typeId,
+            AirDropTypeDefinition definition,
+            Location pasteOrigin,
+            String source
+    ) {
+        AirDropTypeSettings type = definition.settings();
+        Optional<Location> chestOptional = api.schematics().resolveChestAnchor(pasteOrigin, type.schematicId);
+        if (chestOptional.isEmpty()) {
+            plugin.getLogger().warning("Schematic chest anchor missing for type " + typeId);
+            return;
         }
-        List<ActiveEvent> active = api.modules().activeEvents(AirDropModule.MODULE_ID).stream().toList();
-        if (active.size() >= config.module().maxConcurrentTotal) {
-            return false;
-        }
-        long typeActive = active.stream().filter(event -> event.typeId().equals(typeId)).count();
-        return typeActive < type.maxConcurrent;
+        Location blockAnchor = blockAnchor(chestOptional.get());
+        ActiveEvent session = api.sessions().start(AirDropModule.MODULE_ID, typeId, blockAnchor);
+        UUID sessionId = session.sessionId();
+        Instant lootableAt = computeLootableAt(type);
+        api.sessions().setLootableAt(sessionId, lootableAt);
+        api.sessions().setPhase(sessionId, EventPhase.PREPARING);
+        sessionRepository.insertSession(sessionId, typeId, blockAnchor, source);
+
+        SchematicPasteOptions options = SchematicPasteOptions.legacy(
+                sessionId,
+                type.landscapeBlend,
+                type.blendRadius,
+                false
+        );
+        api.schematics().paste(type.schematicId, pasteOrigin, options).thenAccept(result ->
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (!result.success()) {
+                        endSession(sessionId, "SCHEMATIC_FAILED");
+                        return;
+                    }
+                    Location chestAnchor = blockAnchor(result.chestAnchor());
+                    finalizeSessionStart(typeId, definition, chestAnchor, source, sessionId, lootableAt);
+                })
+        );
     }
 
-    private void startSession(String typeId, AirDropTypeDefinition definition, Location anchor, String source) {
+    private void finalizeSessionStart(
+            String typeId,
+            AirDropTypeDefinition definition,
+            Location blockAnchor,
+            String source,
+            UUID sessionId,
+            Instant lootableAt
+    ) {
         AirDropTypeSettings type = definition.settings();
-        Location blockAnchor = blockAnchor(anchor);
         Block anchorBlock = blockAnchor.getBlock();
         Material originalMaterial = anchorBlock.getType();
         BlockData originalBlockData = anchorBlock.getBlockData().clone();
         Material chestMaterial = resolveChestMaterial(definition, type);
 
-        ActiveEvent session = api.sessions().start(AirDropModule.MODULE_ID, typeId, blockAnchor);
-        UUID sessionId = session.sessionId();
-        Instant lootableAt = computeLootableAt(type);
-        api.sessions().setLootableAt(sessionId, lootableAt);
-        sessionRepository.insertSession(sessionId, typeId, blockAnchor, source);
         ClusterSetup cluster = installChestBlocks(blockAnchor, chestMaterial, type);
         sessionRegistry.register(
                 sessionId,
@@ -625,16 +665,32 @@ public final class AirDropService {
             messages.broadcast(type.broadcast.messageKey, placeholders(typeId, definition, blockAnchor, null));
         }
         scheduleUnlockBroadcast(sessionId, typeId, definition, blockAnchor, lootableAt);
+        int maxActiveSeconds = Math.max(1, type.lifecycle.maxActiveSecondsAfterLootable);
+        Instant despawnAt = lootableAt.plusSeconds(maxActiveSeconds);
+        scheduleSessionEnd(sessionId, despawnAt, "EXPIRED");
+    }
 
-        if (!type.schematicId.isEmpty()) {
-            SchematicPasteOptions options = new SchematicPasteOptions(
-                    sessionId,
-                    type.landscapeBlend,
-                    type.blendRadius,
-                    false
-            );
-            api.schematics().paste(type.schematicId, blockAnchor, options);
+    private void startSession(String typeId, AirDropTypeDefinition definition, Location anchor, String source) {
+        AirDropTypeSettings type = definition.settings();
+        Location blockAnchor = blockAnchor(anchor);
+        ActiveEvent session = api.sessions().start(AirDropModule.MODULE_ID, typeId, blockAnchor);
+        UUID sessionId = session.sessionId();
+        Instant lootableAt = computeLootableAt(type);
+        api.sessions().setLootableAt(sessionId, lootableAt);
+        sessionRepository.insertSession(sessionId, typeId, blockAnchor, source);
+        finalizeSessionStart(typeId, definition, blockAnchor, source, sessionId, lootableAt);
+    }
+
+    private boolean canSpawn(String typeId, AirDropTypeSettings type, boolean bypassLimits) {
+        if (bypassLimits) {
+            return true;
         }
+        List<ActiveEvent> active = api.modules().activeEvents(AirDropModule.MODULE_ID).stream().toList();
+        if (active.size() >= config.module().maxConcurrentTotal) {
+            return false;
+        }
+        long typeActive = active.stream().filter(event -> event.typeId().equals(typeId)).count();
+        return typeActive < type.maxConcurrent;
     }
 
     private static Location blockAnchor(Location anchor) {
@@ -714,10 +770,10 @@ public final class AirDropService {
         List<AirDropChestHolder> holders = new ArrayList<>(chestCount);
         for (int clusterIndex = 0; clusterIndex < chestCount; clusterIndex++) {
             if (record.isDecoyCluster() && clusterIndex != record.clusterLootSlotIndex()) {
-                holders.add(createLootChest(sessionId, definition, chestSize, clusterIndex, List.of()));
+                holders.add(createLootChest(sessionId, definition, loot, chestSize, clusterIndex, List.of()));
                 continue;
             }
-            holders.add(createLootChest(sessionId, definition, chestSize, clusterIndex, lootRollService.roll(loot)));
+            holders.add(createLootChest(sessionId, definition, loot, chestSize, clusterIndex, lootRollService.roll(loot, chestSize)));
         }
         sessionRegistry.assignLootChests(sessionId, holders);
     }
@@ -725,6 +781,7 @@ public final class AirDropService {
     private AirDropChestHolder createLootChest(
             UUID sessionId,
             AirDropTypeDefinition definition,
+            LootTableSettings loot,
             int chestSize,
             int clusterIndex,
             List<ItemStack> rolled
@@ -740,17 +797,31 @@ public final class AirDropService {
                 chestSize
         );
         ItemStack[] contents = holder.getInventory().getContents();
-        int slot = 0;
+        List<ItemStack> masks = SerializedItemStackCodec.decodeAll(loot.obfuscationItemsBase64);
+        List<Integer> targetSlots = lootRollService.randomChestSlots(chestSize, rolled.size());
         int slotOffset = clusterIndex * LOOT_SLOT_STRIDE;
-        for (ItemStack item : rolled) {
-            if (slot >= contents.length) {
-                break;
+        for (int index = 0; index < rolled.size() && index < targetSlots.size(); index++) {
+            int chestSlot = targetSlots.get(index);
+            if (chestSlot < 0 || chestSlot >= contents.length) {
+                continue;
             }
-            contents[slot] = api.protection().loot().obfuscate(item, sessionId, slotOffset + slot);
-            slot++;
+            ItemStack mask = pickObfuscationMask(masks);
+            contents[chestSlot] = api.protection().loot().obfuscate(
+                    rolled.get(index),
+                    sessionId,
+                    slotOffset + chestSlot,
+                    mask
+            );
         }
         holder.getInventory().setContents(contents);
         return holder;
+    }
+
+    private static ItemStack pickObfuscationMask(List<ItemStack> masks) {
+        if (masks.isEmpty()) {
+            return null;
+        }
+        return masks.get(ThreadLocalRandom.current().nextInt(masks.size()));
     }
 
     private void ensureLootChest(

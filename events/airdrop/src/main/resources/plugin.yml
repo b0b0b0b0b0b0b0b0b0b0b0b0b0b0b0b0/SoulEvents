@@ -26,3 +26,6 @@ permissions:
   soulevents.airdrop.bypass:
     description: Skip concurrent spawn limits for testing
     default: op
+  soulevents.airdrop.open.donate:
+    description: Open donate airdrop chests when permission requirement is enabled
+    default: false

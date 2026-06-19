@@ -45,7 +45,7 @@
 
 Схематики живут в **ядре** (`plugins/SoulEvents/schematics/`). Модули (AirDrop и др.) только ссылаются на `schematicId` в своём типе.
 
-**Зависимость:** [FastAsyncWorldEdit](https://modrinth.com/plugin/fastasyncworldedit) или WorldEdit (softdepend). Без них каталог загрузится, но paste и scan `.schem` не работают.
+**Зависимость:** [FastAsyncWorldEdit](https://modrinth.black/plugin/fastasyncworldedit) или [WorldEdit](https://modrinth.black/plugin/worldedit) (softdepend). Без FAWE/WE каталог загрузится, но paste и scan `.schem` не работают.
 
 ### Структура папки
 
@@ -140,7 +140,9 @@ blendRadius: 4
 
 | Команда | Описание |
 |---------|----------|
-| `/airdrop summon` | Призвать аирдроп на своей позиции |
+| `/airdrop admin` | GUI со списком типов |
+| `/airdrop summon <тип> [мир]` | Призыв (админ: мир явно) |
+| `/airdrop reload` | Перезагрузка модуля |
 
 **Права**
 - `soulevents.airdrop.admin` — админ-команды (default: op)
@@ -167,43 +169,3 @@ SoulEvents-AirDrop/
 └── storage/
     └── airdrop.db          # SQLite (сессии, история спавнов)
 ```
-
-**Команды**
-
-| Команда | Описание |
-|---------|----------|
-| `/airdrop admin` | GUI со списком типов |
-| `/airdrop summon <тип> [мир]` | Призыв (админ: мир явно) |
-| `/airdrop reload` | Перезагрузка модуля |
-
----
-
-## Сборка
-
-```bash
-./gradlew plugins
-```
-
-Все JAR попадают в **`build/plugins/`**:
-- `SoulEvents-1.0.jar`
-- `SoulEvents-AirDrop-1.0.jar`
-
-Скопируй содержимое папки на сервер в `plugins/`.
-
-Локальный тест-сервер:
-
-```bash
-./gradlew :core:runServer
-```
-
----
-
-## Новый модуль
-
-1. `events/<name>/` + запись в `settings.gradle`
-2. `plugin.yml` с `depend: [SoulEvents]`
-3. `EventModule` + регистрация в `onEnable` через `SoulEventsApi`
-4. `archiveBaseName` + `apply from: rootProject.file('gradle/plugin-jar.gradle')`
-5. Добавить `:events:<name>:jar` в задачу `plugins` в корневом `build.gradle`
-
-Защиту не дублируй — вызывай `api.protection()`.

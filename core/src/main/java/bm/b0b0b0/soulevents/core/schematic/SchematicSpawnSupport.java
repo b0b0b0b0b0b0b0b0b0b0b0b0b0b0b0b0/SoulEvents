@@ -76,11 +76,24 @@ public final class SchematicSpawnSupport {
         return SchematicMarkerOverrides.defaults().effectiveSpawnCount();
     }
 
+    public static boolean resolveMarkerReplaceWithAir(
+            SchematicSettings defaults,
+            SchematicSpawnOverrides overrides
+    ) {
+        if (overrides != null
+                && overrides.marker() != null
+                && overrides.marker().replaceWithAir() != null) {
+            return overrides.marker().replaceWithAir();
+        }
+        return defaults.marker.replaceWithAir;
+    }
+
     private static SchematicPlacementSettings toPlacement(SchematicPlacementOverrides source) {
         SchematicPlacementSettings placement = new SchematicPlacementSettings();
         placement.verticalOffset = source.verticalOffset();
         placement.maxSurfaceDelta = source.maxSurfaceDelta();
         placement.terrainAdaptBlocks = source.terrainAdaptBlocks();
+        placement.terrainApproachRing = source.terrainApproachRing();
         placement.minAirAbove = source.minAirAbove();
         placement.safetyMargin = source.safetyMargin();
         placement.placementProbeStep = source.placementProbeStep();

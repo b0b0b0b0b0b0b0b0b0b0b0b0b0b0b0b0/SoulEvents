@@ -15,6 +15,9 @@ public final class TypeSchematicPlacementSettings extends YamlSerializable {
     @Comment(@CommentValue("Подгонка рельефа перед paste: сколько блоков вверх/вниз по каждой колонке footprint."))
     public int terrainAdaptBlocks = 32;
 
+    @Comment(@CommentValue("Кольцо подгонки рельефа снаружи контура solid-пола (блоки), 0 = выкл."))
+    public int terrainApproachRing = 0;
+
     @Comment(@CommentValue("Мин. воздуха над верхом схемы."))
     public int minAirAbove = 6;
 

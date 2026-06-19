@@ -13,6 +13,7 @@ startup.integration.worldguard-loaded: "  WorldGuard: found (<version>), waiting
 startup.integration.worldguard-missing: "  WorldGuard: not found (softdepend, region checks disabled)"
 
 startup.module.airdrop: "  AirDrop: ready"
+startup.module.volcano: "  Volcano: ready"
 
 startup.schematic.bundled: "  Installed bundled schematic: <file>"
 

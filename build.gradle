@@ -42,5 +42,5 @@ subprojects {
 tasks.register('plugins') {
     group = 'build'
     description = 'Build plugin JARs into build/plugins'
-    dependsOn ':core:jar', ':events:airdrop:jar'
+    dependsOn ':core:jar', ':events:airdrop:jar', ':events:volcano:jar'
 }

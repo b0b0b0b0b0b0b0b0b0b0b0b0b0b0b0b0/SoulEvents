@@ -15,6 +15,19 @@ final class NaturalSurfaceResolver {
         return world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES);
     }
 
+    static int placementGroundY(World world, int x, int z) {
+        int y = groundY(world, x, z);
+        int minY = world.getMinHeight();
+        while (y >= minY) {
+            Material type = world.getBlockAt(x, y, z).getType();
+            if (!type.isAir() && !isClearableObstruction(type)) {
+                return y;
+            }
+            y--;
+        }
+        return minY;
+    }
+
     static boolean isVegetationSurface(Material type) {
         return Tag.LOGS.isTagged(type)
                 || Tag.LEAVES.isTagged(type)
@@ -40,7 +53,8 @@ final class NaturalSurfaceResolver {
                  CAVE_VINES, CAVE_VINES_PLANT, TWISTING_VINES, TWISTING_VINES_PLANT,
                  WEEPING_VINES, WEEPING_VINES_PLANT, PITCHER_PLANT, PITCHER_CROP,
                  SPORE_BLOSSOM, HANGING_ROOTS, MOSS_CARPET, AZALEA, FLOWERING_AZALEA,
-                 COCOA, MELON_STEM, ATTACHED_MELON_STEM, PUMPKIN_STEM, ATTACHED_PUMPKIN_STEM -> true;
+                 COCOA, MELON_STEM, ATTACHED_MELON_STEM, PUMPKIN_STEM, ATTACHED_PUMPKIN_STEM,
+                 LEAF_LITTER, WILDFLOWERS, FIREFLY_BUSH, BUSH, CACTUS_FLOWER, PINK_PETALS -> true;
             default -> false;
         };
     }

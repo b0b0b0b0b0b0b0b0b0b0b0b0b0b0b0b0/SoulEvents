@@ -1,6 +1,5 @@
 package bm.b0b0b0.soulevents.core.schematic;
 
-import bm.b0b0b0.soulevents.api.world.FlatSurfaceOffset;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicPlacementSettings;
 import bm.b0b0b0.soulevents.core.config.settings.SchematicTerrainMaterialsSettings;
 import org.bukkit.Material;
@@ -10,21 +9,13 @@ import org.bukkit.block.Block;
 public final class SchematicTerrainAdapter {
 
     private final SchematicMaterialSet naturalTop;
-    private final SchematicMaterialSet removable;
 
-    private SchematicTerrainAdapter(
-            SchematicMaterialSet naturalTop,
-            SchematicMaterialSet removable
-    ) {
+    private SchematicTerrainAdapter(SchematicMaterialSet naturalTop) {
         this.naturalTop = naturalTop;
-        this.removable = removable;
     }
 
     public static SchematicTerrainAdapter from(SchematicTerrainMaterialsSettings settings) {
-        return new SchematicTerrainAdapter(
-                SchematicMaterialSet.terrainNaturalTop(settings),
-                SchematicMaterialSet.terrainRemovable(settings)
-        );
+        return new SchematicTerrainAdapter(SchematicMaterialSet.terrainNaturalTop(settings));
     }
 
     public boolean canAdaptAll(
@@ -39,11 +30,40 @@ public final class SchematicTerrainAdapter {
         if (limit == 0) {
             return true;
         }
-        int floorWorldY = pasteY + metadata.regionMinY() - metadata.originY();
-        for (FlatSurfaceOffset offset : metadata.footprint()) {
-            int surfaceY = highestSolidY(world, pasteX + offset.dx(), pasteZ + offset.dz());
-            if (Math.abs(surfaceY - floorWorldY) > limit) {
+        for (SchematicFloorColumn column : SchematicFloorSupport.perimeterFloorColumns(metadata.floorColumns())) {
+            int surfaceY = NaturalSurfaceResolver.placementGroundY(
+                    world,
+                    pasteX + column.dx(),
+                    pasteZ + column.dz()
+            );
+            int targetY = pasteY + column.floorDy();
+            if (surfaceY >= targetY) {
+                continue;
+            }
+            if (targetY - surfaceY > limit) {
                 return false;
+            }
+        }
+        int approachRing = Math.max(0, placement.terrainApproachRing);
+        if (approachRing > 0) {
+            for (SchematicApproachColumn column : SchematicFloorSupport.approachRingColumns(
+                    metadata.floorColumns(),
+                    approachRing
+            )) {
+                int edgeWorldY = pasteY + column.edgeReferenceDy();
+                int naturalY = NaturalSurfaceResolver.placementGroundY(
+                        world,
+                        pasteX + column.dx(),
+                        pasteZ + column.dz()
+                );
+                float blend = (float) column.ringDistance() / (approachRing + 1);
+                int targetWorldY = Math.round(edgeWorldY + (naturalY - edgeWorldY) * blend);
+                if (naturalY >= targetWorldY) {
+                    continue;
+                }
+                if (targetWorldY - naturalY > limit) {
+                    return false;
+                }
             }
         }
         return true;
@@ -61,52 +81,79 @@ public final class SchematicTerrainAdapter {
         if (limit == 0) {
             return 0;
         }
-        int floorWorldY = pasteY + metadata.regionMinY() - metadata.originY();
         int changed = 0;
-        for (FlatSurfaceOffset offset : metadata.footprint()) {
-            changed += adaptColumn(world, pasteX + offset.dx(), pasteZ + offset.dz(), floorWorldY, limit);
+        for (SchematicFloorColumn column : SchematicFloorSupport.perimeterFloorColumns(metadata.floorColumns())) {
+            changed += adaptColumn(
+                    world,
+                    pasteX + column.dx(),
+                    pasteZ + column.dz(),
+                    pasteY + column.floorDy(),
+                    limit
+            );
+        }
+        int approachRing = Math.max(0, placement.terrainApproachRing);
+        if (approachRing > 0) {
+            for (SchematicApproachColumn column : SchematicFloorSupport.approachRingColumns(
+                    metadata.floorColumns(),
+                    approachRing
+            )) {
+                changed += adaptApproachColumn(
+                        world,
+                        pasteX + column.dx(),
+                        pasteZ + column.dz(),
+                        pasteY,
+                        column,
+                        approachRing,
+                        limit
+                );
+            }
         }
         return changed;
     }
 
+    public int adaptApproachColumn(
+            World world,
+            int x,
+            int z,
+            int pasteY,
+            SchematicApproachColumn column,
+            int ringDepth,
+            int limit
+    ) {
+        int edgeWorldY = pasteY + column.edgeReferenceDy();
+        int naturalY = NaturalSurfaceResolver.placementGroundY(world, x, z);
+        float blend = (float) column.ringDistance() / (ringDepth + 1);
+        int targetWorldY = Math.round(edgeWorldY + (naturalY - edgeWorldY) * blend);
+        if (naturalY >= targetWorldY) {
+            return 0;
+        }
+        int delta = targetWorldY - naturalY;
+        if (delta > limit) {
+            return 0;
+        }
+        return fillUp(world, x, z, naturalY, targetWorldY);
+    }
+
     public int adaptColumn(World world, int x, int z, int targetFloorY, int limit) {
-        int surfaceY = highestSolidY(world, x, z);
-        int delta = surfaceY - targetFloorY;
-        if (delta == 0) {
+        int surfaceY = NaturalSurfaceResolver.placementGroundY(world, x, z);
+        if (surfaceY >= targetFloorY) {
             return 0;
         }
-        if (Math.abs(delta) > limit) {
+        int delta = targetFloorY - surfaceY;
+        if (delta > limit) {
             return 0;
         }
-        if (delta < 0) {
-            return fillUp(world, x, z, surfaceY, targetFloorY);
-        }
-        return cutDown(world, x, z, targetFloorY, surfaceY);
+        return fillUp(world, x, z, surfaceY, targetFloorY);
     }
 
     private int fillUp(World world, int x, int z, int surfaceY, int targetFloorY) {
         Material top = sampleNaturalTop(world, x, z);
         int changed = 0;
         for (int y = surfaceY + 1; y <= targetFloorY; y++) {
-            Material material = y == targetFloorY ? topMaterial(top) : Material.DIRT;
+            Material material = y == targetFloorY ? surfaceFillMaterial(top) : Material.DIRT;
             Block block = world.getBlockAt(x, y, z);
             if (block.getType() != material) {
                 block.setType(material, false);
-                changed++;
-            }
-        }
-        return changed;
-    }
-
-    private int cutDown(World world, int x, int z, int targetFloorY, int surfaceY) {
-        int changed = 0;
-        for (int y = surfaceY; y > targetFloorY; y--) {
-            Block block = world.getBlockAt(x, y, z);
-            if (!removable.contains(block.getType()) && !block.getType().isAir()) {
-                continue;
-            }
-            if (!block.getType().isAir()) {
-                block.setType(Material.AIR, false);
                 changed++;
             }
         }
@@ -134,6 +181,13 @@ public final class SchematicTerrainAdapter {
             return Material.GRASS_BLOCK;
         }
         return reference;
+    }
+
+    Material surfaceFillMaterial(Material sampled) {
+        if (naturalTop.contains(Material.GRASS_BLOCK)) {
+            return Material.GRASS_BLOCK;
+        }
+        return topMaterial(sampled);
     }
 
     int highestSolidY(World world, int x, int z) {

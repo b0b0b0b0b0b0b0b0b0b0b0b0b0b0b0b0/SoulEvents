@@ -1,0 +1,24 @@
+name: SoulEvents-Volcano
+version: '${version}'
+main: bm.b0b0b0.soulevents.volcano.VolcanoPlugin
+api-version: '1.21'
+authors: [ b0b0b0 ]
+depend: [ SoulEvents ]
+softdepend: [ WorldGuard, FastAsyncWorldEdit, SkinRestorer ]
+
+libraries:
+  - net.elytrium:serializer:1.1.1
+
+commands:
+  volcano:
+    description: Volcano event commands
+    permission: soulevents.volcano.staff
+    aliases: [ vol ]
+
+permissions:
+  soulevents.volcano.staff:
+    description: Volcano staff commands and admin GUI
+    default: op
+  soulevents.volcano.bypass:
+    description: Skip concurrent spawn limits for testing
+    default: op

@@ -15,7 +15,8 @@ import java.util.logging.Level;
 final class BundledSchematicInstaller {
 
     private static final List<String> BUNDLED_SCHEMATICS = List.of(
-            "schematics/test_arena2.schem"
+            "schematics/test_arena2.schem",
+            "schematics/test_volcano.schem"
     );
 
     private BundledSchematicInstaller() {

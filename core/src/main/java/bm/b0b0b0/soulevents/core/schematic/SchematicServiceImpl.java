@@ -210,15 +210,18 @@ public final class SchematicServiceImpl implements SchematicService {
                 ? options.blendRadiusOverride()
                 : blend.radius;
         int terrainAdapt = Math.max(0, placement.terrainAdaptBlocks);
+        int terrainApproachRing = Math.max(0, placement.terrainApproachRing);
         final int effectiveBlendRadius = resolveBlendRadius(blendEnabled, blendRadius, metadata);
         final int horizontalCaptureMargin = blendEnabled ? Math.max(0, effectiveBlendRadius) : 0;
 
         final int markerSpawnCount = SchematicSpawnSupport.resolveMarkerSpawnCount(overrides);
+        final boolean markerReplaceWithAir = SchematicSpawnSupport.resolveMarkerReplaceWithAir(settings, overrides);
         CompletableFuture<SchematicPasteResult> future = new CompletableFuture<>();
         int captureBlocks = SchematicRegionBounds.estimateUndoCaptureBlockCount(
                 metadata,
                 horizontalCaptureMargin,
                 terrainAdapt,
+                terrainApproachRing,
                 blendEnabled ? effectiveBlendRadius : 0
         );
         int undoLimit = settings.paste.maxUndoBlocks;
@@ -227,6 +230,7 @@ public final class SchematicServiceImpl implements SchematicService {
                     "Schematic undo snapshot too large for '" + schematicId + "': "
                             + captureBlocks + " capture blocks (limit " + undoLimit
                             + ", region " + metadata.sizeX() + "x" + metadata.sizeY() + "x" + metadata.sizeZ()
+                            + ", floorColumns " + metadata.floorColumns().size()
                             + ", footprint " + metadata.footprint().size()
                             + ", " + metadata.blockCount() + " schematic blocks). "
                             + "Raise paste.maxUndoBlocks in schematics/" + schematicId + ".yml."
@@ -267,6 +271,7 @@ public final class SchematicServiceImpl implements SchematicService {
                     horizontalCaptureMargin,
                     terrainAdapt,
                     markerSpawnCount,
+                    markerReplaceWithAir,
                     options,
                     future
             );
@@ -290,6 +295,7 @@ public final class SchematicServiceImpl implements SchematicService {
             int horizontalCaptureMargin,
             int terrainAdapt,
             int markerSpawnCount,
+            boolean markerReplaceWithAir,
             SchematicPasteOptions options,
             CompletableFuture<SchematicPasteResult> future
     ) {
@@ -361,13 +367,14 @@ public final class SchematicServiceImpl implements SchematicService {
                         normalizedOrigin,
                         metadata,
                         settings,
-                        markerSpawnCount
+                        markerSpawnCount,
+                        markerReplaceWithAir
                 );
                 Location resolvedChest = resolvedChests.getFirst();
                 List<WorldEditSchematicBridge.BlockSnapshot> undoSnapshots =
                         new ArrayList<>(prepared.snapshots());
                 if (blendEnabled && effectiveBlendRadius > 0) {
-                    SchematicWorldBounds bounds = toWorldBounds(normalizedOrigin, metadata);
+                    SchematicWorldBounds bounds = SchematicFloorSupport.toFloorWorldBounds(normalizedOrigin, metadata);
                     java.util.Set<Long> capturedKeys = WorldEditSchematicBridge.snapshotKeys(undoSnapshots);
                     SchematicLandscapeBlender landscapeBlender = terrainContext.landscapeBlender();
                     landscapeBlender.appendPreBlendCapture(
@@ -418,7 +425,8 @@ public final class SchematicServiceImpl implements SchematicService {
             Location pasteOrigin,
             SchematicDefinition.SchematicMetadata metadata,
             SchematicSettings settings,
-            int markerSpawnCount
+            int markerSpawnCount,
+            boolean markerReplaceWithAir
     ) {
         List<Location> resolved = SchematicMarkerLocator.resolveChestAnchorsAfterPaste(
                 plugin,
@@ -433,7 +441,8 @@ public final class SchematicServiceImpl implements SchematicService {
                 world,
                 pasteOrigin,
                 metadata,
-                settings.marker
+                settings.marker,
+                markerReplaceWithAir
         );
         if (clearedMarkers > resolved.size()) {
             plugin.getLogger().info(

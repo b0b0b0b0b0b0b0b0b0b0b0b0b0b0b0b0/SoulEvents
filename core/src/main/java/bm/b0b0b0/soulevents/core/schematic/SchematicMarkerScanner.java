@@ -99,7 +99,8 @@ public final class SchematicMarkerScanner {
             markerOffsets = List.of(new SchematicMarkerOffset(chestOffsetX, chestOffsetY, chestOffsetZ));
         }
 
-        List<FlatSurfaceOffset> footprint = scanFootprint(clipboard, region, min.y());
+        List<SchematicFloorColumn> floorColumns = scanSolidFloorColumns(clipboard, region, origin);
+        List<FlatSurfaceOffset> footprint = SchematicFloorSupport.toFootprint(floorColumns);
         List<FlatSurfaceOffset> surfaceProbe = SchematicPlacementProbeBuilder.build(
                 footprint,
                 settings.placement.placementProbeStep,
@@ -128,6 +129,7 @@ public final class SchematicMarkerScanner {
                 markerCount,
                 markerBlockName,
                 List.copyOf(markerOffsets),
+                List.copyOf(floorColumns),
                 List.copyOf(footprint),
                 List.copyOf(surfaceProbe),
                 blockCount
@@ -162,30 +164,44 @@ public final class SchematicMarkerScanner {
         return found;
     }
 
-    private static List<FlatSurfaceOffset> scanFootprint(Clipboard clipboard, Region region, int bottomY) {
-        Set<String> seen = new HashSet<>();
-        List<FlatSurfaceOffset> footprint = new ArrayList<>();
+    private static List<SchematicFloorColumn> scanSolidFloorColumns(
+            Clipboard clipboard,
+            Region region,
+            BlockVector3 origin
+    ) {
         BlockVector3 min = region.getMinimumPoint();
-        BlockVector3 origin = clipboard.getOrigin();
-        for (BlockVector3 pos : region) {
-            if (pos.y() != bottomY) {
-                continue;
-            }
-            BlockState state = clipboard.getBlock(pos);
-            if (state == null || state.getBlockType() == BlockTypes.AIR) {
-                continue;
-            }
-            int dx = pos.x() - origin.x();
-            int dz = pos.z() - origin.z();
-            String key = dx + ":" + dz;
-            if (seen.add(key)) {
-                footprint.add(new FlatSurfaceOffset(dx, dz));
+        BlockVector3 max = region.getMaximumPoint();
+        int floorPlaneY = Integer.MAX_VALUE;
+        for (int x = min.x(); x <= max.x(); x++) {
+            for (int z = min.z(); z <= max.z(); z++) {
+                for (int y = min.y(); y <= max.y(); y++) {
+                    BlockState state = clipboard.getBlock(BlockVector3.at(x, y, z));
+                    if (state != null && state.getBlockType() != BlockTypes.AIR) {
+                        floorPlaneY = Math.min(floorPlaneY, y);
+                        break;
+                    }
+                }
             }
         }
-        if (footprint.isEmpty()) {
-            footprint.add(new FlatSurfaceOffset(0, 0));
+        if (floorPlaneY == Integer.MAX_VALUE) {
+            return List.of(new SchematicFloorColumn(0, 0, min.y() - origin.y()));
         }
-        return footprint;
+
+        List<SchematicFloorColumn> columns = new ArrayList<>();
+        for (int x = min.x(); x <= max.x(); x++) {
+            for (int z = min.z(); z <= max.z(); z++) {
+                BlockState state = clipboard.getBlock(BlockVector3.at(x, floorPlaneY, z));
+                if (state == null || state.getBlockType() == BlockTypes.AIR) {
+                    continue;
+                }
+                columns.add(new SchematicFloorColumn(
+                        x - origin.x(),
+                        z - origin.z(),
+                        floorPlaneY - origin.y()
+                ));
+            }
+        }
+        return columns;
     }
 
     private static int countBlocks(Clipboard clipboard, Region region) {

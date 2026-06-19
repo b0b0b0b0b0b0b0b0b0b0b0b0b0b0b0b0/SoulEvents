@@ -45,8 +45,41 @@ public final class SchematicPlacementValidator {
         SchematicPlacementSettings placement = placementOverride != null
                 ? placementOverride
                 : definition.settings().placement;
+        List<SchematicFloorColumn> floorColumns = metadata.floorColumns();
+        if (floorColumns.isEmpty()) {
+            return SchematicPlacementResolution.rejected("schematic-probe-empty");
+        }
+
+        int[] floorHeights = new int[floorColumns.size()];
+        for (int index = 0; index < floorColumns.size(); index++) {
+            SchematicFloorColumn column = floorColumns.get(index);
+            floorHeights[index] = NaturalSurfaceResolver.placementGroundY(
+                    world,
+                    pasteOriginBlockX + column.dx(),
+                    pasteOriginBlockZ + column.dz()
+            );
+        }
+
+        int referenceY = floorHeights[0];
+        for (int height : floorHeights) {
+            referenceY = Math.max(referenceY, height);
+        }
+        int roughnessLimit = spawnRoughnessLimit(placement);
+        for (int index = 0; index < floorHeights.length; index++) {
+            int height = floorHeights[index];
+            if (referenceY - height > roughnessLimit) {
+                SchematicFloorColumn column = floorColumns.get(index);
+                return SchematicPlacementResolution.rejected(
+                        "schematic-terrain-too-rough delta=" + (referenceY - height)
+                                + " limit=" + roughnessLimit
+                                + " at=" + (pasteOriginBlockX + column.dx()) + "," + (pasteOriginBlockZ + column.dz())
+                );
+            }
+        }
+
+        List<FlatSurfaceOffset> floorFootprint = metadata.footprint();
         List<FlatSurfaceOffset> probe = SchematicPlacementProbeBuilder.build(
-                metadata.footprint(),
+                floorFootprint,
                 placement.placementProbeStep,
                 placement.safetyMargin
         );
@@ -57,28 +90,11 @@ public final class SchematicPlacementValidator {
         int[] surfaceHeights = new int[probe.size()];
         for (int index = 0; index < probe.size(); index++) {
             FlatSurfaceOffset offset = probe.get(index);
-            surfaceHeights[index] = NaturalSurfaceResolver.groundY(
+            surfaceHeights[index] = NaturalSurfaceResolver.placementGroundY(
                     world,
                     pasteOriginBlockX + offset.dx(),
                     pasteOriginBlockZ + offset.dz()
             );
-        }
-
-        int referenceY = surfaceHeights[0];
-        for (int height : surfaceHeights) {
-            referenceY = Math.max(referenceY, height);
-        }
-        int adaptLimit = Math.max(placement.maxSurfaceDelta, placement.terrainAdaptBlocks);
-        for (int index = 0; index < surfaceHeights.length; index++) {
-            int height = surfaceHeights[index];
-            if (referenceY - height > adaptLimit) {
-                FlatSurfaceOffset offset = probe.get(index);
-                return SchematicPlacementResolution.rejected(
-                        "schematic-terrain-too-rough delta=" + (referenceY - height)
-                                + " limit=" + adaptLimit
-                                + " at=" + (pasteOriginBlockX + offset.dx()) + "," + (pasteOriginBlockZ + offset.dz())
-                );
-            }
         }
 
         for (int index = 0; index < probe.size(); index++) {
@@ -91,7 +107,8 @@ public final class SchematicPlacementValidator {
             }
         }
 
-        int pasteY = referenceY + placement.verticalOffset - (metadata.regionMinY() - metadata.originY());
+        int pasteY = referenceY + placement.verticalOffset
+                - SchematicFloorSupport.minFloorDy(metadata.floorColumns(), metadata);
         String clearanceIssue = clearanceIssue(
                 world,
                 pasteOriginBlockX,
@@ -174,12 +191,15 @@ public final class SchematicPlacementValidator {
             int z,
             SchematicPlacementSettings placement
     ) {
-        if (NaturalSurfaceResolver.groundY(world, x, z) != y) {
+        if (NaturalSurfaceResolver.placementGroundY(world, x, z) != y) {
             return "highest-mismatch at=" + x + "," + z;
         }
         Block surface = world.getBlockAt(x, y, z);
         if (placement.rejectLiquids && (surface.isLiquid() || !surface.isSolid())) {
             return "liquid-or-non-solid block=" + surface.getType().name() + " at=" + x + "," + y + "," + z;
+        }
+        if (NaturalSurfaceResolver.isClearableObstruction(surface.getType())) {
+            return null;
         }
         if (!isValidSurfaceBlock(surface)) {
             return "bad-surface block=" + surface.getType().name() + " at=" + x + "," + y + "," + z;
@@ -198,10 +218,18 @@ public final class SchematicPlacementValidator {
             return false;
         }
         Material type = block.getType();
-        return type != Material.MAGMA_BLOCK
-                && type != Material.CACTUS
+        return type != Material.CACTUS
                 && type != Material.SWEET_BERRY_BUSH
                 && type != Material.POWDER_SNOW
                 && !NaturalSurfaceResolver.isVegetationSurface(type);
+    }
+
+    private static int spawnRoughnessLimit(SchematicPlacementSettings placement) {
+        int delta = Math.max(0, placement.maxSurfaceDelta);
+        int adapt = Math.max(0, placement.terrainAdaptBlocks);
+        if (adapt <= 0) {
+            return delta;
+        }
+        return Math.max(delta, adapt);
     }
 }

@@ -13,6 +13,7 @@ startup.integration.worldguard-loaded: "  WorldGuard: найден (<version>), 
 startup.integration.worldguard-missing: "  WorldGuard: не найден (softdepend, проверки регионов выключены)"
 
 startup.module.airdrop: "  AirDrop: готов"
+startup.module.volcano: "  Volcano: готов"
 
 startup.schematic.bundled: "  Установлена встроенная схема: <file>"
 

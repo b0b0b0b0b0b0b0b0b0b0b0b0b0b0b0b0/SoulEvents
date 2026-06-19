@@ -46,6 +46,7 @@ public record SchematicDefinition(
             int markerCount,
             String markerBlock,
             List<SchematicMarkerOffset> markerOffsets,
+            List<SchematicFloorColumn> floorColumns,
             List<FlatSurfaceOffset> footprint,
             List<FlatSurfaceOffset> surfaceProbe,
             int blockCount

@@ -34,6 +34,7 @@ public final class SchematicSpawnOverridesFactory {
                 placement.verticalOffset,
                 placement.maxSurfaceDelta,
                 placement.terrainAdaptBlocks,
+                placement.terrainApproachRing,
                 placement.minAirAbove,
                 placement.safetyMargin,
                 placement.placementProbeStep,

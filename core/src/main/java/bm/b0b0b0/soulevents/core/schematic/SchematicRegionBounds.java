@@ -61,11 +61,21 @@ public final class SchematicRegionBounds {
             SchematicDefinition.SchematicMetadata metadata,
             int horizontalMargin,
             int terrainAdaptBelow,
+            int terrainApproachRing,
             int blendRadius
     ) {
-        int total = buildUndoCaptureSteps(metadata, horizontalMargin, terrainAdaptBelow).size();
+        int total = buildUndoCaptureSteps(metadata, horizontalMargin, terrainAdaptBelow, terrainApproachRing).size();
         total += SchematicLandscapeBlender.estimatePreBlendCaptureCount(metadata, blendRadius);
         return total;
+    }
+
+    public static int estimateUndoCaptureBlockCount(
+            SchematicDefinition.SchematicMetadata metadata,
+            int horizontalMargin,
+            int terrainAdaptBelow,
+            int blendRadius
+    ) {
+        return estimateUndoCaptureBlockCount(metadata, horizontalMargin, terrainAdaptBelow, 0, blendRadius);
     }
 
     public static int estimateUndoCaptureBlockCount(
@@ -76,24 +86,63 @@ public final class SchematicRegionBounds {
         return estimateUndoCaptureBlockCount(metadata, horizontalMargin, terrainAdaptBelow, 0);
     }
 
+    public static List<FlatSurfaceOffset> horizontalColumns(SchematicDefinition.SchematicMetadata metadata) {
+        int minDx = metadata.regionMinX() - metadata.originX();
+        int maxDx = metadata.regionMaxX() - metadata.originX();
+        int minDz = metadata.regionMinZ() - metadata.originZ();
+        int maxDz = metadata.regionMaxZ() - metadata.originZ();
+        List<FlatSurfaceOffset> columns = new ArrayList<>((maxDx - minDx + 1) * (maxDz - minDz + 1));
+        for (int dx = minDx; dx <= maxDx; dx++) {
+            for (int dz = minDz; dz <= maxDz; dz++) {
+                columns.add(new FlatSurfaceOffset(dx, dz));
+            }
+        }
+        return columns;
+    }
+
     public static List<int[]> buildUndoCaptureSteps(
             SchematicDefinition.SchematicMetadata metadata,
             int horizontalMargin,
-            int terrainAdaptBelow
+            int terrainAdaptBelow,
+            int terrainApproachRing
     ) {
         VolumeBounds main = captureBounds(metadata, horizontalMargin, 0, 0);
         Set<Long> seen = new HashSet<>();
         List<int[]> steps = new ArrayList<>((int) Math.min(main.blockCount(), Integer.MAX_VALUE));
         appendVolumeSteps(steps, seen, main);
         if (terrainAdaptBelow > 0) {
-            int floorMinDy = metadata.regionMinY() - metadata.originY();
-            for (FlatSurfaceOffset offset : metadata.footprint()) {
-                for (int dy = floorMinDy - terrainAdaptBelow; dy <= floorMinDy + terrainAdaptBelow; dy++) {
-                    appendStep(steps, seen, offset.dx(), dy, offset.dz());
-                }
+            int approachRing = Math.max(0, terrainApproachRing);
+            for (SchematicFloorColumn column : SchematicFloorSupport.perimeterFloorColumns(metadata.floorColumns())) {
+                appendAdaptColumnSteps(steps, seen, column.dx(), column.dz(), column.floorDy(), terrainAdaptBelow);
+            }
+            for (SchematicApproachColumn column : SchematicFloorSupport.approachRingColumns(
+                    metadata.floorColumns(),
+                    approachRing
+            )) {
+                appendAdaptColumnSteps(
+                        steps,
+                        seen,
+                        column.dx(),
+                        column.dz(),
+                        column.edgeReferenceDy(),
+                        terrainAdaptBelow + approachRing
+                );
             }
         }
         return steps;
+    }
+
+    private static void appendAdaptColumnSteps(
+            List<int[]> steps,
+            Set<Long> seen,
+            int dx,
+            int dz,
+            int centerDy,
+            int verticalRange
+    ) {
+        for (int dy = centerDy - verticalRange; dy <= centerDy + verticalRange; dy++) {
+            appendStep(steps, seen, dx, dy, dz);
+        }
     }
 
     private static void appendVolumeSteps(List<int[]> steps, Set<Long> seen, VolumeBounds bounds) {

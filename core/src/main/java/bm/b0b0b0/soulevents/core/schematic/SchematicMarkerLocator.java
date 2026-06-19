@@ -75,9 +75,10 @@ final class SchematicMarkerLocator {
             World world,
             Location pasteOrigin,
             SchematicDefinition.SchematicMetadata metadata,
-            SchematicMarkerSettings markerSettings
+            SchematicMarkerSettings markerSettings,
+            boolean replaceWithAir
     ) {
-        if (!markerSettings.replaceWithAir) {
+        if (!replaceWithAir) {
             return 0;
         }
         Material marker = SchematicMarkerScanner.parseMarkerMaterial(markerSettings.block);

@@ -8,6 +8,7 @@ public record SchematicPlacementOverrides(
         int verticalOffset,
         int maxSurfaceDelta,
         int terrainAdaptBlocks,
+        int terrainApproachRing,
         int minAirAbove,
         int safetyMargin,
         int placementProbeStep,

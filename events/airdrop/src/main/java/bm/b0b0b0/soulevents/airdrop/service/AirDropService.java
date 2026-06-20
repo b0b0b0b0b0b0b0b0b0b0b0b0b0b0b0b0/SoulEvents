@@ -6,6 +6,7 @@ import bm.b0b0b0.soulevents.api.module.EventPhase;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPasteOptions;
 import bm.b0b0b0.soulevents.api.schematic.SchematicSpawnOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicWorldBounds;
+import bm.b0b0b0.soulevents.api.world.WorldPlacementDenial;
 import bm.b0b0b0.soulevents.api.world.WorldPlacementResult;
 import bm.b0b0b0.soulevents.airdrop.config.AirDropPermissions;
 import bm.b0b0b0.soulevents.airdrop.config.AirDropPluginConfig;
@@ -49,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -1153,11 +1155,18 @@ public final class AirDropService {
     }
 
     private void sendPlacementError(CommandSender sender, WorldPlacementResult result) {
-        messages.send(sender, result.messageKey().orElse("airdrop.placement.invalid-location"), Map.of(
+        messages.send(sender, placementMessageKey(result), Map.of(
                 "world", result.worldName(),
                 "region", result.regionName(),
                 "distance", result.regionName()
         ));
+    }
+
+    private static String placementMessageKey(WorldPlacementResult result) {
+        if (result.allowed() || result.denial() == WorldPlacementDenial.NONE) {
+            return "airdrop.placement.invalid-location";
+        }
+        return "airdrop.placement." + result.denial().name().toLowerCase(Locale.ROOT).replace('_', '-');
     }
 
     private WorldPlacementGate gate(String typeId) {

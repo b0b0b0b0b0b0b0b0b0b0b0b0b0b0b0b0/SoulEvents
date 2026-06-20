@@ -23,6 +23,15 @@ public final class MapSpawnBoundary {
             long boundarySquared = (long) boundaryRadius * boundaryRadius;
             return dx * dx + dz * dz <= boundarySquared;
         }
+
+        public boolean withinSpawnRing(int x, int z) {
+            long dx = (long) x - centerX;
+            long dz = (long) z - centerZ;
+            long minSquared = (long) minRadius * minRadius;
+            long maxSquared = (long) maxRadius * maxRadius;
+            long distanceSquared = dx * dx + dz * dz;
+            return distanceSquared >= minSquared && distanceSquared <= maxSquared;
+        }
     }
 
     public static Area resolve(RandomSpawnSettings spawn, World world) {

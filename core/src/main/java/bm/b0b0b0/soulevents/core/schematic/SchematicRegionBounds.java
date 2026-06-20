@@ -1,6 +1,7 @@
 package bm.b0b0b0.soulevents.core.schematic;
 
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceOffset;
+import bm.b0b0b0.soulevents.core.config.settings.SchematicPlacementSettings;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -62,11 +63,56 @@ public final class SchematicRegionBounds {
             int horizontalMargin,
             int terrainAdaptBelow,
             int terrainApproachRing,
+            int terrainApproachFrontDepth,
+            String approachFrontFacing,
             int blendRadius
     ) {
-        int total = buildUndoCaptureSteps(metadata, horizontalMargin, terrainAdaptBelow, terrainApproachRing).size();
+        int total = buildUndoCaptureSteps(
+                metadata,
+                horizontalMargin,
+                terrainAdaptBelow,
+                terrainApproachRing,
+                terrainApproachFrontDepth,
+                approachFrontFacing
+        ).size();
         total += SchematicLandscapeBlender.estimatePreBlendCaptureCount(metadata, blendRadius);
         return total;
+    }
+
+    public static int estimateUndoCaptureBlockCount(
+            SchematicDefinition.SchematicMetadata metadata,
+            int horizontalMargin,
+            int terrainAdaptBelow,
+            SchematicPlacementSettings placement,
+            int blendRadius
+    ) {
+        return estimateUndoCaptureBlockCount(
+                metadata,
+                horizontalMargin,
+                terrainAdaptBelow,
+                Math.max(0, placement.terrainApproachRing),
+                Math.max(0, placement.terrainApproachFrontDepth),
+                placement.approachFrontFacing,
+                blendRadius
+        );
+    }
+
+    public static int estimateUndoCaptureBlockCount(
+            SchematicDefinition.SchematicMetadata metadata,
+            int horizontalMargin,
+            int terrainAdaptBelow,
+            int terrainApproachRing,
+            int blendRadius
+    ) {
+        return estimateUndoCaptureBlockCount(
+                metadata,
+                horizontalMargin,
+                terrainAdaptBelow,
+                terrainApproachRing,
+                0,
+                "AUTO",
+                blendRadius
+        );
     }
 
     public static int estimateUndoCaptureBlockCount(
@@ -104,20 +150,40 @@ public final class SchematicRegionBounds {
             SchematicDefinition.SchematicMetadata metadata,
             int horizontalMargin,
             int terrainAdaptBelow,
-            int terrainApproachRing
+            SchematicPlacementSettings placement
+    ) {
+        return buildUndoCaptureSteps(
+                metadata,
+                horizontalMargin,
+                terrainAdaptBelow,
+                Math.max(0, placement.terrainApproachRing),
+                Math.max(0, placement.terrainApproachFrontDepth),
+                placement.approachFrontFacing
+        );
+    }
+
+    public static List<int[]> buildUndoCaptureSteps(
+            SchematicDefinition.SchematicMetadata metadata,
+            int horizontalMargin,
+            int terrainAdaptBelow,
+            int terrainApproachRing,
+            int terrainApproachFrontDepth,
+            String approachFrontFacing
     ) {
         VolumeBounds main = captureBounds(metadata, horizontalMargin, 0, 0);
         Set<Long> seen = new HashSet<>();
         List<int[]> steps = new ArrayList<>((int) Math.min(main.blockCount(), Integer.MAX_VALUE));
         appendVolumeSteps(steps, seen, main);
         if (terrainAdaptBelow > 0) {
-            int approachRing = Math.max(0, terrainApproachRing);
-            for (SchematicFloorColumn column : SchematicFloorSupport.perimeterFloorColumns(metadata.floorColumns())) {
+            for (SchematicFloorColumn column : SchematicFloorSupport.footprintAdaptColumns(metadata.floorColumns())) {
                 appendAdaptColumnSteps(steps, seen, column.dx(), column.dz(), column.floorDy(), terrainAdaptBelow);
             }
-            for (SchematicApproachColumn column : SchematicFloorSupport.approachRingColumns(
+            for (SchematicApproachColumn column : SchematicFloorSupport.approachAdaptColumns(
                     metadata.floorColumns(),
-                    approachRing
+                    metadata,
+                    terrainApproachRing,
+                    terrainApproachFrontDepth,
+                    approachFrontFacing
             )) {
                 appendAdaptColumnSteps(
                         steps,
@@ -125,7 +191,11 @@ public final class SchematicRegionBounds {
                         column.dx(),
                         column.dz(),
                         column.edgeReferenceDy(),
-                        terrainAdaptBelow + approachRing
+                        terrainAdaptBelow + SchematicFloorSupport.approachAdaptRingDepth(
+                                column,
+                                terrainApproachRing,
+                                terrainApproachFrontDepth
+                        )
                 );
             }
         }

@@ -65,7 +65,6 @@ public final class TypeDirectoryLoader {
         switch (typeId) {
             case "rare" -> {
                 settings.intervalMinutes = 90L;
-                settings.eruption.itemCount = 12;
                 settings.randomSpawn.minRadiusFromCenter = 800;
                 settings.randomSpawn.maxRadiusFromCenter = 8000;
             }

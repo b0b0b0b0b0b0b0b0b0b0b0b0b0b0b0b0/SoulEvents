@@ -12,6 +12,9 @@ public final class TypeSchematicPlacementSettings extends YamlSerializable {
     @Comment(@CommentValue("Макс. перепад высот footprint (блоки)."))
     public int maxSurfaceDelta = 32;
 
+    @Comment(@CommentValue("Макс. перепад в safety-margin вокруг footprint (относительно пола схемы)."))
+    public int maxSafetyMarginDelta = 4;
+
     @Comment(@CommentValue("Подгонка рельефа перед paste: сколько блоков вверх/вниз по каждой колонке footprint."))
     public int terrainAdaptBlocks = 32;
 
@@ -29,6 +32,21 @@ public final class TypeSchematicPlacementSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Отклонять воду/лаву в зоне."))
     public boolean rejectLiquids = true;
+
+    @Comment(@CommentValue("Горизонтальный радиус от probe: вода/лава в колонке = отказ (берега рек)."))
+    public int rejectWaterWithinHorizontalBlocks = 5;
+
+    @Comment(@CommentValue("Сколько блоков вниз от поверхности смотреть на воду/лаву у края."))
+    public int rejectWaterDepthBlocks = 8;
+
+    @Comment(@CommentValue("Мин. блоков от края solid-пола до воды/лавы (0 = legacy rejectWaterWithinHorizontalBlocks)."))
+    public int minWaterClearanceFromEdge = 0;
+
+    @Comment(@CommentValue("Мин. блоков от края solid-пола до зоны обрыва/склона."))
+    public int minCliffClearanceFromEdge = 0;
+
+    @Comment(@CommentValue("Макс. перепад Y в зоне обрыва относительно ближайшей колонки пола."))
+    public int maxCliffDropFromEdge = 5;
 
     @Comment(@CommentValue("Твёрдый блок под поверхностью."))
     public boolean requireSolidBelow = false;

@@ -6,8 +6,10 @@ import org.bukkit.Location;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,6 +40,13 @@ public final class SchematicFloorSupport {
         return List.copyOf(columns);
     }
 
+    public static List<SchematicFloorColumn> footprintAdaptColumns(List<SchematicFloorColumn> floorColumns) {
+        if (floorColumns.isEmpty()) {
+            return List.of();
+        }
+        return List.copyOf(floorColumns);
+    }
+
     public static List<SchematicFloorColumn> perimeterFloorColumns(List<SchematicFloorColumn> floorColumns) {
         if (floorColumns.isEmpty()) {
             return List.of();
@@ -59,7 +68,141 @@ public final class SchematicFloorSupport {
             List<SchematicFloorColumn> floorColumns,
             int ringDepth
     ) {
-        if (ringDepth <= 0 || floorColumns.isEmpty()) {
+        return exteriorRingColumns(floorColumns, 1, ringDepth);
+    }
+
+    public static List<SchematicApproachColumn> approachTailColumns(
+            List<SchematicFloorColumn> floorColumns,
+            int approachRing,
+            int tailDepth
+    ) {
+        if (tailDepth <= 0 || approachRing <= 0) {
+            return List.of();
+        }
+        return exteriorRingColumns(floorColumns, approachRing + 1, approachRing + tailDepth);
+    }
+
+    public static List<SchematicApproachColumn> approachFrontColumns(
+            List<SchematicFloorColumn> floorColumns,
+            int markerDx,
+            int markerDz,
+            int depth,
+            String facingSetting
+    ) {
+        if (depth <= 0 || floorColumns.isEmpty()) {
+            return List.of();
+        }
+        int[] facing = resolveApproachFrontFacing(floorColumns, markerDx, markerDz, facingSetting);
+        int faceDx = facing[0];
+        int faceDz = facing[1];
+        if (faceDx == 0 && faceDz == 0) {
+            return List.of();
+        }
+        int centerDx = centroidDx(floorColumns);
+        int centerDz = centroidDz(floorColumns);
+        List<SchematicApproachColumn> result = new ArrayList<>();
+        for (SchematicApproachColumn column : exteriorRingColumns(floorColumns, 1, depth)) {
+            int relDx = column.dx() - centerDx;
+            int relDz = column.dz() - centerDz;
+            if (relDx * faceDx + relDz * faceDz > 0) {
+                result.add(column);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    public static List<SchematicApproachColumn> approachAdaptColumns(
+            List<SchematicFloorColumn> floorColumns,
+            SchematicDefinition.SchematicMetadata metadata,
+            int approachRing,
+            int frontDepth,
+            String frontFacing
+    ) {
+        LinkedHashMap<Long, SchematicApproachColumn> columns = new LinkedHashMap<>();
+        for (SchematicApproachColumn column : approachRingColumns(floorColumns, approachRing)) {
+            columns.put(columnKey(column.dx(), column.dz()), column);
+        }
+        for (SchematicApproachColumn column : approachFrontColumns(
+                floorColumns,
+                metadata.chestOffsetX(),
+                metadata.chestOffsetZ(),
+                frontDepth,
+                frontFacing
+        )) {
+            columns.putIfAbsent(columnKey(column.dx(), column.dz()), column);
+        }
+        return List.copyOf(columns.values());
+    }
+
+    public static int approachAdaptRingDepth(
+            SchematicApproachColumn column,
+            int approachRing,
+            int frontDepth
+    ) {
+        return Math.max(Math.max(approachRing, frontDepth), column.ringDistance());
+    }
+
+    private static int[] resolveApproachFrontFacing(
+            List<SchematicFloorColumn> floorColumns,
+            int markerDx,
+            int markerDz,
+            String facingSetting
+    ) {
+        String mode = facingSetting == null || facingSetting.isBlank()
+                ? "AUTO"
+                : facingSetting.trim().toUpperCase(Locale.ROOT);
+        return switch (mode) {
+            case "NORTH" -> new int[] {0, -1};
+            case "SOUTH" -> new int[] {0, 1};
+            case "EAST" -> new int[] {1, 0};
+            case "WEST" -> new int[] {-1, 0};
+            default -> autoApproachFrontFacing(floorColumns, markerDx, markerDz);
+        };
+    }
+
+    private static int[] autoApproachFrontFacing(
+            List<SchematicFloorColumn> floorColumns,
+            int markerDx,
+            int markerDz
+    ) {
+        int centerDx = centroidDx(floorColumns);
+        int centerDz = centroidDz(floorColumns);
+        int faceDx = Integer.compare(markerDx, centerDx);
+        int faceDz = Integer.compare(markerDz, centerDz);
+        if (faceDx != 0 || faceDz != 0) {
+            return new int[] {faceDx, faceDz};
+        }
+        return new int[] {0, 1};
+    }
+
+    private static int centroidDx(List<SchematicFloorColumn> floorColumns) {
+        return (int) Math.round(floorColumns.stream().mapToInt(SchematicFloorColumn::dx).average().orElse(0.0));
+    }
+
+    private static int centroidDz(List<SchematicFloorColumn> floorColumns) {
+        return (int) Math.round(floorColumns.stream().mapToInt(SchematicFloorColumn::dz).average().orElse(0.0));
+    }
+
+    public static Set<Long> adaptedColumnKeys(
+            List<SchematicFloorColumn> floorColumns,
+            int approachRing
+    ) {
+        Set<Long> keys = new HashSet<>();
+        for (SchematicFloorColumn column : perimeterFloorColumns(floorColumns)) {
+            keys.add(columnKey(column.dx(), column.dz()));
+        }
+        for (SchematicApproachColumn column : approachRingColumns(floorColumns, approachRing)) {
+            keys.add(columnKey(column.dx(), column.dz()));
+        }
+        return Set.copyOf(keys);
+    }
+
+    private static List<SchematicApproachColumn> exteriorRingColumns(
+            List<SchematicFloorColumn> floorColumns,
+            int minRingInclusive,
+            int maxRingInclusive
+    ) {
+        if (maxRingInclusive < minRingInclusive || floorColumns.isEmpty()) {
             return List.of();
         }
         Map<Long, Integer> floorDyByKey = new HashMap<>();
@@ -78,7 +221,7 @@ public final class SchematicFloorSupport {
             collectExteriorNeighbors(column.dx(), column.dz(), occupied, frontier);
         }
 
-        for (int ring = 1; ring <= ringDepth; ring++) {
+        for (int ring = 1; ring <= maxRingInclusive; ring++) {
             if (frontier.isEmpty()) {
                 break;
             }
@@ -86,11 +229,12 @@ public final class SchematicFloorSupport {
             for (long key : frontier) {
                 int dx = decodeDx(key);
                 int dz = decodeDz(key);
-                int edgeReferenceDy = nearestEdgeReferenceDy(dx, dz, perimeterFloor);
-                if (edgeReferenceDy == Integer.MIN_VALUE) {
-                    continue;
+                if (ring >= minRingInclusive) {
+                    int edgeReferenceDy = nearestEdgeReferenceDy(dx, dz, perimeterFloor);
+                    if (edgeReferenceDy != Integer.MIN_VALUE) {
+                        result.add(new SchematicApproachColumn(dx, dz, ring, edgeReferenceDy));
+                    }
                 }
-                result.add(new SchematicApproachColumn(dx, dz, ring, edgeReferenceDy));
                 occupied.add(key);
                 collectExteriorNeighbors(dx, dz, occupied, nextFrontier);
             }
@@ -116,6 +260,23 @@ public final class SchematicFloorSupport {
         return bestDy;
     }
 
+    public static int chebyshevDistanceToSolid(int dx, int dz, List<SchematicFloorColumn> floorColumns) {
+        int best = Integer.MAX_VALUE;
+        for (SchematicFloorColumn column : floorColumns) {
+            int distance = Math.max(Math.abs(dx - column.dx()), Math.abs(dz - column.dz()));
+            best = Math.min(best, distance);
+        }
+        return best;
+    }
+
+    public static long columnKey(int dx, int dz) {
+        return ((long) dx << 32) | (dz & 0xFFFFFFFFL);
+    }
+
+    public static List<FlatSurfaceOffset> perimeterFootprint(List<SchematicFloorColumn> floorColumns) {
+        return toFootprint(perimeterFloorColumns(floorColumns));
+    }
+
     private static boolean isPerimeter(int dx, int dz, Map<Long, Integer> floor) {
         return !floor.containsKey(columnKey(dx + 1, dz))
                 || !floor.containsKey(columnKey(dx - 1, dz))
@@ -135,10 +296,6 @@ public final class SchematicFloorSupport {
                 }
             }
         }
-    }
-
-    private static long columnKey(int dx, int dz) {
-        return ((long) dx << 32) | (dz & 0xFFFFFFFFL);
     }
 
     private static int decodeDx(long key) {

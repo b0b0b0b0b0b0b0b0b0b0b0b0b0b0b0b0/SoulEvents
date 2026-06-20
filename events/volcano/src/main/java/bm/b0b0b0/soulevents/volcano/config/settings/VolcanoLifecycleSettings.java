@@ -12,8 +12,8 @@ public final class VolcanoLifecycleSettings extends YamlSerializable {
     @Comment(@CommentValue("Секунд активности вулкана до потухания (удаление + cleanup лута)."))
     public int maxActiveSeconds = 240;
 
-    @Comment(@CommentValue("BossBar игрокам в радиусе (0 = выкл.)."))
-    public int bossBarRadius = 200;
+    @Comment(@CommentValue("BossBar игрокам в радиусе от жерла (0 = выкл.)."))
+    public int bossBarRadius = 48;
 
     public boolean bossBarEnabled = true;
 

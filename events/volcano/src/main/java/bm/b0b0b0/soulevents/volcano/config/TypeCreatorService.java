@@ -58,7 +58,6 @@ public final class TypeCreatorService {
             settings.broadcast.messageKey = "volcano.broadcast.default";
             if (this == RARE) {
                 settings.intervalMinutes = 90L;
-                settings.eruption.itemCount = 12;
             }
             if (this == DONATE) {
                 settings.enabled = false;

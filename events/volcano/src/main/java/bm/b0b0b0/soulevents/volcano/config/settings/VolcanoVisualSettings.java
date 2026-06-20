@@ -11,38 +11,65 @@ public final class VolcanoVisualSettings {
     @Comment(@CommentValue("Дым из жерла вулкана (кубы дыма)."))
     public boolean ventSmokeEnabled = true;
 
-    public String ventSmokeParticle = "CAMPFIRE_COSY_SMOKE";
+    public String ventSmokeParticle = "CAMPFIRE_SIGNAL_SMOKE";
 
     public int ventSmokeCount = 5;
+
+    @Comment(@CommentValue("Импульс дыма из жерла каждые N тиков."))
+    public int ventSmokeIntervalTicks = 10;
+
+    @Comment(@CommentValue("Горизонтальный разброс скорости частиц (меньше = уже столб)."))
+    public double ventSmokeSpread = 0.14;
+
+    @Comment(@CommentValue("Вертикальный разброс скорости (не высота столба)."))
+    public double ventSmokeVerticalSpread = 0.08;
+
+    public double ventSmokeRiseSpeed = 0.06;
 
     @Comment(@CommentValue("Дым над блоками магмы/лавы в схеме (частицы)."))
     public boolean magmaSmokeEnabled = true;
 
-    public String magmaSmokeParticle = "CAMPFIRE_COSY_SMOKE";
+    @Comment(@CommentValue("Крупные серые клубы на верхушке столба."))
+    public String magmaSmokeParticle = "LARGE_SMOKE";
 
     public String magmaSmokeSecondaryParticle = "LARGE_SMOKE";
 
-    public String magmaSmokeDarkParticle = "SMOKE";
+    @Comment(@CommentValue("Основной тёмный дым (CAMPFIRE_SIGNAL_SMOKE — серая струя, не белый COSY)."))
+    public String magmaSmokeDarkParticle = "CAMPFIRE_SIGNAL_SMOKE";
 
+    @Comment(@CommentValue("0 = все точки по очереди (magmaSmokeMaxPointsPerTick за импульс)."))
     public int magmaSmokeCount = 0;
 
-    public int magmaSmokeParticlesPerPlume = 5;
+    public int magmaSmokeParticlesPerPlume = 2;
 
-    public int magmaSmokeVerticalLayers = 1;
+    @Comment(@CommentValue("Точек спавна по высоте над магмой (столб без разлёта)."))
+    public int magmaSmokeVerticalLayers = 4;
 
-    public int magmaSmokeIntervalTicks = 20;
+    @Comment(@CommentValue("Импульс дыма каждые N тиков."))
+    public int magmaSmokeIntervalTicks = 10;
 
-    public double magmaSmokeSpawnOffsetY = 0.35;
+    public double magmaSmokeSpawnOffsetY = 0.2;
 
-    public double magmaSmokeCubeHalfSize = 0.14;
+    public double magmaSmokeCubeHalfSize = 0.1;
 
-    public double magmaSmokeSpread = 0.14;
+    public double magmaSmokeSpread = 0.09;
 
-    public double magmaSmokeVerticalSpread = 0.55;
+    public double magmaSmokeVerticalSpread = 0.07;
 
-    public double magmaSmokeRiseSpeed = 0.11;
+    public double magmaSmokeRiseSpeed = 0.06;
 
-    public int magmaSmokeMaxPointsPerTick = 4;
+    @Comment(@CommentValue("Расстояние между слоями столба (блоки)."))
+    public double magmaSmokeStackStep = 0.55;
+
+    public int magmaSmokeMaxPointsPerTick = 5;
+
+    @Comment(@CommentValue("Огненные частицы на bedrock-маркерах схемы (как у лута на земле, но выше)."))
+    public boolean bedrockGlowEnabled = true;
+
+    public double bedrockGlowOffsetY = 0.55;
+
+    @Comment(@CommentValue("Гром и фейковые молнии рядом с вулканом."))
+    public VolcanoAmbientSettings ambient = new VolcanoAmbientSettings();
 
     @Comment(@CommentValue("TextDisplay над летящим/лежащим предметом."))
     public boolean itemLabelEnabled = true;
@@ -62,6 +89,9 @@ public final class VolcanoVisualSettings {
 
     @Comment(@CommentValue("Lang-ключи action bar (случайный при каждом подборе)."))
     public List<String> pickupActionBarKeys = defaultPickupActionBarKeys();
+
+    @Comment(@CommentValue("Горячее жерло: урон на bedrock/угле во время извержения."))
+    public VolcanoVentHeatSettings ventHeat = new VolcanoVentHeatSettings();
 
     private static List<String> defaultLabelKeys() {
         List<String> keys = new ArrayList<>();

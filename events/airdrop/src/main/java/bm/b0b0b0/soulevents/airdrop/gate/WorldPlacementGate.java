@@ -6,6 +6,7 @@ import bm.b0b0b0.soulevents.api.world.WorldGuardProbe;
 import bm.b0b0b0.soulevents.api.world.WorldPlacementDenial;
 import bm.b0b0b0.soulevents.api.world.WorldPlacementResult;
 import bm.b0b0b0.soulevents.api.world.WorldPlacementRules;
+import bm.b0b0b0.soulevents.api.world.SpawnPlayerProximity;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -48,6 +49,10 @@ public final class WorldPlacementGate {
         if (!base.allowed()) {
             return base;
         }
+        WorldPlacementResult playerResult = checkPlayerProximity(location);
+        if (!playerResult.allowed()) {
+            return playerResult;
+        }
         return checkRegionProximity(location, regionIndex);
     }
 
@@ -81,6 +86,21 @@ public final class WorldPlacementGate {
             }
         }
         return null;
+    }
+
+    private WorldPlacementResult checkPlayerProximity(Location location) {
+        int minDistance = settings.minBlocksFromPlayers;
+        if (minDistance <= 0) {
+            return WorldPlacementResult.allow();
+        }
+        if (!SpawnPlayerProximity.isTooClose(location, minDistance)) {
+            return WorldPlacementResult.allow();
+        }
+        return WorldPlacementResult.deny(
+                WorldPlacementDenial.PLAYER_TOO_CLOSE,
+                location.getWorld().getName(),
+                Integer.toString(SpawnPlayerProximity.nearestDistanceBlocks(location))
+        );
     }
 
     private WorldPlacementResult checkRegionProximity(Location location, WorldGuardRegionIndex regionIndex) {

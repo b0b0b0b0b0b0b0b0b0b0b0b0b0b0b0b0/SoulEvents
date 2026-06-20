@@ -125,7 +125,7 @@ public final class VolcanoDespawnBossBarService implements Listener {
             if (!lifecycle.bossBarEnabled || lifecycle.bossBarRadius <= 0) {
                 continue;
             }
-            Location anchor = record.anchor();
+            Location anchor = record.ventAnchor().clone().add(0.5, 0.5, 0.5);
             if (anchor.getWorld() == null || !anchor.getWorld().equals(player.getWorld())) {
                 continue;
             }

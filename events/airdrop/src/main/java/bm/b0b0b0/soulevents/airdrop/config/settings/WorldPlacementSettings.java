@@ -31,8 +31,11 @@ public class WorldPlacementSettings extends YamlSerializable {
     @Comment(@CommentValue("Запретить спавн внутри любого WG-региона (кроме временного аирдропа)."))
     public boolean denySpawnInsideRegions = true;
 
+    @Comment(@CommentValue("Мин. блоков до ближайшего игрока. 0 = не проверять."))
+    public int minBlocksFromPlayers = 100;
+
     @Comment(@CommentValue("Мин. блоков до ближайшего WG-региона. 0 = не проверять."))
-    public int minBlocksFromNearestRegion = 32;
+    public int minBlocksFromNearestRegion = 100;
 
     private static List<String> defaultWorlds() {
         List<String> list = new ArrayList<>();

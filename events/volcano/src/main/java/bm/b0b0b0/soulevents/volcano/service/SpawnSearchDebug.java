@@ -135,6 +135,33 @@ final class SpawnSearchDebug {
         if (reason == null || reason.isEmpty()) {
             return "unknown";
         }
+        if (reason.startsWith("probe ")) {
+            int marker = reason.indexOf(' ', reason.indexOf('/') + 1);
+            if (marker > 0 && marker + 1 < reason.length()) {
+                reason = reason.substring(marker + 1);
+            }
+        }
+        if (reason.startsWith("scan-empty")) {
+            return "scan-empty";
+        }
+        if (reason.startsWith("biome-not-found")) {
+            return "biome-not-found";
+        }
+        if (reason.startsWith("quick-liquid-perimeter")) {
+            return "quick-liquid-perimeter";
+        }
+        if (reason.contains("perimeter-water")) {
+            return "perimeter-water";
+        }
+        if (reason.startsWith("quick-too-few-solid-samples")) {
+            return "quick-too-few-solid-samples";
+        }
+        if (reason.startsWith("quick-terrain-too-rough")) {
+            return "quick-terrain-too-rough";
+        }
+        if (reason.startsWith("quick-surface-invalid")) {
+            return "quick-surface-invalid";
+        }
         if (reason.startsWith("schematic-terrain-too-rough")) {
             return "schematic-terrain-too-rough";
         }
@@ -150,8 +177,17 @@ final class SpawnSearchDebug {
         if (reason.startsWith("chunk-unloaded") || reason.startsWith("chunk-load-failed")) {
             return "chunk-load-failed";
         }
-        if (reason.startsWith("water-surface") || reason.startsWith("water-biome")) {
-            return "water-surface";
+        if (reason.startsWith("water-surface")
+                || reason.startsWith("water-biome")
+                || reason.startsWith("water-nearby")
+                || reason.contains("water-near-edge")) {
+            return reason.contains("water-near-edge") ? "water-near-edge" : "water-surface";
+        }
+        if (reason.contains("cliff-near-edge")) {
+            return "cliff-near-edge";
+        }
+        if (reason.contains("liquid-nearby")) {
+            return "liquid-nearby";
         }
         if (reason.startsWith("flat-")) {
             return reason.contains(" ") ? reason.substring(0, reason.indexOf(' ')) : reason;

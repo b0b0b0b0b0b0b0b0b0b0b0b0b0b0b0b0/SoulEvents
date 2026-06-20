@@ -20,6 +20,41 @@ public interface SchematicService {
 
     List<FlatSurfaceOffset> footprint(String schematicId);
 
+    List<FlatSurfaceOffset> cornerFootprintSamples(String schematicId);
+
+    List<FlatSurfaceOffset> perimeterFootprintSamples(String schematicId);
+
+    CompletableFuture<Void> prepareSpawnFootprint(
+            World world,
+            int pasteOriginBlockX,
+            int pasteOriginBlockZ,
+            String schematicId,
+            int blockMargin
+    );
+
+    CompletableFuture<Void> prepareSpawnSearchFootprint(
+            World world,
+            String schematicId,
+            int blockMargin,
+            List<int[]> blockOrigins
+    );
+
+    CompletableFuture<Void> prepareSpawnSearchArea(
+            World world,
+            int centerBlockX,
+            int centerBlockZ,
+            int blockRadius
+    );
+
+    default CompletableFuture<Void> prepareSpawnFootprint(
+            World world,
+            int pasteOriginBlockX,
+            int pasteOriginBlockZ,
+            String schematicId
+    ) {
+        return prepareSpawnFootprint(world, pasteOriginBlockX, pasteOriginBlockZ, schematicId, 0);
+    }
+
     default Optional<Location> resolvePasteOrigin(World world, int blockX, int blockZ, String schematicId) {
         return resolvePasteOrigin(world, blockX, blockZ, schematicId, null);
     }

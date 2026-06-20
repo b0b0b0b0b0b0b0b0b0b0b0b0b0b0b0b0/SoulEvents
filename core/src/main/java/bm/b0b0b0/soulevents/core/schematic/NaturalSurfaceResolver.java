@@ -15,6 +15,15 @@ final class NaturalSurfaceResolver {
         return world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES);
     }
 
+    static int spawnSurfaceY(World world, int x, int z) {
+        return groundY(world, x, z);
+    }
+
+    static void clearFootingColumn(World world, int x, int z, int clearTop) {
+        int groundY = groundY(world, x, z);
+        clearColumnObstructions(world, x, z, groundY + 1, clearTop);
+    }
+
     static int placementGroundY(World world, int x, int z) {
         int y = groundY(world, x, z);
         int minY = world.getMinHeight();

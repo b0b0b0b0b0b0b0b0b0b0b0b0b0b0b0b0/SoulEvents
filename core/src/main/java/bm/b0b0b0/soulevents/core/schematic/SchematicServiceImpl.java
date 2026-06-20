@@ -97,6 +97,72 @@ public final class SchematicServiceImpl implements SchematicService {
     }
 
     @Override
+    public List<FlatSurfaceOffset> cornerFootprintSamples(String schematicId) {
+        return SchematicPlacementProbeBuilder.cornerSampleOffsets(footprint(schematicId));
+    }
+
+    @Override
+    public List<FlatSurfaceOffset> perimeterFootprintSamples(String schematicId) {
+        return catalog.get(schematicId)
+                .filter(SchematicDefinition::isReady)
+                .map(definition -> {
+                    List<FlatSurfaceOffset> perimeter = SchematicFloorSupport.perimeterFootprint(
+                            definition.metadata().floorColumns());
+                    if (!perimeter.isEmpty()) {
+                        return perimeter;
+                    }
+                    List<FlatSurfaceOffset> footprint = definition.metadata().footprint();
+                    if (!footprint.isEmpty()) {
+                        return footprint;
+                    }
+                    return List.of(new FlatSurfaceOffset(0, 0));
+                })
+                .orElse(List.of(new FlatSurfaceOffset(0, 0)));
+    }
+
+    @Override
+    public CompletableFuture<Void> prepareSpawnFootprint(
+            World world,
+            int pasteOriginBlockX,
+            int pasteOriginBlockZ,
+            String schematicId,
+            int blockMargin
+    ) {
+        return SchematicFootprintChunks.loadForFootprint(
+                world,
+                pasteOriginBlockX,
+                pasteOriginBlockZ,
+                perimeterFootprintSamples(schematicId),
+                blockMargin
+        );
+    }
+
+    @Override
+    public CompletableFuture<Void> prepareSpawnSearchArea(
+            World world,
+            int centerBlockX,
+            int centerBlockZ,
+            int blockRadius
+    ) {
+        return SchematicFootprintChunks.loadForBlockRadius(world, centerBlockX, centerBlockZ, blockRadius);
+    }
+
+    @Override
+    public CompletableFuture<Void> prepareSpawnSearchFootprint(
+            World world,
+            String schematicId,
+            int blockMargin,
+            List<int[]> blockOrigins
+    ) {
+        return SchematicFootprintChunks.loadForSearchOrigins(
+                world,
+                perimeterFootprintSamples(schematicId),
+                blockMargin,
+                blockOrigins
+        );
+    }
+
+    @Override
     public Optional<Location> resolvePasteOrigin(World world, int blockX, int blockZ, String schematicId) {
         return resolvePasteOrigin(world, blockX, blockZ, schematicId, null);
     }
@@ -196,7 +262,14 @@ public final class SchematicServiceImpl implements SchematicService {
         SchematicSettings settings = definition.settings();
         SchematicPlacementSettings placement = SchematicSpawnSupport.resolvePlacement(settings, overrides);
         var blend = SchematicSpawnSupport.resolveBlend(settings, overrides);
-        SchematicTerrainContext terrainContext = SchematicTerrainContext.from(placement, blend);
+        SchematicTerrainContext terrainContext = SchematicTerrainContext.from(
+                placement,
+                blend,
+                world,
+                normalizedOrigin.getBlockX(),
+                normalizedOrigin.getBlockZ(),
+                metadata
+        );
         boolean ignoreAir = SchematicSpawnSupport.resolveIgnoreAir(
                 settings,
                 overrides,
@@ -210,7 +283,6 @@ public final class SchematicServiceImpl implements SchematicService {
                 ? options.blendRadiusOverride()
                 : blend.radius;
         int terrainAdapt = Math.max(0, placement.terrainAdaptBlocks);
-        int terrainApproachRing = Math.max(0, placement.terrainApproachRing);
         final int effectiveBlendRadius = resolveBlendRadius(blendEnabled, blendRadius, metadata);
         final int horizontalCaptureMargin = blendEnabled ? Math.max(0, effectiveBlendRadius) : 0;
 
@@ -221,7 +293,7 @@ public final class SchematicServiceImpl implements SchematicService {
                 metadata,
                 horizontalCaptureMargin,
                 terrainAdapt,
-                terrainApproachRing,
+                placement,
                 blendEnabled ? effectiveBlendRadius : 0
         );
         int undoLimit = settings.paste.maxUndoBlocks;
@@ -476,10 +548,15 @@ public final class SchematicServiceImpl implements SchematicService {
             return future;
         }
         List<WorldEditSchematicBridge.BlockSnapshot> snapshots = undo.snapshots();
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        Runnable restore = () -> {
             worldEditBridge.restoreSnapshots(world, snapshots);
             future.complete(null);
-        });
+        };
+        if (!plugin.isEnabled()) {
+            restore.run();
+            return future;
+        }
+        Bukkit.getScheduler().runTask(plugin, restore);
         return future;
     }
 

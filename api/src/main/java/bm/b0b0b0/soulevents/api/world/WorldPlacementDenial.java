@@ -10,6 +10,7 @@ public enum WorldPlacementDenial {
     REGION_BLACKLISTED("airdrop.placement.region-blacklisted"),
     REGION_INSIDE("airdrop.placement.region-inside"),
     REGION_TOO_CLOSE("airdrop.placement.region-too-close"),
+    PLAYER_TOO_CLOSE("airdrop.placement.player-too-close"),
     OUTSIDE_MAP_BOUNDARY("airdrop.placement.outside-map-boundary");
 
     private final String messageKey;

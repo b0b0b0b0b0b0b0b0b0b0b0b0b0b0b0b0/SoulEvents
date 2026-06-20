@@ -132,10 +132,10 @@ public final class VolcanoSessionRegistry {
         entityIndex.clear();
     }
 
-    public record LootItem(UUID entityId, UUID labelId, int slotIndex, boolean claimed) {
+    public record LootItem(UUID entityId, UUID labelId, int slotIndex, boolean claimed, int pickableAfterTick) {
 
         public LootItem withClaimed(boolean claimed) {
-            return new LootItem(entityId, labelId, slotIndex, claimed);
+            return new LootItem(entityId, labelId, slotIndex, claimed, pickableAfterTick);
         }
     }
 

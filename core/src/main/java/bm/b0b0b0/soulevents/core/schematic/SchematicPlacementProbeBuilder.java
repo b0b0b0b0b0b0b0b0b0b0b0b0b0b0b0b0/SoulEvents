@@ -50,6 +50,20 @@ public final class SchematicPlacementProbeBuilder {
                 && dz >= bounds.minDz() && dz <= bounds.maxDz();
     }
 
+    public static List<FlatSurfaceOffset> cornerSampleOffsets(List<FlatSurfaceOffset> footprint) {
+        if (footprint.isEmpty()) {
+            return List.of(new FlatSurfaceOffset(0, 0));
+        }
+        Bounds bounds = Bounds.of(footprint);
+        return List.of(
+                new FlatSurfaceOffset(bounds.minDx(), bounds.minDz()),
+                new FlatSurfaceOffset(bounds.maxDx(), bounds.minDz()),
+                new FlatSurfaceOffset(bounds.minDx(), bounds.maxDz()),
+                new FlatSurfaceOffset(bounds.maxDx(), bounds.maxDz()),
+                new FlatSurfaceOffset(bounds.centerDx(), bounds.centerDz())
+        );
+    }
+
     private static int resolveStep(Bounds bounds, int configuredStep, int footprintSize) {
         if (configuredStep > 0) {
             return configuredStep;

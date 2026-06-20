@@ -192,6 +192,10 @@ public final class AirDropArenaRegionService implements ArenaRegionService {
     }
 
     private void saveAsync(RegionManager manager) {
+        if (!plugin.isEnabled()) {
+            save(manager);
+            return;
+        }
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> save(manager));
     }
 

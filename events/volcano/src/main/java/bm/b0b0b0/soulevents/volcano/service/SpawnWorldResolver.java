@@ -32,7 +32,7 @@ public final class SpawnWorldResolver {
             WorldPlacementGate gate,
             Consumer<Optional<Location>> callback
     ) {
-        resolveAsync(plugin, type, gate, null, callback);
+        resolveAsync(plugin, type, gate, null, "scheduler", false, callback);
     }
 
     public void resolveAsync(
@@ -40,6 +40,29 @@ public final class SpawnWorldResolver {
             VolcanoTypeSettings type,
             WorldPlacementGate gate,
             SpawnSearchDebug debug,
+            Consumer<Optional<Location>> callback
+    ) {
+        resolveAsync(plugin, type, gate, debug, "scheduler", false, callback);
+    }
+
+    public void resolveAsync(
+            Plugin plugin,
+            VolcanoTypeSettings type,
+            WorldPlacementGate gate,
+            SpawnSearchDebug debug,
+            String searchSource,
+            Consumer<Optional<Location>> callback
+    ) {
+        resolveAsync(plugin, type, gate, debug, searchSource, false, callback);
+    }
+
+    public void resolveAsync(
+            Plugin plugin,
+            VolcanoTypeSettings type,
+            WorldPlacementGate gate,
+            SpawnSearchDebug debug,
+            String searchSource,
+            boolean bypassLimits,
             Consumer<Optional<Location>> callback
     ) {
         String spawnWorldName = type.worldPlacement.spawnWorld;
@@ -66,7 +89,7 @@ public final class SpawnWorldResolver {
             callback.accept(Optional.empty());
             return;
         }
-        locationFinder.findAsync(plugin, type, world, gate, debug, callback);
+        locationFinder.findAsync(plugin, type, world, gate, debug, searchSource, bypassLimits, callback);
     }
 
     public Optional<Location> resolve(VolcanoTypeSettings type, WorldPlacementGate gate) {

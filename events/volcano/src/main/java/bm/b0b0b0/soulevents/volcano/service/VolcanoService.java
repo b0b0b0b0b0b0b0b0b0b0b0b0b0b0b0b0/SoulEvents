@@ -8,12 +8,14 @@ import bm.b0b0b0.soulevents.api.schematic.SchematicPasteOptions;
 import bm.b0b0b0.soulevents.api.schematic.SchematicSpawnOverrides;
 import bm.b0b0b0.soulevents.api.schematic.SchematicWorldBounds;
 import bm.b0b0b0.soulevents.api.world.WorldPlacementResult;
+import bm.b0b0b0.soulevents.api.world.WorldPlacementDenial;
 import bm.b0b0b0.soulevents.volcano.config.VolcanoPermissions;
 import bm.b0b0b0.soulevents.volcano.config.VolcanoPluginConfig;
 import bm.b0b0b0.soulevents.volcano.config.VolcanoTypeDefinition;
 import bm.b0b0b0.soulevents.volcano.config.settings.BroadcastSettings;
 import bm.b0b0b0.soulevents.volcano.config.settings.LootTableSettings;
 import bm.b0b0b0.soulevents.volcano.config.settings.VolcanoEruptionSettings;
+import bm.b0b0b0.soulevents.volcano.config.settings.VolcanoLifecycleSettings;
 import bm.b0b0b0.soulevents.volcano.config.settings.VolcanoTypeSettings;
 import bm.b0b0b0.soulevents.volcano.config.settings.VolcanoVisualSettings;
 import bm.b0b0b0.soulevents.volcano.gate.WorldPlacementGate;
@@ -39,9 +41,11 @@ import java.util.ArrayDeque;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
@@ -59,6 +63,20 @@ public final class VolcanoService {
     private VolcanoDespawnBossBarService despawnBossBarService;
     private VaultEconomyService vaultEconomy;
     private Map<String, WorldPlacementGate> gates = Map.of();
+    private final ConcurrentHashMap<UUID, EruptionState> eruptionStates = new ConcurrentHashMap<>();
+
+    private static final class EruptionState {
+        final ArrayDeque<ItemStack> queue = new ArrayDeque<>();
+        final List<ItemStack> masks;
+        int nextSlotIndex;
+        double lastLaunchAngle = Double.NaN;
+        BukkitTask pendingStep;
+        boolean pendingPickupThunder;
+
+        EruptionState(List<ItemStack> masks) {
+            this.masks = masks;
+        }
+    }
 
     public VolcanoService(SoulEventsApi api, Plugin plugin, VolcanoPluginConfig config, VolcanoMessageService messages) {
         this.api = api;
@@ -280,6 +298,10 @@ public final class VolcanoService {
         if (lootItem == null || lootItem.claimed()) {
             return;
         }
+        if (Bukkit.getCurrentTick() < lootItem.pickableAfterTick()) {
+            messages.send(player, "volcano.loot-launch-cooldown", Map.of());
+            return;
+        }
         ItemStack stack = itemEntity.getItemStack();
         LootGuardService lootGuard = lootGuard();
         var refOptional = lootGuard.obfuscatedRef(stack);
@@ -304,6 +326,34 @@ public final class VolcanoService {
         itemEntity.remove();
         sessionRegistry.markLootClaimed(sessionId, itemEntity.getUniqueId());
         sendPickupActionBar(player, sessionId);
+        onLootPickedUp(sessionId, recordOptional.get());
+    }
+
+    private void onLootPickedUp(UUID sessionId, VolcanoSessionRegistry.SessionRecord record) {
+        if (Instant.now().isAfter(record.extinguishAt())) {
+            return;
+        }
+        Optional<ActiveEvent> active = activeEvent(sessionId);
+        if (active.isEmpty()) {
+            return;
+        }
+        config.type(active.get().typeId()).ifPresent(definition -> {
+            VolcanoEruptionSettings eruption = definition.settings().eruption;
+            if (!eruption.sustainUntilExtinguish) {
+                return;
+            }
+            EruptionState state = eruptionStates.get(sessionId);
+            if (state == null) {
+                return;
+            }
+            tryRefillEruptionQueue(sessionId, definition, state, record);
+            state.pendingPickupThunder = true;
+            scheduleEruptionStep(
+                    sessionId,
+                    definition,
+                    randomLaunchDelay(eruption.pickupRefillDelayMinTicks, eruption.pickupRefillDelayMaxTicks)
+            );
+        });
     }
 
     private void sendPickupActionBar(Player player, UUID sessionId) {
@@ -328,7 +378,14 @@ public final class VolcanoService {
         });
     }
 
+    private volatile boolean shutdownStarted;
+
     public void shutdown() {
+        if (shutdownStarted) {
+            return;
+        }
+        shutdownStarted = true;
+        Bukkit.getScheduler().cancelTasks(plugin);
         for (ActiveEvent event : api.modules().activeEvents(VolcanoModule.MODULE_ID)) {
             endSession(event.sessionId(), "SHUTDOWN");
         }
@@ -409,7 +466,14 @@ public final class VolcanoService {
                         + " source=" + source
                         + " debug=" + config.module().spawnDebugEnabled
         );
-        spawnWorldResolver.resolveAsync(plugin, definition.settings(), gate, debug, location -> {
+        spawnWorldResolver.resolveAsync(
+                plugin,
+                definition.settings(),
+                gate,
+                debug,
+                source,
+                bypassLimits,
+                location -> {
             if (location.isEmpty()) {
                 plugin.getLogger().warning(
                         "Spawn failed type=" + typeId
@@ -566,16 +630,24 @@ public final class VolcanoService {
 
         VolcanoTypeSettings type = definition.settings();
         LootTableSettings loot = definition.loot();
-        int itemCount = Math.max(1, type.eruption.itemCount);
-        List<ItemStack> rolled = lootRollService.rollForEruption(loot, itemCount);
+        VolcanoEruptionSettings eruption = type.eruption;
+        List<ItemStack> masks = SerializedItemStackCodec.decodeAll(loot.obfuscationItemsBase64);
+        EruptionState state = new EruptionState(masks);
+        if (eruption.sustainUntilExtinguish) {
+            int burst = randomLaunchDelay(eruption.initialBurstMin, eruption.initialBurstMax);
+            state.queue.addAll(lootRollService.rollForEruption(loot, burst));
+        } else {
+            int itemCount = Math.max(1, eruption.itemCount);
+            state.queue.addAll(lootRollService.rollForEruption(loot, itemCount));
+        }
+        eruptionStates.put(sessionId, state);
         plugin.getLogger().info(
                 "Volcano erupt session=" + sessionId
                         + " type=" + definition.id()
-                        + " items=" + rolled.size()
-                        + " continuous until " + record.extinguishAt()
+                        + " sustain=" + eruption.sustainUntilExtinguish
+                        + " queued=" + state.queue.size()
+                        + " until " + record.extinguishAt()
         );
-        List<ItemStack> masks = SerializedItemStackCodec.decodeAll(loot.obfuscationItemsBase64);
-        ArrayDeque<ItemStack> queue = new ArrayDeque<>(rolled);
 
         if (type.broadcast.enabled && type.broadcast.unlockedEnabled) {
             messages.broadcast(type.broadcast.unlockedMessageKey, placeholders(
@@ -586,16 +658,32 @@ public final class VolcanoService {
             ));
         }
 
-        scheduleContinuousEruption(sessionId, definition, queue, masks, 0);
+        scheduleEruptionStep(sessionId, definition, 1L);
     }
 
-    private void scheduleContinuousEruption(
-            UUID sessionId,
-            VolcanoTypeDefinition definition,
-            ArrayDeque<ItemStack> queue,
-            List<ItemStack> masks,
-            int slotIndex
-    ) {
+    private void scheduleEruptionStep(UUID sessionId, VolcanoTypeDefinition definition, long delayTicks) {
+        EruptionState state = eruptionStates.get(sessionId);
+        if (state == null) {
+            return;
+        }
+        if (state.pendingStep != null) {
+            state.pendingStep.cancel();
+        }
+        long delay = Math.max(0L, delayTicks);
+        state.pendingStep = Bukkit.getScheduler().runTaskLater(
+                plugin,
+                () -> runEruptionStep(sessionId, definition),
+                delay
+        );
+    }
+
+    private void runEruptionStep(UUID sessionId, VolcanoTypeDefinition definition) {
+        EruptionState state = eruptionStates.get(sessionId);
+        if (state == null) {
+            return;
+        }
+        state.pendingStep = null;
+
         Optional<VolcanoSessionRegistry.SessionRecord> recordOptional = sessionRegistry.find(sessionId);
         if (recordOptional.isEmpty() || activeEvent(sessionId).isEmpty()) {
             return;
@@ -604,62 +692,230 @@ public final class VolcanoService {
         if (Instant.now().isAfter(record.extinguishAt())) {
             return;
         }
-        ItemStack next = queue.poll();
-        if (next == null) {
+
+        VolcanoEruptionSettings eruption = definition.settings().eruption;
+        if (isLootGroundSaturated(sessionId, record, eruption)) {
+            scheduleEruptionStep(sessionId, definition, eruption.lootCapacityRetryTicks);
             return;
         }
+
+        tryRefillEruptionQueue(sessionId, definition, state, record);
+
+        if (!hasPlayersNearVent(record, definition, eruption)) {
+            scheduleEruptionStep(sessionId, definition, eruption.lootCapacityRetryTicks);
+            return;
+        }
+
+        ItemStack next = state.queue.poll();
+        if (next == null) {
+            scheduleEruptionStep(sessionId, definition, eruption.lootCapacityRetryTicks);
+            return;
+        }
+
         Location vent = record.ventAnchor().clone().add(0.5, 0.0, 0.5);
         if (vent.getWorld() == null) {
             return;
         }
-        launchLootItem(sessionId, definition, vent, next, masks, slotIndex);
 
-        if (queue.isEmpty()) {
-            return;
+        if (state.pendingPickupThunder) {
+            state.pendingPickupThunder = false;
+            runtimeEffects.playLootRefillThunder(record.ventAnchor());
         }
-        VolcanoEruptionSettings eruption = definition.settings().eruption;
-        int minTicks = Math.max(1, eruption.minTicksBetweenLaunches);
-        int maxTicks = Math.max(minTicks, eruption.maxTicksBetweenLaunches);
-        int delay = ThreadLocalRandom.current().nextInt(minTicks, maxTicks + 1);
-        Bukkit.getScheduler().runTaskLater(
-                plugin,
-                () -> scheduleContinuousEruption(sessionId, definition, queue, masks, slotIndex + 1),
-                delay
+
+        int slotIndex = state.nextSlotIndex++;
+        VolcanoRuntimeEffects.LootLaunch launch = launchLootItem(
+                sessionId,
+                definition,
+                vent,
+                next,
+                state.masks,
+                slotIndex,
+                state.lastLaunchAngle
+        );
+        if (launch != null) {
+            state.lastLaunchAngle = launch.angleRadians();
+        }
+
+        scheduleEruptionStep(
+                sessionId,
+                definition,
+                randomLaunchDelay(eruption.minTicksBetweenLaunches, eruption.maxTicksBetweenLaunches)
         );
     }
 
-    private void launchLootItem(
+    private void tryRefillEruptionQueue(
+            UUID sessionId,
+            VolcanoTypeDefinition definition,
+            EruptionState state,
+            VolcanoSessionRegistry.SessionRecord record
+    ) {
+        if (Instant.now().isAfter(record.extinguishAt())) {
+            return;
+        }
+        VolcanoEruptionSettings eruption = definition.settings().eruption;
+        if (!eruption.sustainUntilExtinguish) {
+            return;
+        }
+
+        int target = Math.max(1, eruption.refillWhenUnclaimedBelow);
+        int unclaimed = countUnclaimedLootNearVent(sessionId, record, eruption);
+        int reserved = unclaimed + state.queue.size();
+        if (reserved >= target) {
+            return;
+        }
+
+        int headroom = target - reserved;
+        int limit = eruption.maxUnclaimedAroundVent;
+        if (limit > 0) {
+            headroom = Math.min(headroom, limit - unclaimed - state.queue.size());
+        }
+        if (headroom <= 0) {
+            return;
+        }
+
+        int batchMin = Math.max(1, eruption.refillBatchSizeMin);
+        int batchMax = Math.max(batchMin, eruption.refillBatchSizeMax);
+        int batch = Math.min(headroom, randomLaunchDelay(batchMin, batchMax));
+        state.queue.addAll(lootRollService.rollForEruption(definition.loot(), batch));
+    }
+
+    private static int randomLaunchDelay(int min, int max) {
+        int low = Math.max(1, min);
+        int high = Math.max(low, max);
+        if (low == high) {
+            return low;
+        }
+        return ThreadLocalRandom.current().nextInt(low, high + 1);
+    }
+
+    private boolean hasPlayersNearVent(
+            VolcanoSessionRegistry.SessionRecord record,
+            VolcanoTypeDefinition definition,
+            VolcanoEruptionSettings eruption
+    ) {
+        if (!eruption.requirePlayersForLoot) {
+            return true;
+        }
+        VolcanoLifecycleSettings lifecycle = definition.settings().lifecycle;
+        int radius = eruption.requirePlayerRadiusBlocks > 0
+                ? eruption.requirePlayerRadiusBlocks
+                : lifecycle.bossBarRadius;
+        if (radius <= 0) {
+            return true;
+        }
+        Location anchor = record.ventAnchor().clone().add(0.5, 0.5, 0.5);
+        World world = anchor.getWorld();
+        if (world == null) {
+            return false;
+        }
+        double radiusSquared = (double) radius * radius;
+        for (Player player : world.getPlayers()) {
+            if (player.getLocation().distanceSquared(anchor) <= radiusSquared) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isLootGroundSaturated(
+            UUID sessionId,
+            VolcanoSessionRegistry.SessionRecord record,
+            VolcanoEruptionSettings eruption
+    ) {
+        int limit = eruption.maxUnclaimedAroundVent;
+        if (limit <= 0) {
+            return false;
+        }
+        return countUnclaimedLootNearVent(sessionId, record, eruption) >= limit;
+    }
+
+    private int countUnclaimedLootNearVent(
+            UUID sessionId,
+            VolcanoSessionRegistry.SessionRecord record,
+            VolcanoEruptionSettings eruption
+    ) {
+        Location vent = record.ventAnchor();
+        World world = vent.getWorld();
+        if (world == null) {
+            return 0;
+        }
+        double radius = Math.max(1.0, eruption.lootTrackRadiusBlocks);
+        double radiusSquared = radius * radius;
+        double ventX = vent.getX() + 0.5;
+        double ventY = vent.getY();
+        double ventZ = vent.getZ() + 0.5;
+        int nearby = 0;
+        for (VolcanoSessionRegistry.LootItem lootItem : record.lootItems()) {
+            if (lootItem.claimed()) {
+                continue;
+            }
+            Item entity = trackedLootItem(lootItem.entityId());
+            if (entity == null || entity.isDead() || !entity.isValid()) {
+                sessionRegistry.markLootClaimed(sessionId, lootItem.entityId());
+                removeLabel(world, lootItem.labelId());
+                continue;
+            }
+            if (!world.equals(entity.getWorld())) {
+                continue;
+            }
+            Location location = entity.getLocation();
+            double dx = location.getX() - ventX;
+            double dy = location.getY() - ventY;
+            double dz = location.getZ() - ventZ;
+            if ((dx * dx) + (dy * dy) + (dz * dz) > radiusSquared) {
+                continue;
+            }
+            nearby++;
+        }
+        return nearby;
+    }
+
+    private static Item trackedLootItem(UUID entityId) {
+        var entity = Bukkit.getEntity(entityId);
+        return entity instanceof Item item ? item : null;
+    }
+
+    private VolcanoRuntimeEffects.LootLaunch launchLootItem(
             UUID sessionId,
             VolcanoTypeDefinition definition,
             Location vent,
             ItemStack real,
             List<ItemStack> masks,
-            int slotIndex
+            int slotIndex,
+            double lastLaunchAngle
     ) {
         if (sessionRegistry.find(sessionId).isEmpty()) {
-            return;
+            return null;
         }
         ItemStack mask = pickObfuscationMask(masks);
         ItemStack obfuscated = lootGuard().obfuscate(real, sessionId, slotIndex, mask);
-        Item entity = runtimeEffects.launchLootItem(vent, obfuscated, definition.settings().eruption);
-        if (entity == null) {
-            return;
+        Double lastAngle = Double.isNaN(lastLaunchAngle) ? null : lastLaunchAngle;
+        VolcanoRuntimeEffects.LootLaunch launch = runtimeEffects.launchLootItem(
+                vent,
+                obfuscated,
+                definition.settings().eruption,
+                lastAngle
+        );
+        if (launch == null || launch.entity() == null) {
+            return null;
         }
         TextDisplay label = runtimeEffects.spawnItemLabel(
                 vent.getWorld(),
-                entity.getLocation(),
+                launch.entity().getLocation(),
                 definition.settings().visual,
                 definition
         );
         sessionRegistry.addLootItem(
                 sessionId,
                 new VolcanoSessionRegistry.LootItem(
-                        entity.getUniqueId(),
+                        launch.entity().getUniqueId(),
                         label == null ? null : label.getUniqueId(),
                         slotIndex,
-                        false
+                        false,
+                        Bukkit.getCurrentTick() + Math.max(0, definition.settings().eruption.lootLaunchPickupDelayTicks)
                 )
         );
+        return launch;
     }
 
     private void scheduleSessionEnd(UUID sessionId, Instant endAt, String phase) {
@@ -673,6 +929,9 @@ public final class VolcanoService {
     }
 
     private void endSession(UUID sessionId, String phase) {
+        if (sessionRegistry.find(sessionId).isEmpty() && activeEvent(sessionId).isEmpty()) {
+            return;
+        }
         plugin.getLogger().info("Volcano end session=" + sessionId + " phase=" + phase);
         if (!"SHUTDOWN".equals(phase)) {
             Optional<ActiveEvent> active = activeEvent(sessionId);
@@ -689,6 +948,10 @@ public final class VolcanoService {
             }
         }
         cleanupLootEntities(sessionId);
+        EruptionState eruptionState = eruptionStates.remove(sessionId);
+        if (eruptionState != null && eruptionState.pendingStep != null) {
+            eruptionState.pendingStep.cancel();
+        }
         runtimeEffects.stop(sessionId);
         arenaRegionService.remove(sessionId);
         sessionRegistry.remove(sessionId);
@@ -785,11 +1048,18 @@ public final class VolcanoService {
     }
 
     private void sendPlacementError(CommandSender sender, WorldPlacementResult result) {
-        messages.send(sender, result.messageKey().orElse("volcano.placement.invalid-location"), Map.of(
+        messages.send(sender, placementMessageKey(result), Map.of(
                 "world", result.worldName(),
                 "region", result.regionName(),
                 "distance", result.regionName()
         ));
+    }
+
+    private static String placementMessageKey(WorldPlacementResult result) {
+        if (result.allowed() || result.denial() == WorldPlacementDenial.NONE) {
+            return "volcano.placement.invalid-location";
+        }
+        return "volcano.placement." + result.denial().name().toLowerCase(Locale.ROOT).replace('_', '-');
     }
 
     private Map<String, String> placeholders(

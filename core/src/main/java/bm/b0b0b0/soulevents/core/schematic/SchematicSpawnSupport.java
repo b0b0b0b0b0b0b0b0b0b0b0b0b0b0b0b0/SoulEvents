@@ -92,12 +92,24 @@ public final class SchematicSpawnSupport {
         SchematicPlacementSettings placement = new SchematicPlacementSettings();
         placement.verticalOffset = source.verticalOffset();
         placement.maxSurfaceDelta = source.maxSurfaceDelta();
+        placement.maxSafetyMarginDelta = source.maxSafetyMarginDelta();
         placement.terrainAdaptBlocks = source.terrainAdaptBlocks();
         placement.terrainApproachRing = source.terrainApproachRing();
+        placement.terrainApproachFrontDepth = source.terrainApproachFrontDepth();
+        placement.approachFrontFacing = source.approachFrontFacing() == null
+                ? "AUTO"
+                : source.approachFrontFacing();
+        placement.terrainApproachTrimOnly = source.terrainApproachTrimOnly();
+        placement.terrainApproachRaggedDensity = source.terrainApproachRaggedDensity();
         placement.minAirAbove = source.minAirAbove();
         placement.safetyMargin = source.safetyMargin();
         placement.placementProbeStep = source.placementProbeStep();
         placement.rejectLiquids = source.rejectLiquids();
+        placement.rejectWaterWithinHorizontalBlocks = source.rejectWaterWithinHorizontalBlocks();
+        placement.rejectWaterDepthBlocks = source.rejectWaterDepthBlocks();
+        placement.minWaterClearanceFromEdge = source.minWaterClearanceFromEdge();
+        placement.minCliffClearanceFromEdge = source.minCliffClearanceFromEdge();
+        placement.maxCliffDropFromEdge = source.maxCliffDropFromEdge();
         placement.requireSolidBelow = source.requireSolidBelow();
         applyTerrainMaterials(placement.terrainMaterials, source);
         return placement;

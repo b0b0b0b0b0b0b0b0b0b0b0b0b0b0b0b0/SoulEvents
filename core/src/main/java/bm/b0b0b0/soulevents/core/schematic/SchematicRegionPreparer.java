@@ -43,26 +43,38 @@ public final class SchematicRegionPreparer {
                 metadata,
                 horizontalMargin,
                 terrainAdapt,
-                Math.max(0, placement.terrainApproachRing)
+                placement
         );
         int pasteX = pasteOrigin.getBlockX();
         int pasteY = pasteOrigin.getBlockY();
         int pasteZ = pasteOrigin.getBlockZ();
 
         captureBatch(plugin, world, pasteX, pasteY, pasteZ, captureSteps, snapshots, 0, () ->
-                vegetationClearBatch(plugin, world, metadata, placement, pasteX, pasteY, pasteZ, 0, () ->
-                        adaptBatch(
-                                plugin,
-                                world,
-                                metadata,
-                                placement,
-                                terrainAdapter,
-                                pasteX,
-                                pasteY,
-                                pasteZ,
-                                0,
-                                () -> future.complete(new PreparedRegion(List.copyOf(snapshots), pasteX, pasteY, pasteZ))
-                        ), future), future);
+                vegetationClearBatch(plugin, world, metadata, placement, pasteX, pasteY, pasteZ, 0, () -> {
+                    Runnable finish = () -> future.complete(new PreparedRegion(
+                            List.copyOf(snapshots),
+                            pasteX,
+                            pasteY,
+                            pasteZ
+                    ));
+                    if (!SchematicTerrainAdapter.needsPerimeterAdapt(placement)
+                            && !SchematicTerrainAdapter.needsApproachAdapt(placement)) {
+                        finish.run();
+                        return;
+                    }
+                    adaptBatch(
+                            plugin,
+                            world,
+                            metadata,
+                            placement,
+                            terrainAdapter,
+                            pasteX,
+                            pasteY,
+                            pasteZ,
+                            0,
+                            finish
+                    );
+                }, future), future);
         return future;
     }
 
@@ -117,16 +129,13 @@ public final class SchematicRegionPreparer {
             return;
         }
         int end = Math.min(columns.size(), columnIndex + CLEAR_COLUMNS_PER_TICK);
-        int minDy = metadata.regionMinY() - metadata.originY();
         int maxDy = metadata.regionMaxY() - metadata.originY();
         int clearTop = pasteY + maxDy + Math.max(0, placement.minAirAbove);
         for (int index = columnIndex; index < end; index++) {
             int[] column = columns.get(index);
             int worldX = pasteX + column[0];
             int worldZ = pasteZ + column[1];
-            int groundY = NaturalSurfaceResolver.groundY(world, worldX, worldZ);
-            int clearBottom = Math.max(groundY + 1, pasteY + minDy);
-            NaturalSurfaceResolver.clearColumnObstructions(world, worldX, worldZ, clearBottom, clearTop);
+            NaturalSurfaceResolver.clearFootingColumn(world, worldX, worldZ, clearTop);
         }
         if (end >= columns.size()) {
             onComplete.run();
@@ -145,19 +154,38 @@ public final class SchematicRegionPreparer {
             SchematicDefinition.SchematicMetadata metadata,
             SchematicPlacementSettings placement
     ) {
-        List<SchematicFloorColumn> columns = new ArrayList<>(metadata.floorColumns());
-        int approachRing = Math.max(0, placement.terrainApproachRing);
-        for (SchematicApproachColumn column : SchematicFloorSupport.approachRingColumns(
-                metadata.floorColumns(),
-                approachRing
-        )) {
-            columns.add(new SchematicFloorColumn(column.dx(), column.dz(), column.edgeReferenceDy()));
+        java.util.Set<Long> seen = new java.util.LinkedHashSet<>();
+        List<int[]> result = new ArrayList<>();
+
+        int minDx = metadata.regionMinX() - metadata.originX();
+        int maxDx = metadata.regionMaxX() - metadata.originX();
+        int minDz = metadata.regionMinZ() - metadata.originZ();
+        int maxDz = metadata.regionMaxZ() - metadata.originZ();
+        for (int dx = minDx; dx <= maxDx; dx++) {
+            for (int dz = minDz; dz <= maxDz; dz++) {
+                addClearColumn(result, seen, dx, dz);
+            }
         }
-        List<int[]> result = new ArrayList<>(columns.size());
-        for (SchematicFloorColumn column : columns) {
-            result.add(new int[]{column.dx(), column.dz()});
+
+        int approachRing = Math.max(0, placement.terrainApproachRing);
+        int frontDepth = Math.max(0, placement.terrainApproachFrontDepth);
+        for (SchematicApproachColumn column : SchematicFloorSupport.approachAdaptColumns(
+                metadata.floorColumns(),
+                metadata,
+                approachRing,
+                frontDepth,
+                placement.approachFrontFacing
+        )) {
+            addClearColumn(result, seen, column.dx(), column.dz());
         }
         return result;
+    }
+
+    private static void addClearColumn(List<int[]> result, java.util.Set<Long> seen, int dx, int dz) {
+        long key = SchematicFloorSupport.columnKey(dx, dz);
+        if (seen.add(key)) {
+            result.add(new int[] {dx, dz});
+        }
     }
 
     private static void adaptBatch(
@@ -172,21 +200,31 @@ public final class SchematicRegionPreparer {
             int columnIndex,
             Runnable onComplete
     ) {
-        List<SchematicFloorColumn> floorColumns = SchematicFloorSupport.perimeterFloorColumns(metadata.floorColumns());
+        List<SchematicFloorColumn> floorColumns = SchematicFloorSupport.footprintAdaptColumns(metadata.floorColumns());
         int approachRing = Math.max(0, placement.terrainApproachRing);
-        List<SchematicApproachColumn> approachColumns = SchematicFloorSupport.approachRingColumns(
+        int frontDepth = Math.max(0, placement.terrainApproachFrontDepth);
+        List<SchematicApproachColumn> approachColumns = SchematicFloorSupport.approachAdaptColumns(
                 metadata.floorColumns(),
-                approachRing
+                metadata,
+                approachRing,
+                frontDepth,
+                placement.approachFrontFacing
         );
-        if (placement.terrainAdaptBlocks <= 0 || floorColumns.isEmpty()) {
+
+        boolean adaptPerimeter = SchematicTerrainAdapter.needsPerimeterAdapt(placement) && !floorColumns.isEmpty();
+        boolean adaptApproach = SchematicTerrainAdapter.needsApproachAdapt(placement) && !approachColumns.isEmpty();
+        if (!adaptPerimeter && !adaptApproach) {
             onComplete.run();
             return;
         }
-        int totalColumns = floorColumns.size() + approachColumns.size();
+
+        int perimeterCount = adaptPerimeter ? floorColumns.size() : 0;
+        int totalColumns = perimeterCount + (adaptApproach ? approachColumns.size() : 0);
         int end = Math.min(totalColumns, columnIndex + ADAPT_COLUMNS_PER_TICK);
-        int limit = placement.terrainAdaptBlocks;
+        int limit = Math.max(1, placement.terrainAdaptBlocks);
+
         for (int index = columnIndex; index < end; index++) {
-            if (index < floorColumns.size()) {
+            if (index < perimeterCount) {
                 SchematicFloorColumn column = floorColumns.get(index);
                 terrainAdapter.adaptColumn(
                         world,
@@ -196,15 +234,18 @@ public final class SchematicRegionPreparer {
                         limit
                 );
             } else {
-                SchematicApproachColumn column = approachColumns.get(index - floorColumns.size());
+                SchematicApproachColumn column = approachColumns.get(index - perimeterCount);
                 terrainAdapter.adaptApproachColumn(
                         world,
                         pasteX + column.dx(),
                         pasteZ + column.dz(),
                         pasteY,
                         column,
-                        approachRing,
-                        limit
+                        SchematicFloorSupport.approachAdaptRingDepth(column, approachRing, frontDepth),
+                        limit,
+                        placement,
+                        pasteX,
+                        pasteZ
                 );
             }
         }

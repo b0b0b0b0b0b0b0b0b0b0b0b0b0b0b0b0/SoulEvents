@@ -38,6 +38,7 @@ airdrop.placement.region-too-close: "<red>Too close to a WG region (<distance> b
 airdrop.placement.player-too-close: "<red>Too close to a player (<distance> blocks). Move farther.</red>"
 airdrop.placement.outside-map-boundary: "<red>Location is outside the map boundary (radius <radius> from center).</red>"
 airdrop.chest-not-ready: "<red>Chest opens in <timer>.</red>"
+airdrop.chest-waves-locked: "<red>Clear wave <wave>/<total> first.</red>"
 airdrop.chest-protected: "<red>This airdrop is protected by the plugin.</red>"
 airdrop.chest-open-failed: "<red>Failed to open the airdrop. Contact an admin.</red>"
 airdrop.chest-unavailable: "<red>This airdrop is no longer available.</red>"

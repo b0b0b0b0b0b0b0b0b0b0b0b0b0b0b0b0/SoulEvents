@@ -4,7 +4,7 @@ main: bm.b0b0b0.soulevents.airdrop.AirDropPlugin
 api-version: '1.21'
 authors: [ b0b0b0 ]
 depend: [ SoulEvents ]
-softdepend: [ WorldGuard, Vault ]
+softdepend: [ WorldGuard, Vault, SoulEvents-MobWaves ]
 
 libraries:
   - net.elytrium:serializer:1.1.1

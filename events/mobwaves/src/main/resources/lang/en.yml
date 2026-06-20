@@ -1,0 +1,353 @@
+command.no-permission: "<red>No permission.</red>"
+mobwaves.startup.separator: "=============================="
+mobwaves.startup.registered: "MobWaves module connected — horde types: <types>, wave profiles: <profiles>"
+mobwaves.startup.type-loaded: "  Horde <id> loaded"
+mobwaves.startup.profile-loaded: "  Wave profile <id> loaded"
+mobwaves.startup.core-missing: "SoulEvents not found — MobWaves module disabled"
+
+mobwaves.usage: "<yellow>/mobwaves admin | summon <type> | reload</yellow>"
+
+mobwaves.usage-admin-console: "<yellow>Console: /mobwaves summon <type> | reload</yellow>"
+
+mobwaves.reloaded: "<green>SoulEvents-MobWaves reloaded.</green>"
+
+mobwaves.unknown-type: "<red>Unknown horde type: <type></red>"
+
+mobwaves.spawn-failed: "<red>Could not find spawn location for <type></red>"
+
+mobwaves.world-not-found: "<red>World <world> is not loaded.</red>"
+
+mobwaves.limit-reached: "<red>Active horde limit reached for <type>.</red>"
+
+mobwaves.placement.invalid-location: "<red>Invalid location.</red>"
+mobwaves.placement.world-not-whitelisted: "<red>World <world> is not whitelisted.</red>"
+mobwaves.placement.world-blacklisted: "<red>World <world> is blacklisted.</red>"
+mobwaves.placement.worldguard-missing: "<red>WorldGuard is not installed.</red>"
+mobwaves.placement.region-not-whitelisted: "<red>No allowed WG region.</red>"
+mobwaves.placement.region-blacklisted: "<red>Region <region> is denied.</red>"
+mobwaves.placement.region-inside: "<red>Cannot spawn inside a WG region.</red>"
+mobwaves.placement.region-too-close: "<red>Too close to a WG region (<distance> blocks).</red>"
+mobwaves.placement.player-too-close: "<red>Too close to a player (<distance> blocks).</red>"
+mobwaves.placement.outside-map-boundary: "<red>Outside map boundary.</red>"
+
+mobwaves.bossbar.despawn: "<red><type_name></red> <gray>— despawns in <timer></gray>"
+
+mobwaves.bossbar.waiting: "<yellow><type_name></yellow> <gray>— waiting for a player to start waves</gray>"
+
+mobwaves.bossbar.active: "<green><type_name></green> <gray>— waves active · <timer> left</gray>"
+
+mobwaves.admin-summoned: "<green>Horde <type_name> summoned at <x>, <y>, <z> in <world>.</green>"
+
+mobwaves.despawn-none: "<yellow>No active hordes of type <type>.</yellow>"
+
+mobwaves.despawn-done: "<green>Removed <count> horde(s) of type <type>.</green>"
+
+mobwaves.teleport-none: "<yellow>No active hordes of type <type>.</yellow>"
+
+mobwaves.teleported: "<green>Teleported to horde <type_name> (<x>, <y>, <z>).</green>"
+
+mobwaves.loot-pickup-delay: "<yellow>Wait — loot is not ready yet.</yellow>"
+
+mobwaves.loot-pickup-failed: "<red>Could not pick up loot.</red>"
+
+mobwaves.health-bar: "<red><bar></red>"
+
+mobwaves.health-bar-boss: "<gold><bold>BOSS</bold></gold> <red><bar></red>"
+
+mobwaves.health-value: "<gradient:gold:yellow><bold><current></bold></gradient><dark_gray> / </dark_gray><white><max></white> <red>❤</red>"
+
+mobwaves.health-value-boss: "<gradient:gold:yellow><bold><current></bold></gradient><dark_gray> / </dark_gray><gold><max></gold> <red>❤</red>"
+
+mobwaves.wave-saved: "<green>Wave saved.</green>"
+
+mobwaves.wave-deleted: "<yellow>Wave deleted.</yellow>"
+
+mobwaves.mob-saved: "<green>Mob settings saved.</green>"
+
+mobwaves.types.default.name: "<red>Horde</red>"
+
+mobwaves.types.elite.name: "<light_purple>Elite horde</light_purple>"
+mobwaves.structure.rift-nexus: "Rift Nexus"
+mobwaves.broadcast.spawn: "<newline><gradient:#7C3AED:#DC2626><bold>  ☠ RIFT ☠</bold></gradient><newline><gray>  Horde </gray><yellow><type_name></yellow><gray> emerged from </gray><light_purple><structure_name></light_purple><gray>!</gray><newline><gray>  Coords: </gray><white><x></white><gray>, </gray><white><y></white><gray>, </gray><white><z></white><gray> · </gray><aqua><world></aqua><newline><gray>  Loot drops from mobs — obfuscated pickup!</gray><newline>"
+mobwaves.broadcast.cleared: "<newline><gradient:#22C55E:#14B8A6><bold>  ✓ CLEARED</bold></gradient><newline><gray>  </gray><yellow><type_name></yellow><gray> — all waves defeated at </gray><light_purple><structure_name></light_purple><gray>!</gray><newline><gray>  Coords: </gray><white><x></white><gray>, </gray><white><y></white><gray>, </gray><white><z></white><newline>"
+
+mobwaves.broadcast.removed: "<newline><dark_gray><strikethrough>  ────────────────────</strikethrough></dark_gray><newline><gray>  Horde </gray><yellow><type_name></yellow><gray> ended</gray><newline>"
+
+mobwaves.loot-label.pickup: "<gold>✦ Horde loot</gold>"
+
+mobwaves.loot-label.rare: "<light_purple>✦ Rare trophy</light_purple>"
+
+gui.admin.title: "<dark_gray>Mob hordes</dark_gray>"
+
+gui.admin.wave-profiles: "<aqua>Wave profiles</aqua>"
+
+gui.admin.wave-profiles-lore.1: "<gray>Profiles: </gray><white><count></white>"
+
+gui.admin.wave-profiles-lore.2: "<dark_gray>Waves, spawn eggs, mob HP.</dark_gray>"
+
+gui.admin.wave-profiles-lore.3: "<yellow>LMB — profile editor</yellow>"
+
+gui.admin.type-enabled: "<green>enabled</green>"
+
+gui.admin.type-disabled: "<red>disabled</red>"
+
+gui.admin.type-lore.1: "<gray>Status: </gray><white><state></white>"
+
+gui.admin.type-lore.2: "<gray>Interval: </gray><white><interval> min</white>"
+
+gui.admin.type-lore.3: "<gray>World: </gray><aqua><world></aqua>"
+
+gui.admin.type-lore.4: "<gray>Wave profile: </gray><white><profile></white>"
+
+gui.admin.type-lore.5: "<gray>Loot: </gray><white>loot/<loot>.yml</white>"
+
+gui.admin.type-lore.6: "<yellow>LMB — horde settings</yellow>"
+
+gui.admin.profile-lore.1: "<gray>Waves: </gray><white><waves></white>"
+
+gui.admin.profile-lore.2: "<yellow>LMB — edit profile</yellow>"
+
+gui.profiles-hub.title: "<dark_gray>Wave profiles</dark_gray>"
+
+gui.profiles-hub.back: "<gray>Back</gray>"
+
+gui.profiles-hub.back-lore.1: "<dark_gray>Back to horde type list.</dark_gray>"
+
+gui.type-settings.title: "<dark_gray>Horde: <type></dark_gray>"
+
+gui.type-settings.back: "<gray>Back</gray>"
+
+gui.type-settings.back-lore.1: "<dark_gray>Back to horde types.</dark_gray>"
+
+gui.type-settings.summon: "<green>Summon now</green>"
+
+gui.type-settings.summon-lore.1: "<gray>Instant horde spawn.</gray>"
+
+gui.type-settings.summon-lore.2: "<gray>World: </gray><aqua><world></aqua>"
+
+gui.type-settings.summon-lore.3: "<dark_gray>Waves + obfuscated mob loot.</dark_gray>"
+
+gui.type-settings.summon-lore.4: "<yellow>Menu stays open.</yellow>"
+
+gui.type-settings.teleport: "<aqua>Teleport to active</aqua>"
+
+gui.type-settings.teleport-lore.1: "<gray>Nearest horde of this type.</gray>"
+
+gui.type-settings.teleport-lore.2: "<dark_gray>Wait a second after summon.</dark_gray>"
+
+gui.type-settings.despawn: "<red>Remove active</red>"
+
+gui.type-settings.despawn-lore.1: "<gray>Removes all hordes: mobs, loot, session.</gray>"
+
+gui.type-settings.despawn-lore.2: "<gray>Active: </gray><white><active></white>"
+
+gui.type-settings.despawn-lore.3: "<dark_gray>No global broadcast.</dark_gray>"
+
+gui.type-settings.wave-profile: "<aqua>Wave profile</aqua>"
+
+gui.type-settings.wave-profile-lore.1: "<gray>File: </gray><white>profiles/<profile>.yml</white>"
+
+gui.type-settings.wave-profile-lore.2: "<dark_gray>Wave and mob editor.</dark_gray>"
+
+gui.type-settings.wave-profile-lore.3: "<yellow>LMB — open profile</yellow>"
+
+gui.type-settings.loot: "<gold>Loot & obfuscation</gold>"
+
+gui.type-settings.loot-lore.1: "<gray>File: </gray><white>loot/<loot>.yml</white>"
+
+gui.type-settings.loot-lore.2: "<gray>Pool items: </gray><white><count></white>"
+
+gui.type-settings.loot-lore.3: "<gray>Rolls per kill: </gray><white><rolls_min>–<rolls_max></white>"
+
+gui.type-settings.loot-lore.4: "<dark_gray>Pool, masks, volcano-style mob drops.</dark_gray>"
+
+gui.type-settings.loot-lore.5: "<yellow>LMB — loot editor</yellow>"
+
+gui.loot-hub.title: "<dark_gray>Loot · <type></dark_gray>"
+
+gui.loot-hub.back: "<gray>Back</gray>"
+
+gui.loot-hub.back-lore.1: "<dark_gray>Back to type </dark_gray><white><type></white>"
+
+gui.loot-hub.obfuscation: "<gray>Obfuscation masks</gray>"
+
+gui.loot-hub.obfuscation-lore.1: "<gray>Masks: </gray><white><masks></white><gray>/3</gray>"
+
+gui.loot-hub.obfuscation-lore.2: "<dark_gray>What players see before pickup.</dark_gray>"
+
+gui.loot-hub.obfuscation-lore.3: "<yellow>LMB — mask editor</yellow>"
+
+gui.loot-hub.pool: "<gold>Loot pool</gold>"
+
+gui.loot-hub.pool-lore.1: "<gray>Templates: </gray><white><pool></white>"
+
+gui.loot-hub.pool-lore.2: "<dark_gray>Rewards on mob kill.</dark_gray>"
+
+gui.loot-hub.pool-lore.3: "<yellow>LMB — pool editor</yellow>"
+
+gui.loot-hub.occupied: "<aqua>Pool rolls</aqua>"
+
+gui.loot-hub.occupied-lore.1: "<white><count></white> <gray>of </gray><white><max></white>"
+
+gui.loot-hub.occupied-lore.2: "<dark_gray>Max GUI-pool items per roll.</dark_gray>"
+
+gui.loot-hub.occupied-minus: "<red>− Less</red>"
+
+gui.loot-hub.occupied-minus-lore.1: "<yellow>LMB — minus 1</yellow>"
+
+gui.loot-hub.occupied-plus: "<green>+ More</green>"
+
+gui.loot-hub.occupied-plus-lore.1: "<yellow>LMB — plus 1</yellow>"
+
+gui.loot-hub.occupied-changed: "<green>Pool rolls: <count>/<max></green>"
+
+gui.obfuscation-items.title: "<dark_gray>Masks · <type></dark_gray>"
+
+gui.obfuscation-items.guide: "<aqua>Obfuscation masks</aqua>"
+
+gui.obfuscation-items.guide-lore.1: "<gray>Three slots — icons instead of loot.</gray>"
+
+gui.obfuscation-items.guide-lore.2: "<dark_gray>Empty = coal. Click reveals real item.</dark_gray>"
+
+gui.obfuscation-items.back: "<green>Save & back</green>"
+
+gui.obfuscation-items.back-lore.1: "<dark_gray>Saved to loot/<type>.yml</dark_gray>"
+
+gui.obfuscation-items.saved: "<green>Saved masks: <count></green>"
+
+gui.loot-pool.title: "<dark_gray>Pool · <type> · <page>/<pages></dark_gray>"
+
+gui.loot-pool.back: "<green>Save & back</green>"
+
+gui.loot-pool.back-lore.1: "<dark_gray>Saves page to loot/<type>.yml</dark_gray>"
+
+gui.loot-pool.prev: "<gray>Page</gray>"
+
+gui.loot-pool.prev-lore.1: "<dark_gray>Previous page.</dark_gray>"
+
+gui.loot-pool.next: "<gray>Page</gray>"
+
+gui.loot-pool.next-lore.1: "<dark_gray>Next page.</dark_gray>"
+
+gui.loot-pool.page-info: "<white>Page <page>/<pages></white>"
+
+gui.loot-pool.page-info-lore.1: "<gray>Top slots — loot for this page.</gray>"
+
+gui.loot-pool.saved: "<green>Page <page>: <page_count> items · total: <total></green>"
+
+gui.profile.title: "<dark_gray>Profile: <profile></dark_gray>"
+
+gui.profile.back: "<gray>Back</gray>"
+
+gui.profile.add-wave: "<green>Add wave</green>"
+
+gui.profile.add-wave-lore.1: "<gray>Append a new wave.</gray>"
+
+gui.profile.mob-settings: "<gold>Mob settings</gold>"
+
+gui.profile.mob-settings-lore.1: "<gray>Health, speed, damage per type.</gray>"
+
+gui.profile.profile-settings: "<yellow>Profile settings</yellow>"
+
+gui.profile.profile-settings-lore.1: "<gray>Spawn radius, batch size, intervals.</gray>"
+
+gui.profile.wave-item: "<aqua><name></aqua>"
+
+gui.profile.wave-lore.1: "<gray>Mobs in wave: </gray><white><count></white> · boss: <boss>"
+
+gui.profile.wave-lore.2: "<yellow>LMB — spawn egg editor</yellow>"
+
+gui.profile.wave-lore.3: "<yellow>RMB — wave settings</yellow>"
+
+gui.wave-editor.title: "<dark_gray>Wave <index>: <name></dark_gray>"
+
+gui.wave-editor.back: "<gray>Back</gray>"
+
+gui.wave-editor.save: "<green>Save wave</green>"
+
+gui.wave-editor.save-lore.1: "<gray>Place spawn eggs — stack size = mob count.</gray>"
+
+gui.wave-editor.save-lore.2: "<dark_gray>Evoker and Dragon are banned.</dark_gray>"
+
+gui.wave-editor.wave-settings: "<yellow>Wave settings</yellow>"
+
+gui.wave-editor.wave-settings-lore.1: "<gray>Super-boss, delete wave.</gray>"
+
+gui.wave-editor.boss-slot: "<gold>Super-boss: <type></gold> (<enabled>)"
+
+gui.wave-editor.boss-slot-lore.1: "<gray>Spawns last with ×5 HP.</gray>"
+
+gui.wave-editor.boss-slot-lore.2: "<yellow>Click — change mob type.</yellow>"
+
+gui.wave-editor.delete-wave: "<red>Delete wave</red>"
+
+gui.wave-editor.delete-wave-lore.1: "<dark_gray>Removes this wave from profile.</dark_gray>"
+
+gui.wave-settings.title: "<dark_gray>Wave <index>: <name></dark_gray>"
+
+gui.wave-settings.back: "<gray>Back</gray>"
+
+gui.wave-settings.boss-toggle: "<gold>Super-boss: <state></gold>"
+
+gui.wave-settings.boss-toggle-lore.1: "<gray>Spawns after all wave mobs.</gray>"
+
+gui.wave-settings.boss-type: "<aqua>Boss type: <type></aqua>"
+
+gui.wave-settings.boss-type-lore.1: "<yellow>Click — cycle mob type.</yellow>"
+
+gui.wave-settings.boss-health-minus: "<red>−25 HP</red>"
+
+gui.wave-settings.boss-health-plus: "<green>+25 HP</green>"
+
+gui.wave-settings.boss-health-info: "<gold>Boss HP: <health></gold>"
+
+gui.wave-settings.boss-health-lore.1: "<gray>0 = from mob overrides ×5.</gray>"
+
+gui.wave-settings.delete-wave: "<red>Delete wave</red>"
+
+gui.wave-settings.delete-wave-lore.1: "<dark_gray>Cannot be undone.</dark_gray>"
+
+gui.profile-settings.title: "<dark_gray>Profile: <profile></dark_gray>"
+
+gui.profile-settings.back: "<gray>Back</gray>"
+
+gui.profile-settings.spawn-radius: "<aqua>Spawn radius: <value></aqua>"
+
+gui.profile-settings.spawn-radius-lore.1: "<gray>0 = module default.</gray>"
+
+gui.profile-settings.batch-size: "<yellow>Batch size: <value></yellow>"
+
+gui.profile-settings.interval: "<yellow>Batch interval (ticks): <value></yellow>"
+
+gui.profile-settings.grace: "<green>Grace after clear (s): <value></green>"
+
+gui.mob-settings.title: "<dark_gray>Mobs: <profile></dark_gray>"
+
+gui.mob-settings.back: "<gray>Back</gray>"
+
+gui.mob-settings.entry-lore.1: "<gray>HP: </gray><white><health></white>"
+
+gui.mob-settings.entry-lore.2: "<gray>Speed: </gray><white><speed>x</white>"
+
+gui.mob-settings.entry-lore.3: "<gray>Damage: </gray><white><damage>x</white>"
+
+gui.mob-settings.entry-lore.4: "<yellow>LMB — edit</yellow>"
+
+gui.mob-override.title: "<dark_gray><mob></dark_gray>"
+
+gui.mob-override.back: "<gray>Back</gray>"
+
+gui.mob-override.health-minus: "<red>-5 HP</red>"
+
+gui.mob-override.health-plus: "<green>+5 HP</green>"
+
+gui.mob-override.health-info: "<white>HP: <health></white>"
+
+gui.mob-override.speed-minus: "<red>Speed -0.1</red>"
+
+gui.mob-override.speed-plus: "<green>Speed +0.1</green>"
+
+gui.mob-override.damage-minus: "<red>Damage -0.1</red>"
+
+gui.mob-override.damage-plus: "<green>Damage +0.1</green>"
+

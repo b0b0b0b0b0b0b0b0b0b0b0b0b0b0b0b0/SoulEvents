@@ -1,6 +1,9 @@
 package bm.b0b0b0.soulevents.airdrop.service;
 
 import bm.b0b0b0.soulevents.api.SoulEventsApi;
+import bm.b0b0b0.soulevents.api.mobwave.MobWaveAttachRequest;
+import bm.b0b0b0.soulevents.api.mobwave.MobWaveBridge;
+import bm.b0b0b0.soulevents.api.mobwave.MobWaveChestPhase;
 import bm.b0b0b0.soulevents.api.module.ActiveEvent;
 import bm.b0b0b0.soulevents.api.module.EventPhase;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPasteOptions;
@@ -42,6 +45,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.time.Duration;
@@ -75,6 +79,7 @@ public final class AirDropService {
     private AirDropDespawnBossBarService despawnBossBarService;
     private VaultEconomyService vaultEconomy;
     private AirDropPreOpenService preOpenService;
+    private MobWaveBridge mobWaveBridge;
     private Map<String, WorldPlacementGate> gates = Map.of();
 
     public AirDropService(
@@ -127,6 +132,12 @@ public final class AirDropService {
 
     public void setPreOpenService(AirDropPreOpenService preOpenService) {
         this.preOpenService = preOpenService;
+    }
+
+    public void resolveMobWaveBridge() {
+        RegisteredServiceProvider<MobWaveBridge> provider =
+                Bukkit.getServicesManager().getRegistration(MobWaveBridge.class);
+        this.mobWaveBridge = provider != null ? provider.getProvider() : null;
     }
 
     public void handleChestMissing(UUID sessionId) {
@@ -218,10 +229,27 @@ public final class AirDropService {
         }
         AirDropTypeDefinition definition = definitionOptional.get();
         AirDropTypeSettings type = definition.settings();
-        Instant lootableAt = active.get().lootableAt().orElse(Instant.EPOCH);
-        if (Instant.now().isBefore(lootableAt)) {
-            long seconds = Math.max(1L, Duration.between(Instant.now(), lootableAt).toSeconds());
-            messages.send(player, "airdrop.chest-not-ready", Map.of("timer", formatOpenTimer(seconds)));
+        boolean waveDefense = usesWaveDefense(type);
+        if (!waveDefense) {
+            Instant lootableAt = active.get().lootableAt().orElse(Instant.EPOCH);
+            if (Instant.now().isBefore(lootableAt)) {
+                long seconds = Math.max(1L, Duration.between(Instant.now(), lootableAt).toSeconds());
+                messages.send(player, "airdrop.chest-not-ready", Map.of("timer", formatOpenTimer(seconds)));
+                return;
+            }
+        }
+        if (waveDefense && mobWaveBridge.blocksChest(sessionId)) {
+            Map<String, String> wavePlaceholders = new HashMap<>();
+            wavePlaceholders.put("wave", "?");
+            wavePlaceholders.put("total", "?");
+            mobWaveBridge.status(sessionId).ifPresent(status -> {
+                wavePlaceholders.put("wave", Integer.toString(status.currentWave()));
+                wavePlaceholders.put("total", Integer.toString(status.totalWaves()));
+                if (status.chestPhase() == MobWaveChestPhase.GRACE) {
+                    wavePlaceholders.put("phase", "grace");
+                }
+            });
+            messages.send(player, "airdrop.chest-waves-locked", wavePlaceholders);
             return;
         }
         GateResult gate = api.protection().gates().check(
@@ -822,16 +850,27 @@ public final class AirDropService {
         }
 
         api.sessions().setPhase(sessionId, EventPhase.ACTIVE);
-        if (type.preOpenBeacon.enabled || type.preOpenMobs.enabled) {
+        boolean waveDefense = usesWaveDefense(type);
+        if (type.preOpenBeacon.enabled || waveDefense) {
             api.sessions().setPhase(sessionId, EventPhase.PRE_OPEN);
-            if (preOpenService != null) {
+            if (type.preOpenBeacon.enabled && preOpenService != null) {
                 preOpenService.start(sessionId, definition, blockAnchor, lootableAt);
+            }
+            if (waveDefense) {
+                mobWaveBridge.attach(new MobWaveAttachRequest(
+                        sessionId,
+                        type.waveDefense.profileId,
+                        blockAnchor,
+                        type.waveDefense.spawnRadius
+                ));
             }
         }
         if (type.broadcast.enabled && type.broadcast.spawnEnabled) {
             messages.broadcast(type.broadcast.messageKey, placeholders(typeId, definition, blockAnchor, null));
         }
-        scheduleUnlockBroadcast(sessionId, typeId, definition, blockAnchor, lootableAt);
+        if (!waveDefense) {
+            scheduleUnlockBroadcast(sessionId, typeId, definition, blockAnchor, lootableAt);
+        }
         int maxActiveSeconds = Math.max(1, type.lifecycle.maxActiveSecondsAfterLootable);
         Instant despawnAt = lootableAt.plusSeconds(maxActiveSeconds);
         scheduleSessionEnd(sessionId, despawnAt, "EXPIRED");
@@ -887,6 +926,12 @@ public final class AirDropService {
                 anchor.getBlockY(),
                 anchor.getBlockZ()
         );
+    }
+
+    private boolean usesWaveDefense(AirDropTypeSettings type) {
+        return type.waveDefense.enabled
+                && mobWaveBridge != null
+                && mobWaveBridge.isEnabled();
     }
 
     private Instant computeLootableAt(AirDropTypeSettings type) {
@@ -1229,6 +1274,9 @@ public final class AirDropService {
         restoreAnchorBlock(sessionId);
         if (preOpenService != null) {
             preOpenService.stop(sessionId);
+        }
+        if (mobWaveBridge != null) {
+            mobWaveBridge.detach(sessionId);
         }
         if (visualService != null) {
             visualService.remove(sessionId);

@@ -38,6 +38,7 @@ airdrop.placement.region-too-close: "<red>Слишком близко к WG-ре
 airdrop.placement.player-too-close: "<red>Слишком близко к игроку (<distance> блок.). Нужно дальше.</red>"
 airdrop.placement.outside-map-boundary: "<red>Точка за границей карты (радиус <radius> от центра).</red>"
 airdrop.chest-not-ready: "<red>Сундук откроется через <timer>.</red>"
+airdrop.chest-waves-locked: "<red>Сначала зачисти волну <wave>/<total>.</red>"
 airdrop.chest-protected: "<red>Этот аирдроп под защитой плагина.</red>"
 airdrop.chest-open-failed: "<red>Не удалось открыть аирдроп. Сообщи админу.</red>"
 airdrop.chest-unavailable: "<red>Этот аирдроп уже недоступен.</red>"

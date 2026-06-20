@@ -1,0 +1,353 @@
+command.no-permission: "<red>Нет прав.</red>"
+mobwaves.startup.separator: "=============================="
+mobwaves.startup.registered: "Модуль MobWaves подключён — типов орды: <types>, профилей волн: <profiles>"
+mobwaves.startup.type-loaded: "  Орда <id> загружена"
+mobwaves.startup.profile-loaded: "  Профиль волн <id> загружен"
+mobwaves.startup.core-missing: "SoulEvents не найден — модуль MobWaves отключён"
+
+mobwaves.usage: "<yellow>/mobwaves admin | summon <тип> | reload</yellow>"
+
+mobwaves.usage-admin-console: "<yellow>Консоль: /mobwaves summon <тип> | reload</yellow>"
+
+mobwaves.reloaded: "<green>SoulEvents-MobWaves перезагружен.</green>"
+
+mobwaves.unknown-type: "<red>Неизвестный тип орды: <type></red>"
+
+mobwaves.spawn-failed: "<red>Не удалось найти точку спавна для <type></red>"
+
+mobwaves.world-not-found: "<red>Мир <world> не загружен.</red>"
+
+mobwaves.limit-reached: "<red>Достигнут лимит активных орд для <type>.</red>"
+
+mobwaves.placement.invalid-location: "<red>Некорректная точка.</red>"
+mobwaves.placement.world-not-whitelisted: "<red>Мир <world> не в whitelist.</red>"
+mobwaves.placement.world-blacklisted: "<red>Мир <world> в blacklist.</red>"
+mobwaves.placement.worldguard-missing: "<red>WorldGuard не установлен.</red>"
+mobwaves.placement.region-not-whitelisted: "<red>Нет разрешённого региона WG.</red>"
+mobwaves.placement.region-blacklisted: "<red>Регион <region> запрещён.</red>"
+mobwaves.placement.region-inside: "<red>Нельзя спавнить внутри WG-региона.</red>"
+mobwaves.placement.region-too-close: "<red>Слишком близко к WG-региону (<distance> блок.).</red>"
+mobwaves.placement.player-too-close: "<red>Слишком близко к игроку (<distance> блок.).</red>"
+mobwaves.placement.outside-map-boundary: "<red>Точка за границей карты.</red>"
+
+mobwaves.bossbar.despawn: "<red><type_name></red> <gray>— исчезнет через <timer></gray>"
+
+mobwaves.bossbar.waiting: "<yellow><type_name></yellow> <gray>— ждём игрока для старта волн</gray>"
+
+mobwaves.bossbar.active: "<green><type_name></green> <gray>— волны активны · осталось <timer></gray>"
+
+mobwaves.admin-summoned: "<green>Орда <type_name> призвана (<x>, <y>, <z> в <world>).</green>"
+
+mobwaves.despawn-none: "<yellow>Нет активных орд типа <type>.</yellow>"
+
+mobwaves.despawn-done: "<green>Убрано орд <type>: <count></green>"
+
+mobwaves.teleport-none: "<yellow>Нет активных орд типа <type>.</yellow>"
+
+mobwaves.teleported: "<green>Телепорт к орде <type_name> (<x>, <y>, <z>).</green>"
+
+mobwaves.loot-pickup-delay: "<yellow>Подожди — лут ещё не готов.</yellow>"
+
+mobwaves.loot-pickup-failed: "<red>Не удалось подобрать лут.</red>"
+
+mobwaves.health-bar: "<red><bar></red>"
+
+mobwaves.health-bar-boss: "<gold><bold>БОСС</bold></gold> <red><bar></red>"
+
+mobwaves.health-value: "<gradient:gold:yellow><bold><current></bold></gradient><dark_gray> / </dark_gray><white><max></white> <red>❤</red>"
+
+mobwaves.health-value-boss: "<gradient:gold:yellow><bold><current></bold></gradient><dark_gray> / </dark_gray><gold><max></gold> <red>❤</red>"
+
+mobwaves.wave-saved: "<green>Волна сохранена.</green>"
+
+mobwaves.wave-deleted: "<yellow>Волна удалена.</yellow>"
+
+mobwaves.mob-saved: "<green>Настройки моба сохранены.</green>"
+
+mobwaves.types.default.name: "<red>Орда</red>"
+
+mobwaves.types.elite.name: "<light_purple>Элитная орда</light_purple>"
+mobwaves.structure.rift-nexus: "Нексуса разлома"
+mobwaves.broadcast.spawn: "<newline><gradient:#7C3AED:#DC2626><bold>  ☠ РАЗЛОМ ☠</bold></gradient><newline><gray>  Орда </gray><yellow><type_name></yellow><gray> вышла из </gray><light_purple><structure_name></light_purple><gray>!</gray><newline><gray>  Координаты: </gray><white><x></white><gray>, </gray><white><y></white><gray>, </gray><white><z></white><gray> · </gray><aqua><world></aqua><newline><gray>  Лут падает с мобов — лови обфусцированный дроп!</gray><newline>"
+mobwaves.broadcast.cleared: "<newline><gradient:#22C55E:#14B8A6><bold>  ✓ ЗАЧИЩЕНО</bold></gradient><newline><gray>  </gray><yellow><type_name></yellow><gray> — все волны уничтожены у </gray><light_purple><structure_name></light_purple><gray>!</gray><newline><gray>  Координаты: </gray><white><x></white><gray>, </gray><white><y></white><gray>, </gray><white><z></white><newline>"
+
+mobwaves.broadcast.removed: "<newline><dark_gray><strikethrough>  ────────────────────</strikethrough></dark_gray><newline><gray>  Орда </gray><yellow><type_name></yellow><gray> исчезла</gray><newline>"
+
+mobwaves.loot-label.pickup: "<gold>✦ Лут орды</gold>"
+
+mobwaves.loot-label.rare: "<light_purple>✦ Редкий трофей</light_purple>"
+
+gui.admin.title: "<dark_gray>Орды мобов</dark_gray>"
+
+gui.admin.wave-profiles: "<aqua>Профили волн</aqua>"
+
+gui.admin.wave-profiles-lore.1: "<gray>Профилей: </gray><white><count></white>"
+
+gui.admin.wave-profiles-lore.2: "<dark_gray>Волны, яйца призыва, HP мобов.</dark_gray>"
+
+gui.admin.wave-profiles-lore.3: "<yellow>ЛКМ — редактор профилей</yellow>"
+
+gui.admin.type-enabled: "<green>активна</green>"
+
+gui.admin.type-disabled: "<red>выключена</red>"
+
+gui.admin.type-lore.1: "<gray>Статус: </gray><white><state></white>"
+
+gui.admin.type-lore.2: "<gray>Интервал: </gray><white><interval> мин</white>"
+
+gui.admin.type-lore.3: "<gray>Мир: </gray><aqua><world></aqua>"
+
+gui.admin.type-lore.4: "<gray>Профиль волн: </gray><white><profile></white>"
+
+gui.admin.type-lore.5: "<gray>Лут: </gray><white>loot/<loot>.yml</white>"
+
+gui.admin.type-lore.6: "<yellow>ЛКМ — настройки орды</yellow>"
+
+gui.admin.profile-lore.1: "<gray>Волн: </gray><white><waves></white>"
+
+gui.admin.profile-lore.2: "<yellow>ЛКМ — редактировать профиль</yellow>"
+
+gui.profiles-hub.title: "<dark_gray>Профили волн</dark_gray>"
+
+gui.profiles-hub.back: "<gray>Назад</gray>"
+
+gui.profiles-hub.back-lore.1: "<dark_gray>К списку типов орды.</dark_gray>"
+
+gui.type-settings.title: "<dark_gray>Орда: <type></dark_gray>"
+
+gui.type-settings.back: "<gray>Назад</gray>"
+
+gui.type-settings.back-lore.1: "<dark_gray>К списку типов орды.</dark_gray>"
+
+gui.type-settings.summon: "<green>Вызвать сейчас</green>"
+
+gui.type-settings.summon-lore.1: "<gray>Мгновенный спавн орды.</gray>"
+
+gui.type-settings.summon-lore.2: "<gray>Мир: </gray><aqua><world></aqua>"
+
+gui.type-settings.summon-lore.3: "<dark_gray>Волны + лут с мобов (обфускация).</dark_gray>"
+
+gui.type-settings.summon-lore.4: "<yellow>Меню не закрывается.</yellow>"
+
+gui.type-settings.teleport: "<aqua>Телепорт к активной</aqua>"
+
+gui.type-settings.teleport-lore.1: "<gray>К ближайшей орде этого типа.</gray>"
+
+gui.type-settings.teleport-lore.2: "<dark_gray>После призыва подожди секунду.</dark_gray>"
+
+gui.type-settings.despawn: "<red>Убрать активные</red>"
+
+gui.type-settings.despawn-lore.1: "<gray>Снимает все орды типа: мобы, лут, сессия.</gray>"
+
+gui.type-settings.despawn-lore.2: "<gray>Активно: </gray><white><active></white>"
+
+gui.type-settings.despawn-lore.3: "<dark_gray>Без глобального объявления.</dark_gray>"
+
+gui.type-settings.wave-profile: "<aqua>Профиль волн</aqua>"
+
+gui.type-settings.wave-profile-lore.1: "<gray>Файл: </gray><white>profiles/<profile>.yml</white>"
+
+gui.type-settings.wave-profile-lore.2: "<dark_gray>Редактор волн и мобов.</dark_gray>"
+
+gui.type-settings.wave-profile-lore.3: "<yellow>ЛКМ — открыть профиль</yellow>"
+
+gui.type-settings.loot: "<gold>Лут и обфускация</gold>"
+
+gui.type-settings.loot-lore.1: "<gray>Файл: </gray><white>loot/<loot>.yml</white>"
+
+gui.type-settings.loot-lore.2: "<gray>В пуле: </gray><white><count></white>"
+
+gui.type-settings.loot-lore.3: "<gray>Роллов за убийство: </gray><white><rolls_min>–<rolls_max></white>"
+
+gui.type-settings.loot-lore.4: "<dark_gray>Пул, маски, дроп с мобов как у вулкана.</dark_gray>"
+
+gui.type-settings.loot-lore.5: "<yellow>ЛКМ — редактор лута</yellow>"
+
+gui.loot-hub.title: "<dark_gray>Лут · <type></dark_gray>"
+
+gui.loot-hub.back: "<gray>Назад</gray>"
+
+gui.loot-hub.back-lore.1: "<dark_gray>К настройкам типа </dark_gray><white><type></white>"
+
+gui.loot-hub.obfuscation: "<gray>Маски обфускации</gray>"
+
+gui.loot-hub.obfuscation-lore.1: "<gray>Масок: </gray><white><masks></white><gray>/3</gray>"
+
+gui.loot-hub.obfuscation-lore.2: "<dark_gray>Что видит игрок до подбора.</dark_gray>"
+
+gui.loot-hub.obfuscation-lore.3: "<yellow>ЛКМ — редактор масок</yellow>"
+
+gui.loot-hub.pool: "<gold>Пул лута</gold>"
+
+gui.loot-hub.pool-lore.1: "<gray>Шаблонов: </gray><white><pool></white>"
+
+gui.loot-hub.pool-lore.2: "<dark_gray>Награды при убийстве моба.</dark_gray>"
+
+gui.loot-hub.pool-lore.3: "<yellow>ЛКМ — редактор пула</yellow>"
+
+gui.loot-hub.occupied: "<aqua>Роллов из пула</aqua>"
+
+gui.loot-hub.occupied-lore.1: "<white><count></white> <gray>из </gray><white><max></white>"
+
+gui.loot-hub.occupied-lore.2: "<dark_gray>Макс. предметов из GUI-пула за один ролл.</dark_gray>"
+
+gui.loot-hub.occupied-minus: "<red>− Меньше</red>"
+
+gui.loot-hub.occupied-minus-lore.1: "<yellow>ЛКМ — минус 1</yellow>"
+
+gui.loot-hub.occupied-plus: "<green>+ Больше</green>"
+
+gui.loot-hub.occupied-plus-lore.1: "<yellow>ЛКМ — плюс 1</yellow>"
+
+gui.loot-hub.occupied-changed: "<green>Роллов из пула: <count>/<max></green>"
+
+gui.obfuscation-items.title: "<dark_gray>Маски · <type></dark_gray>"
+
+gui.obfuscation-items.guide: "<aqua>Маски обфускации</aqua>"
+
+gui.obfuscation-items.guide-lore.1: "<gray>Три слота — иконки вместо лута.</gray>"
+
+gui.obfuscation-items.guide-lore.2: "<dark_gray>Пусто = уголь. После клика — реальный предмет.</dark_gray>"
+
+gui.obfuscation-items.back: "<green>Сохранить и назад</green>"
+
+gui.obfuscation-items.back-lore.1: "<dark_gray>Запись в loot/<type>.yml</dark_gray>"
+
+gui.obfuscation-items.saved: "<green>Сохранено масок: <count></green>"
+
+gui.loot-pool.title: "<dark_gray>Пул · <type> · <page>/<pages></dark_gray>"
+
+gui.loot-pool.back: "<green>Сохранить и назад</green>"
+
+gui.loot-pool.back-lore.1: "<dark_gray>Сохраняет страницу в loot/<type>.yml</dark_gray>"
+
+gui.loot-pool.prev: "<gray>Страница</gray>"
+
+gui.loot-pool.prev-lore.1: "<dark_gray>Предыдущая страница.</dark_gray>"
+
+gui.loot-pool.next: "<gray>Страница</gray>"
+
+gui.loot-pool.next-lore.1: "<dark_gray>Следующая страница.</dark_gray>"
+
+gui.loot-pool.page-info: "<white>Стр. <page>/<pages></white>"
+
+gui.loot-pool.page-info-lore.1: "<gray>Верхние слоты — лут этой страницы.</gray>"
+
+gui.loot-pool.saved: "<green>Стр. <page>: <page_count> шт. · всего: <total></green>"
+
+gui.profile.title: "<dark_gray>Профиль: <profile></dark_gray>"
+
+gui.profile.back: "<gray>Назад</gray>"
+
+gui.profile.add-wave: "<green>Добавить волну</green>"
+
+gui.profile.add-wave-lore.1: "<gray>Новая волна в конец списка.</gray>"
+
+gui.profile.mob-settings: "<gold>Настройки мобов</gold>"
+
+gui.profile.mob-settings-lore.1: "<gray>Здоровье, скорость, урон по типам.</gray>"
+
+gui.profile.profile-settings: "<yellow>Настройки профиля</yellow>"
+
+gui.profile.profile-settings-lore.1: "<gray>Радиус спавна, пачки, интервалы.</gray>"
+
+gui.profile.wave-item: "<aqua><name></aqua>"
+
+gui.profile.wave-lore.1: "<gray>Мобов в волне: </gray><white><count></white> · босс: <boss>"
+
+gui.profile.wave-lore.2: "<yellow>ЛКМ — редактор яиц призыва</yellow>"
+
+gui.profile.wave-lore.3: "<yellow>ПКМ — настройки волны</yellow>"
+
+gui.wave-editor.title: "<dark_gray>Волна <index>: <name></dark_gray>"
+
+gui.wave-editor.back: "<gray>Назад</gray>"
+
+gui.wave-editor.save: "<green>Сохранить волну</green>"
+
+gui.wave-editor.save-lore.1: "<gray>Клади яйца призыва — количество = число мобов.</gray>"
+
+gui.wave-editor.save-lore.2: "<dark_gray>Evoker и Dragon запрещены.</dark_gray>"
+
+gui.wave-editor.wave-settings: "<yellow>Настройки волны</yellow>"
+
+gui.wave-editor.wave-settings-lore.1: "<gray>Супербосс, удаление волны.</gray>"
+
+gui.wave-editor.boss-slot: "<gold>Супербосс: <type></gold> (<enabled>)"
+
+gui.wave-editor.boss-slot-lore.1: "<gray>Спавнится последним, HP ×5.</gray>"
+
+gui.wave-editor.boss-slot-lore.2: "<yellow>Клик — сменить тип моба.</yellow>"
+
+gui.wave-editor.delete-wave: "<red>Удалить волну</red>"
+
+gui.wave-editor.delete-wave-lore.1: "<dark_gray>Убирает волну из профиля.</dark_gray>"
+
+gui.wave-settings.title: "<dark_gray>Волна <index>: <name></dark_gray>"
+
+gui.wave-settings.back: "<gray>Назад</gray>"
+
+gui.wave-settings.boss-toggle: "<gold>Супербосс: <state></gold>"
+
+gui.wave-settings.boss-toggle-lore.1: "<gray>После всех мобов волны.</gray>"
+
+gui.wave-settings.boss-type: "<aqua>Тип босса: <type></aqua>"
+
+gui.wave-settings.boss-type-lore.1: "<yellow>Клик — сменить тип.</yellow>"
+
+gui.wave-settings.boss-health-minus: "<red>−25 HP</red>"
+
+gui.wave-settings.boss-health-plus: "<green>+25 HP</green>"
+
+gui.wave-settings.boss-health-info: "<gold>HP босса: <health></gold>"
+
+gui.wave-settings.boss-health-lore.1: "<gray>0 = из mob-overrides ×5.</gray>"
+
+gui.wave-settings.delete-wave: "<red>Удалить волну</red>"
+
+gui.wave-settings.delete-wave-lore.1: "<dark_gray>Без отмены.</dark_gray>"
+
+gui.profile-settings.title: "<dark_gray>Профиль: <profile></dark_gray>"
+
+gui.profile-settings.back: "<gray>Назад</gray>"
+
+gui.profile-settings.spawn-radius: "<aqua>Радиус спавна: <value></aqua>"
+
+gui.profile-settings.spawn-radius-lore.1: "<gray>0 = дефолт модуля.</gray>"
+
+gui.profile-settings.batch-size: "<yellow>Размер пачки: <value></yellow>"
+
+gui.profile-settings.interval: "<yellow>Интервал пачек (тики): <value></yellow>"
+
+gui.profile-settings.grace: "<green>Пауза после волны (с): <value></green>"
+
+gui.mob-settings.title: "<dark_gray>Мобы: <profile></dark_gray>"
+
+gui.mob-settings.back: "<gray>Назад</gray>"
+
+gui.mob-settings.entry-lore.1: "<gray>HP: </gray><white><health></white>"
+
+gui.mob-settings.entry-lore.2: "<gray>Скорость: </gray><white><speed>x</white>"
+
+gui.mob-settings.entry-lore.3: "<gray>Урон: </gray><white><damage>x</white>"
+
+gui.mob-settings.entry-lore.4: "<yellow>ЛКМ — изменить</yellow>"
+
+gui.mob-override.title: "<dark_gray><mob></dark_gray>"
+
+gui.mob-override.back: "<gray>Назад</gray>"
+
+gui.mob-override.health-minus: "<red>-5 HP</red>"
+
+gui.mob-override.health-plus: "<green>+5 HP</green>"
+
+gui.mob-override.health-info: "<white>HP: <health></white>"
+
+gui.mob-override.speed-minus: "<red>Скорость -0.1</red>"
+
+gui.mob-override.speed-plus: "<green>Скорость +0.1</green>"
+
+gui.mob-override.damage-minus: "<red>Урон -0.1</red>"
+
+gui.mob-override.damage-plus: "<green>Урон +0.1</green>"
+

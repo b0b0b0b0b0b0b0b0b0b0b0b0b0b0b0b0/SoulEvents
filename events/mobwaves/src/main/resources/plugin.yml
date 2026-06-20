@@ -1,0 +1,48 @@
+name: SoulEvents-MobWaves
+
+version: '${version}'
+
+main: bm.b0b0b0.soulevents.mobwaves.MobWavesPlugin
+
+api-version: '1.21'
+
+authors: [ b0b0b0 ]
+
+depend: [ SoulEvents ]
+
+softdepend: [ WorldGuard, FastAsyncWorldEdit ]
+
+
+
+libraries:
+
+  - net.elytrium:serializer:1.1.1
+
+
+
+commands:
+
+  mobwaves:
+
+    description: Mob wave defense commands
+
+    permission: soulevents.mobwaves.staff
+
+    aliases: [ mwaves, waves ]
+
+
+
+permissions:
+
+  soulevents.mobwaves.staff:
+
+    description: MobWaves staff commands and admin GUI
+
+    default: op
+
+  soulevents.mobwaves.bypass:
+
+    description: Skip concurrent spawn limits for testing
+
+    default: op
+

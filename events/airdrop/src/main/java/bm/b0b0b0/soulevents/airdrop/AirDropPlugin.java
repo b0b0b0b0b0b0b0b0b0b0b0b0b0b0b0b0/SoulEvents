@@ -81,6 +81,7 @@ public final class AirDropPlugin extends JavaPlugin {
                 this
         );
         module.onEnable();
+        module.service().resolveMobWaveBridge();
     }
 
     public void reloadLocalConfig() {
@@ -97,6 +98,7 @@ public final class AirDropPlugin extends JavaPlugin {
             guiFactory = new AirDropGuiFactory(this, config, messages, module.service());
             module.reload(config, messages, guiFactory);
             module.onReload();
+            module.service().resolveMobWaveBridge();
         }
     }
 

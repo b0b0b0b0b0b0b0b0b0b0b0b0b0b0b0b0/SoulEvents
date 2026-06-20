@@ -156,10 +156,19 @@ public final class SchematicRegionBounds {
                 metadata,
                 horizontalMargin,
                 terrainAdaptBelow,
-                Math.max(0, placement.terrainApproachRing),
+                conservativeApproachRing(placement),
                 Math.max(0, placement.terrainApproachFrontDepth),
                 placement.approachFrontFacing
         );
+    }
+
+    private static int conservativeApproachRing(SchematicPlacementSettings placement) {
+        int configured = Math.max(0, placement.terrainApproachRing);
+        int front = Math.max(0, placement.terrainApproachFrontDepth);
+        int cliff = Math.max(0, placement.maxCliffDropFromEdge);
+        int adapt = Math.max(0, placement.terrainAdaptBlocks);
+        int estimate = Math.max(configured, Math.max(front, adapt + cliff + SchematicApproachSupport.TERRACE_DEPTH));
+        return Math.min(estimate, SchematicApproachSupport.MAX_APPROACH_RING);
     }
 
     public static List<int[]> buildUndoCaptureSteps(

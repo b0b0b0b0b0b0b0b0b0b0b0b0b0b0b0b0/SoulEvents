@@ -281,6 +281,30 @@ public final class VolcanoService {
         }
     }
 
+    public void despawnAdmin(Player player, String typeId) {
+        List<UUID> sessionIds = api.modules().activeEvents(VolcanoModule.MODULE_ID).stream()
+                .filter(event -> event.typeId().equalsIgnoreCase(typeId))
+                .map(ActiveEvent::sessionId)
+                .toList();
+        if (sessionIds.isEmpty()) {
+            messages.send(player, "volcano.despawn-none", Map.of("type", typeId));
+            return;
+        }
+        for (UUID sessionId : sessionIds) {
+            endSession(sessionId, "ADMIN");
+        }
+        messages.send(player, "volcano.despawn-done", Map.of(
+                "type", typeId,
+                "count", Integer.toString(sessionIds.size())
+        ));
+    }
+
+    public int countActive(String typeId) {
+        return (int) api.modules().activeEvents(VolcanoModule.MODULE_ID).stream()
+                .filter(event -> event.typeId().equalsIgnoreCase(typeId))
+                .count();
+    }
+
     public void handleItemPickup(Player player, Item itemEntity) {
         Optional<UUID> sessionIdOptional = sessionRegistry.sessionIdForEntity(itemEntity.getUniqueId());
         if (sessionIdOptional.isEmpty()) {
@@ -933,7 +957,7 @@ public final class VolcanoService {
             return;
         }
         plugin.getLogger().info("Volcano end session=" + sessionId + " phase=" + phase);
-        if (!"SHUTDOWN".equals(phase)) {
+        if (!"SHUTDOWN".equals(phase) && !"ADMIN".equals(phase)) {
             Optional<ActiveEvent> active = activeEvent(sessionId);
             Optional<VolcanoSessionRegistry.SessionRecord> record = sessionRegistry.find(sessionId);
             if (active.isPresent() && record.isPresent()) {

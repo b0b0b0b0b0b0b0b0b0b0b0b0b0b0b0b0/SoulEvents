@@ -18,7 +18,7 @@ public final class SchematicPlacementSettings extends YamlSerializable {
     @Comment(@CommentValue("Подгонка рельефа перед paste: сколько блоков вверх/вниз по каждой колонке footprint."))
     public int terrainAdaptBlocks = 3;
 
-    @Comment(@CommentValue("Кольцо ступенек наружу от контура solid-пола: подсыпка вниз и срезка подъёма, 0 = выкл."))
+    @Comment(@CommentValue("Кольцо ступенек наружу от контура: −1 блок на кольцо, 0 = выкл."))
     public int terrainApproachRing = 0;
 
     @Comment(@CommentValue("Полоса подгонки почвы только ПЕРЕД схемой (блоки наружу), 0 = выкл. Не кольцо вокруг."))
@@ -32,6 +32,12 @@ public final class SchematicPlacementSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Доля колонок среза при trim-only (0.5–0.85 ≈ рваный край как в генерации)."))
     public float terrainApproachRaggedDensity = 0.62f;
+
+    @Comment(@CommentValue("После paste: ragged-срез по периметру bbox и подходу."))
+    public boolean terrainPerimeterRaggedTrim = false;
+
+    @Comment(@CommentValue("Доп. колец ragged-среза за terrainApproachRing (полоски за ступенями)."))
+    public int terrainPerimeterRaggedOutwardDepth = 2;
 
     @Comment(@CommentValue("Мин. воздуха над верхом схемы."))
     public int minAirAbove = 6;
@@ -56,6 +62,12 @@ public final class SchematicPlacementSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Макс. перепад Y в зоне обрыва относительно ближайшей колонки пола."))
     public int maxCliffDropFromEdge = 8;
+
+    @Comment(@CommentValue("Гора: 0 = выкл; N = N блоков подряд наружу, каждый выше предыдущего → отказ."))
+    public int minOutwardMountainRiseSteps = 0;
+
+    @Comment(@CommentValue("Дальность луча для горы (0 = max(6, minCliffClearanceFromEdge))."))
+    public int mountainSlopeScanDepth = 0;
 
     @Comment(@CommentValue("Сколько блоков вниз от поверхности смотреть на воду/лаву у края."))
     public int rejectWaterDepthBlocks = 8;

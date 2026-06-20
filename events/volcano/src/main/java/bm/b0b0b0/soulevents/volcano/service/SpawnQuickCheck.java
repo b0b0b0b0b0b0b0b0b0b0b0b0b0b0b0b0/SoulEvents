@@ -13,6 +13,13 @@ final class SpawnQuickCheck {
 
     private static final int MIN_SOLID_SAMPLES = 3;
 
+    private static final int[][] CARDINAL = {
+            {1, 0},
+            {-1, 0},
+            {0, 1},
+            {0, -1}
+    };
+
     private SpawnQuickCheck() {
     }
 
@@ -35,6 +42,8 @@ final class SpawnQuickCheck {
             boolean skipWaterBiomes,
             int maxSurfaceDelta,
             int terrainAdaptBlocks,
+            int minCliffClearanceFromEdge,
+            int maxCliffDropFromEdge,
             SchematicService schematics,
             String schematicId
     ) {
@@ -51,13 +60,57 @@ final class SpawnQuickCheck {
                 return perimeterWater;
             }
         }
-        return roughnessIssue(
+        int roughnessLimit = SchematicSpawnRoughness.limit(maxSurfaceDelta, terrainAdaptBlocks);
+        String roughness = roughnessIssue(world, originX, originZ, roughnessLimit, samples);
+        if (roughness != null) {
+            return roughness;
+        }
+        return cliffBandIssue(
                 world,
                 originX,
                 originZ,
-                SchematicSpawnRoughness.limit(maxSurfaceDelta, terrainAdaptBlocks),
-                samples
+                minCliffClearanceFromEdge,
+                effectiveCliffLimit(maxCliffDropFromEdge, terrainAdaptBlocks)
         );
+    }
+
+    private static int effectiveCliffLimit(int maxCliffDropFromEdge, int terrainAdaptBlocks) {
+        int configured = Math.max(1, maxCliffDropFromEdge);
+        int adapt = Math.max(0, terrainAdaptBlocks);
+        if (adapt <= 0) {
+            return configured;
+        }
+        return Math.max(configured, adapt);
+    }
+
+    private static String cliffBandIssue(
+            World world,
+            int originX,
+            int originZ,
+            int cliffBand,
+            int cliffLimit
+    ) {
+        if (cliffBand <= 0) {
+            return null;
+        }
+        int centerY = SpawnGroundHeights.spawnSurfaceY(world, originX, originZ);
+        for (int[] direction : CARDINAL) {
+            int prevY = centerY;
+            for (int distance = 1; distance <= cliffBand; distance++) {
+                int x = originX + direction[0] * distance;
+                int z = originZ + direction[1] * distance;
+                int surfaceY = SpawnGroundHeights.spawnSurfaceY(world, x, z);
+                int delta = Math.abs(surfaceY - prevY);
+                if (delta > cliffLimit) {
+                    return "quick-cliff-near-edge dist=" + distance
+                            + " delta=" + delta
+                            + " limit=" + cliffLimit
+                            + " at=" + x + "," + surfaceY + "," + z;
+                }
+                prevY = surfaceY;
+            }
+        }
+        return null;
     }
 
     private static String perimeterWaterIssue(

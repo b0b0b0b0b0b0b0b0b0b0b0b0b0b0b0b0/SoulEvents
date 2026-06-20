@@ -50,12 +50,6 @@ public final class SchematicPlacementValidator {
             return SchematicPlacementResolution.rejected("schematic-probe-empty");
         }
 
-        List<SchematicFloorColumn> perimeterColumns =
-                SchematicFloorSupport.perimeterFloorColumns(floorColumns);
-        if (perimeterColumns.isEmpty()) {
-            perimeterColumns = floorColumns;
-        }
-
         int[] floorHeights = new int[floorColumns.size()];
         for (int index = 0; index < floorColumns.size(); index++) {
             SchematicFloorColumn column = floorColumns.get(index);
@@ -72,11 +66,16 @@ public final class SchematicPlacementValidator {
         }
 
         int roughnessLimit = spawnRoughnessLimit(placement);
-        for (SchematicFloorColumn column : perimeterColumns) {
-            int height = heightAtColumn(column, floorColumns, floorHeights);
-            if (referenceY - height > roughnessLimit) {
+        int pasteY = referenceY + placement.verticalOffset
+                - SchematicFloorSupport.minFloorDy(metadata.floorColumns(), metadata);
+        for (int index = 0; index < floorColumns.size(); index++) {
+            SchematicFloorColumn column = floorColumns.get(index);
+            int targetY = pasteY + column.floorDy();
+            int naturalY = floorHeights[index];
+            int delta = Math.abs(naturalY - targetY);
+            if (delta > roughnessLimit) {
                 return SchematicPlacementResolution.rejected(
-                        "schematic-terrain-too-rough delta=" + (referenceY - height)
+                        "schematic-terrain-too-rough delta=" + delta
                                 + " limit=" + roughnessLimit
                                 + " at=" + (pasteOriginBlockX + column.dx()) + ","
                                 + (pasteOriginBlockZ + column.dz())
@@ -98,6 +97,7 @@ public final class SchematicPlacementValidator {
                 world,
                 pasteOriginBlockX,
                 pasteOriginBlockZ,
+                pasteY,
                 floorColumns,
                 placement
         );
@@ -105,8 +105,6 @@ public final class SchematicPlacementValidator {
             return SchematicPlacementResolution.rejected("schematic-surface-invalid " + edgeIssue);
         }
 
-        int pasteY = referenceY + placement.verticalOffset
-                - SchematicFloorSupport.minFloorDy(metadata.floorColumns(), metadata);
         String clearanceIssue = clearanceIssue(
                 world,
                 pasteOriginBlockX,
@@ -144,20 +142,6 @@ public final class SchematicPlacementValidator {
         return SchematicPlacementResolution.accepted(
                 new Location(world, pasteOriginBlockX, pasteY, pasteOriginBlockZ)
         );
-    }
-
-    private static int heightAtColumn(
-            SchematicFloorColumn target,
-            List<SchematicFloorColumn> floorColumns,
-            int[] floorHeights
-    ) {
-        for (int index = 0; index < floorColumns.size(); index++) {
-            SchematicFloorColumn column = floorColumns.get(index);
-            if (column.dx() == target.dx() && column.dz() == target.dz()) {
-                return floorHeights[index];
-            }
-        }
-        return floorHeights[0];
     }
 
     private static String clearanceIssue(

@@ -101,6 +101,8 @@ public final class SchematicSpawnSupport {
                 : source.approachFrontFacing();
         placement.terrainApproachTrimOnly = source.terrainApproachTrimOnly();
         placement.terrainApproachRaggedDensity = source.terrainApproachRaggedDensity();
+        placement.terrainPerimeterRaggedTrim = source.terrainPerimeterRaggedTrim();
+        placement.terrainPerimeterRaggedOutwardDepth = source.terrainPerimeterRaggedOutwardDepth();
         placement.minAirAbove = source.minAirAbove();
         placement.safetyMargin = source.safetyMargin();
         placement.placementProbeStep = source.placementProbeStep();
@@ -110,6 +112,8 @@ public final class SchematicSpawnSupport {
         placement.minWaterClearanceFromEdge = source.minWaterClearanceFromEdge();
         placement.minCliffClearanceFromEdge = source.minCliffClearanceFromEdge();
         placement.maxCliffDropFromEdge = source.maxCliffDropFromEdge();
+        placement.minOutwardMountainRiseSteps = source.minOutwardMountainRiseSteps();
+        placement.mountainSlopeScanDepth = source.mountainSlopeScanDepth();
         placement.requireSolidBelow = source.requireSolidBelow();
         applyTerrainMaterials(placement.terrainMaterials, source);
         return placement;

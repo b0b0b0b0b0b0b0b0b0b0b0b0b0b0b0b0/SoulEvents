@@ -11,6 +11,7 @@ final class SpawnSearchTuning {
             int scanRadius,
             int scanStep,
             int maxScanCandidates,
+            int searchTimeoutSeconds,
             boolean bypassPlayerProximity
     ) {
     }
@@ -19,14 +20,16 @@ final class SpawnSearchTuning {
     }
 
     static Values resolve(String source, RandomSpawnSettings spawn, boolean bypassLimits) {
+        int timeout = searchTimeoutSeconds(source, spawn);
         if ("admin".equals(source)) {
             return new Values(
-                    4,
-                    32,
+                    Math.max(1, spawn.landProbeSamples),
+                    Math.max(24, spawn.landProbeRadius),
                     Math.max(1, spawn.maxAttempts),
-                    80,
+                    48,
                     16,
-                    12,
+                    5,
+                    timeout,
                     true
             );
         }
@@ -37,7 +40,16 @@ final class SpawnSearchTuning {
                 Math.max(32, spawn.landProbeRadius),
                 16,
                 6,
+                timeout,
                 bypassLimits
         );
+    }
+
+    static int searchTimeoutSeconds(String source, RandomSpawnSettings spawn) {
+        int configured = Math.max(5, spawn.searchTimeoutSeconds);
+        if ("admin".equals(source)) {
+            return Math.min(configured, 15);
+        }
+        return Math.min(configured, 20);
     }
 }

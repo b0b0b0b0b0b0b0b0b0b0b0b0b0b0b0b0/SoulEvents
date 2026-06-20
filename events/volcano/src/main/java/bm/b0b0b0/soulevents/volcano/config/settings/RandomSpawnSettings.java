@@ -25,7 +25,7 @@ public class RandomSpawnSettings extends YamlSerializable {
     public int maxAttempts = 48;
 
     @Comment(@CommentValue("Макс. секунд на поиск точки, потом отказ."))
-    public int searchTimeoutSeconds = 45;
+    public int searchTimeoutSeconds = 15;
 
     @Comment(@CommentValue("Не используется: поиск идёт по одной точке за раз."))
     public int parallelAttempts = 1;
@@ -34,7 +34,7 @@ public class RandomSpawnSettings extends YamlSerializable {
     public int loadedChunkCandidateLimit = 0;
 
     @Comment(@CommentValue("Случайных смещений вокруг точки biome на одну попытку (чанки грузятся один раз на попытку)."))
-    public int landProbeSamples = 4;
+    public int landProbeSamples = 6;
 
     @Comment(@CommentValue("Радиус смещения от biome-точки (блоки)."))
     public int landProbeRadius = 32;

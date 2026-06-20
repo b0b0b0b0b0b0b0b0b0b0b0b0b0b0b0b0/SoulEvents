@@ -15,6 +15,7 @@ final class SchematicEdgeClearance {
             World world,
             int pasteOriginBlockX,
             int pasteOriginBlockZ,
+            int pasteY,
             List<SchematicFloorColumn> floorColumns,
             SchematicPlacementSettings placement
     ) {
@@ -23,12 +24,22 @@ final class SchematicEdgeClearance {
         }
         int waterBand = Math.max(0, placement.minWaterClearanceFromEdge);
         int cliffBand = Math.max(0, placement.minCliffClearanceFromEdge);
-        int cliffLimit = Math.max(1, placement.maxCliffDropFromEdge);
+        int cliffLimit = SchematicEdgeClearance.effectiveCliffDropLimit(placement);
         if (waterBand == 0 && cliffBand == 0) {
             return legacyLiquidBuffer(world, pasteOriginBlockX, pasteOriginBlockZ, floorColumns, placement);
         }
         int maxBand = Math.max(waterBand, cliffBand);
         int depth = Math.max(0, placement.rejectWaterDepthBlocks);
+        String mountainIssue = SchematicMountainSlopeSupport.validate(
+                world,
+                pasteOriginBlockX,
+                pasteOriginBlockZ,
+                floorColumns,
+                placement
+        );
+        if (mountainIssue != null) {
+            return mountainIssue;
+        }
         for (SchematicApproachColumn column : SchematicFloorSupport.approachRingColumns(floorColumns, maxBand)) {
             int edgeDistance = column.ringDistance();
             int x = pasteOriginBlockX + column.dx();
@@ -40,24 +51,27 @@ final class SchematicEdgeClearance {
                 }
             }
             if (edgeDistance <= cliffBand) {
-                int nearestSurfaceY = nearestSolidSurfaceY(
-                        column.dx(),
-                        column.dz(),
-                        pasteOriginBlockX,
-                        pasteOriginBlockZ,
-                        floorColumns,
-                        world
-                );
+                int edgeWorldY = pasteY + column.edgeReferenceDy();
                 int surfaceY = NaturalSurfaceResolver.spawnSurfaceY(world, x, z);
-                if (Math.abs(surfaceY - nearestSurfaceY) > cliffLimit) {
+                int delta = Math.abs(surfaceY - edgeWorldY);
+                if (delta > cliffLimit) {
                     return "cliff-near-edge dist=" + edgeDistance
-                            + " delta=" + Math.abs(surfaceY - nearestSurfaceY)
+                            + " delta=" + delta
                             + " limit=" + cliffLimit
                             + " at=" + x + "," + surfaceY + "," + z;
                 }
             }
         }
         return null;
+    }
+
+    static int effectiveCliffDropLimit(SchematicPlacementSettings placement) {
+        int configured = Math.max(1, placement.maxCliffDropFromEdge);
+        int adapt = Math.max(0, placement.terrainAdaptBlocks);
+        if (adapt <= 0) {
+            return configured;
+        }
+        return Math.max(configured, adapt);
     }
 
     private static String legacyLiquidBuffer(
@@ -81,31 +95,6 @@ final class SchematicEdgeClearance {
             }
         }
         return null;
-    }
-
-    private static int nearestSolidSurfaceY(
-            int dx,
-            int dz,
-            int pasteX,
-            int pasteZ,
-            List<SchematicFloorColumn> floorColumns,
-            World world
-    ) {
-        int bestDistance = Integer.MAX_VALUE;
-        int bestY = NaturalSurfaceResolver.spawnSurfaceY(world, pasteX + dx, pasteZ + dz);
-        for (SchematicFloorColumn column : floorColumns) {
-            int distance = Math.max(Math.abs(dx - column.dx()), Math.abs(dz - column.dz()));
-            if (distance >= bestDistance) {
-                continue;
-            }
-            bestDistance = distance;
-            bestY = NaturalSurfaceResolver.spawnSurfaceY(
-                    world,
-                    pasteX + column.dx(),
-                    pasteZ + column.dz()
-            );
-        }
-        return bestY;
     }
 
     private static String liquidColumnIssue(World world, int x, int z, int depth) {

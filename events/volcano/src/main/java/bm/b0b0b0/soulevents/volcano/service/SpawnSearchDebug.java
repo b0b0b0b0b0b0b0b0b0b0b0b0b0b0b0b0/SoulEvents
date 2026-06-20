@@ -186,6 +186,12 @@ final class SpawnSearchDebug {
         if (reason.contains("cliff-near-edge")) {
             return "cliff-near-edge";
         }
+        if (reason.contains("quick-cliff-near-edge")) {
+            return "quick-cliff-near-edge";
+        }
+        if (reason.contains("mountain-slope-near-edge")) {
+            return "mountain-slope-near-edge";
+        }
         if (reason.contains("liquid-nearby")) {
             return "liquid-nearby";
         }

@@ -10,16 +10,16 @@ public final class TypeSchematicPlacementSettings extends YamlSerializable {
     public int verticalOffset = 0;
 
     @Comment(@CommentValue("Макс. перепад высот подножия по footprint; склоны отклоняются."))
-    public int maxSurfaceDelta = 5;
+    public int maxSurfaceDelta = 7;
 
     @Comment(@CommentValue("Нормализация подножия: подгонка всего footprint вверх/вниз (блоков)."))
-    public int terrainAdaptBlocks = 6;
+    public int terrainAdaptBlocks = 8;
 
-    @Comment(@CommentValue("0 = не трогать блоки за контуром footprint (полное кольцо вокруг)."))
-    public int terrainApproachRing = 0;
+    @Comment(@CommentValue("Кольцо ступенек наружу: −1 блок/кольцо, глубина авто по обрыву вокруг контура."))
+    public int terrainApproachRing = 6;
 
-    @Comment(@CommentValue("Полоса снаружи: подсыпка ям + рagged-срез +1. 0 = выкл."))
-    public int terrainApproachFrontDepth = 5;
+    @Comment(@CommentValue("Доп. полоса только спереди (0 = только кольцо по кругу)."))
+    public int terrainApproachFrontDepth = 0;
 
     @Comment(@CommentValue("Сторона подхода: AUTO (к маркеру жерла), NORTH, SOUTH, EAST, WEST — оси схемы."))
     public String approachFrontFacing = "AUTO";
@@ -29,6 +29,12 @@ public final class TypeSchematicPlacementSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Доля колонок среза (0.62 ≈ рваный край как в генерации)."))
     public float terrainApproachRaggedDensity = 0.62f;
+
+    @Comment(@CommentValue("После paste: ragged-срез +1…+2 снаружи (ступени до этого — в adapt)."))
+    public boolean terrainPerimeterRaggedTrim = true;
+
+    @Comment(@CommentValue("Доп. колец ragged-среза за terrainApproachRing (полоски за ступенями)."))
+    public int terrainPerimeterRaggedOutwardDepth = 2;
 
     @Comment(@CommentValue("Макс. перепад в safety-margin вокруг footprint (legacy)."))
     public int maxSafetyMarginDelta = 4;
@@ -54,11 +60,17 @@ public final class TypeSchematicPlacementSettings extends YamlSerializable {
     @Comment(@CommentValue("Мин. блоков от края solid-пола до воды/лавы."))
     public int minWaterClearanceFromEdge = 6;
 
-    @Comment(@CommentValue("Мин. блоков от края solid-пола до зоны обрыва/склона."))
-    public int minCliffClearanceFromEdge = 4;
+    @Comment(@CommentValue("Мин. блоков от края solid-пола до зоны обрыва/склона/гор."))
+    public int minCliffClearanceFromEdge = 8;
 
-    @Comment(@CommentValue("Макс. перепад Y в зоне обрыва относительно ближайшей колонки пола."))
-    public int maxCliffDropFromEdge = 5;
+    @Comment(@CommentValue("Макс. перепад Y в зоне обрыва (не ниже terrainAdaptBlocks)."))
+    public int maxCliffDropFromEdge = 6;
+
+    @Comment(@CommentValue("Гора: 0 = выкл; 5 = пять блоков подряд наружу, каждый выше → отказ."))
+    public int minOutwardMountainRiseSteps = 5;
+
+    @Comment(@CommentValue("Дальность луча для горы (0 = max(6, minCliffClearanceFromEdge))."))
+    public int mountainSlopeScanDepth = 0;
 
     @Comment(@CommentValue("Твёрдый блок под поверхностью."))
     public boolean requireSolidBelow = true;

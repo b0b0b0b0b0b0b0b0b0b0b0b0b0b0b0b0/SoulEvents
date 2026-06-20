@@ -407,7 +407,7 @@ public final class RandomLocationFinder {
                         type.schematic.placement.maxSurfaceDelta,
                         type.schematic.placement.terrainAdaptBlocks)
                         : spawn.flatMaxHeightDelta,
-                spawn.searchTimeoutSeconds,
+                tuning.searchTimeoutSeconds(),
                 1,
                 spawn.loadedChunkCandidateLimit
         );
@@ -422,7 +422,8 @@ public final class RandomLocationFinder {
             return;
         }
         WorldGuardRegionIndex regionIndex = WorldGuardIntegrations.regionIndex(world);
-        long deadlineMillis = System.currentTimeMillis() + Math.max(1, spawn.searchTimeoutSeconds) * 1000L;
+        long deadlineMillis = System.currentTimeMillis()
+                + Math.max(1, tuning.searchTimeoutSeconds()) * 1000L;
         AtomicBoolean finished = new AtomicBoolean(false);
         AtomicInteger attemptCounter = new AtomicInteger(0);
         Random random = ThreadLocalRandom.current();
@@ -466,12 +467,12 @@ public final class RandomLocationFinder {
         RandomSpawnSettings spawn = type.randomSpawn;
         int maxAttempts = tuning.maxAttempts();
         if (System.currentTimeMillis() >= deadlineMillis) {
-            finishSearch(plugin, type, deadlineMillis, finished, debug, callback);
+            finishSearch(plugin, type, deadlineMillis, finished, debug, tuning.searchTimeoutSeconds(), callback);
             return;
         }
         int attemptIndex = attemptCounter.getAndIncrement();
         if (attemptIndex >= maxAttempts) {
-            finishSearch(plugin, type, deadlineMillis, finished, debug, callback);
+            finishSearch(plugin, type, deadlineMillis, finished, debug, tuning.searchTimeoutSeconds(), callback);
             return;
         }
         Optional<SpawnRingBiomeLocator.LandPoint> landPoint = SpawnRingBiomeLocator.locate(world, area, random);
@@ -536,14 +537,12 @@ public final class RandomLocationFinder {
     ) {
         RandomSpawnSettings spawn = type.randomSpawn;
         int maxAttempts = tuning.maxAttempts();
-        int expandedScanRadius = tuning.scanRadius() + 48;
-        int blockRadius = expandedScanRadius
-                + spawnChunkMargin(type.schematic.placement)
-                + footprintBlockReach(schematics, type.schematicId());
-        CompletableFuture<Void> scanChunksLoaded = type.usesSchematic()
-                ? schematics.prepareSpawnSearchArea(world, anchor.x(), anchor.z(), blockRadius)
-                : world.getChunkAtAsync(anchor.x() >> 4, anchor.z() >> 4, true).thenApply(chunk -> null);
-        scanChunksLoaded.whenComplete((ignored, loadError) -> plugin.getServer().getScheduler().runTask(
+        CompletableFuture<Void> anchorChunkLoaded = world.getChunkAtAsync(
+                anchor.x() >> 4,
+                anchor.z() >> 4,
+                true
+        ).thenApply(chunk -> null);
+        anchorChunkLoaded.whenComplete((ignored, loadError) -> plugin.getServer().getScheduler().runTask(
                 plugin,
                 () -> {
                     if (finished.get()) {
@@ -565,15 +564,13 @@ public final class RandomLocationFinder {
                         );
                         return;
                     }
-                    SpawnInlandRefiner.InlandScanResult inlandScan = SpawnInlandRefiner.scanWithFallback(
+                    SpawnInlandRefiner.InlandScanResult inlandScan = SpawnInlandRefiner.scanPrimary(
                             world,
                             anchor.x(),
                             anchor.z(),
                             area,
                             tuning.scanRadius(),
                             tuning.scanStep(),
-                            expandedScanRadius,
-                            Math.max(8, tuning.scanStep() - 4),
                             tuning.maxScanCandidates(),
                             type,
                             schematics
@@ -639,43 +636,83 @@ public final class RandomLocationFinder {
             int attemptIndex
     ) {
         RandomSpawnSettings spawn = type.randomSpawn;
-        int maxAttempts = tuning.maxAttempts();
         List<SpawnRingBiomeLocator.LandPoint> candidates = new ArrayList<>(probes.size());
-        for (int probeIndex = 0; probeIndex < probes.size(); probeIndex++) {
-            SpawnRingBiomeLocator.LandPoint point = probes.get(probeIndex);
+        for (SpawnRingBiomeLocator.LandPoint point : probes) {
             String prefilter = spawn.skipWaterBiomes
                     ? SpawnLandRefiner.loadedPrefilterReason(world, point.x(), point.z(), true)
                     : null;
-            if (prefilter != null) {
-                if (debug != null) {
-                    debug.reject(
-                            attemptIndex,
-                            maxAttempts,
-                            point.x(),
-                            point.z(),
-                            probeLabel(probeIndex, probes.size()) + prefilter
-                    );
-                }
-                continue;
+            if (prefilter == null) {
+                candidates.add(point);
             }
-            candidates.add(point);
         }
-        if (candidates.isEmpty()) {
+        searchAttemptProbeAsync(
+                plugin,
+                type,
+                world,
+                gate,
+                regionIndex,
+                area,
+                chunkMargin,
+                random,
+                attemptCounter,
+                deadlineMillis,
+                finished,
+                debug,
+                tuning,
+                callback,
+                probes,
+                candidates,
+                attemptIndex,
+                0
+        );
+    }
+
+    private void searchAttemptProbeAsync(
+            Plugin plugin,
+            VolcanoTypeSettings type,
+            World world,
+            WorldPlacementGate gate,
+            WorldGuardRegionIndex regionIndex,
+            MapSpawnBoundary.Area area,
+            int chunkMargin,
+            Random random,
+            AtomicInteger attemptCounter,
+            long deadlineMillis,
+            AtomicBoolean finished,
+            SpawnSearchDebug debug,
+            SpawnSearchTuning.Values tuning,
+            Consumer<Optional<Location>> callback,
+            List<SpawnRingBiomeLocator.LandPoint> probes,
+            List<SpawnRingBiomeLocator.LandPoint> candidates,
+            int attemptIndex,
+            int candidateIndex
+    ) {
+        if (finished.get()) {
+            return;
+        }
+        int maxAttempts = tuning.maxAttempts();
+        if (System.currentTimeMillis() >= deadlineMillis) {
+            finishSearch(plugin, type, deadlineMillis, finished, debug, tuning.searchTimeoutSeconds(), callback);
+            return;
+        }
+        if (candidateIndex >= candidates.size()) {
             searchNextAsync(
                     plugin, type, world, gate, regionIndex, area, chunkMargin, random,
                     attemptCounter, deadlineMillis, finished, debug, tuning, callback
             );
             return;
         }
-        List<int[]> blockOrigins = new ArrayList<>(candidates.size());
-        for (SpawnRingBiomeLocator.LandPoint point : candidates) {
-            blockOrigins.add(new int[] {point.x(), point.z()});
+        SpawnRingBiomeLocator.LandPoint point = candidates.get(candidateIndex);
+        int probeIndex = probes.indexOf(point);
+        if (probeIndex < 0) {
+            probeIndex = candidateIndex;
         }
+        final int labeledProbeIndex = probeIndex;
+        List<int[]> blockOrigins = List.of(new int[] {point.x(), point.z()});
         CompletableFuture<Void> chunksLoaded = type.usesSchematic()
                 ? schematics.prepareSpawnSearchFootprint(
                 world, type.schematicId(), chunkMargin, blockOrigins)
-                : world.getChunkAtAsync(candidates.getFirst().x() >> 4, candidates.getFirst().z() >> 4, true)
-                .thenApply(chunk -> null);
+                : world.getChunkAtAsync(point.x() >> 4, point.z() >> 4, true).thenApply(chunk -> null);
         chunksLoaded.whenComplete((ignored, loadError) -> plugin.getServer().getScheduler().runTask(
                 plugin,
                 () -> {
@@ -687,58 +724,57 @@ public final class RandomLocationFinder {
                             debug.reject(
                                     attemptIndex,
                                     maxAttempts,
-                                    candidates.getFirst().x(),
-                                    candidates.getFirst().z(),
-                                    "chunk-load-failed"
+                                    point.x(),
+                                    point.z(),
+                                    probeLabel(labeledProbeIndex, probes.size()) + "chunk-load-failed"
                             );
                         }
-                        searchNextAsync(
+                        searchAttemptProbeAsync(
                                 plugin, type, world, gate, regionIndex, area, chunkMargin, random,
-                                attemptCounter, deadlineMillis, finished, debug, tuning, callback
+                                attemptCounter, deadlineMillis, finished, debug, tuning, callback,
+                                probes, candidates, attemptIndex, candidateIndex + 1
                         );
                         return;
                     }
-                    for (int probeIndex = 0; probeIndex < candidates.size(); probeIndex++) {
-                        SpawnRingBiomeLocator.LandPoint point = candidates.get(probeIndex);
-                        Candidate candidate = new Candidate(point.x(), point.z(), point.x() >> 4, point.z() >> 4);
-                        CandidateValidation validation = validateCandidateDetailed(
-                                world,
-                                candidate,
-                                type,
-                                gate,
-                                regionIndex,
-                                tuning.bypassPlayerProximity()
-                        );
-                        if (validation.location().isPresent()) {
-                            if (!finished.compareAndSet(false, true)) {
-                                return;
-                            }
-                            Location location = validation.location().get();
-                            if (debug != null) {
-                                debug.success(
-                                        attemptIndex,
-                                        maxAttempts,
-                                        candidate.x(),
-                                        location.getBlockY(),
-                                        candidate.z()
-                                );
-                            }
-                            callback.accept(validation.location());
+                    Candidate candidate = new Candidate(point.x(), point.z(), point.x() >> 4, point.z() >> 4);
+                    CandidateValidation validation = validateCandidateDetailed(
+                            world,
+                            candidate,
+                            type,
+                            gate,
+                            regionIndex,
+                            tuning.bypassPlayerProximity()
+                    );
+                    if (validation.location().isPresent()) {
+                        if (!finished.compareAndSet(false, true)) {
                             return;
                         }
+                        Location location = validation.location().get();
                         if (debug != null) {
-                            debug.reject(
+                            debug.success(
                                     attemptIndex,
                                     maxAttempts,
                                     candidate.x(),
-                                    candidate.z(),
-                                    probeLabel(probeIndex, probes.size()) + validation.rejectionReason()
+                                    location.getBlockY(),
+                                    candidate.z()
                             );
                         }
+                        callback.accept(validation.location());
+                        return;
                     }
-                    searchNextAsync(
+                    if (debug != null) {
+                        debug.reject(
+                                attemptIndex,
+                                maxAttempts,
+                                candidate.x(),
+                                candidate.z(),
+                                probeLabel(labeledProbeIndex, probes.size()) + validation.rejectionReason()
+                        );
+                    }
+                    searchAttemptProbeAsync(
                             plugin, type, world, gate, regionIndex, area, chunkMargin, random,
-                            attemptCounter, deadlineMillis, finished, debug, tuning, callback
+                            attemptCounter, deadlineMillis, finished, debug, tuning, callback,
+                            probes, candidates, attemptIndex, candidateIndex + 1
                     );
                 }
         ));
@@ -757,6 +793,7 @@ public final class RandomLocationFinder {
             long deadlineMillis,
             AtomicBoolean finished,
             SpawnSearchDebug debug,
+            int timeoutSeconds,
             Consumer<Optional<Location>> callback
     ) {
         plugin.getServer().getScheduler().runTask(plugin, () -> {
@@ -765,7 +802,7 @@ public final class RandomLocationFinder {
             }
             if (debug != null) {
                 if (System.currentTimeMillis() >= deadlineMillis) {
-                    debug.finishTimedOut(type.randomSpawn.searchTimeoutSeconds);
+                    debug.finishTimedOut(timeoutSeconds);
                 } else {
                     debug.finishFailed();
                 }
@@ -789,29 +826,16 @@ public final class RandomLocationFinder {
             }
             SpawnRingBiomeLocator.LandPoint anchor = landPoint.get();
             SpawnSearchTuning.Values tuning = SpawnSearchTuning.resolve("scheduler", spawn, false);
-            int expandedScanRadius = tuning.scanRadius() + 48;
-            int blockRadius = expandedScanRadius
-                    + spawnChunkMargin(type.schematic.placement)
-                    + footprintBlockReach(schematics, type.schematicId());
-            if (type.usesSchematic()) {
-                schematics.prepareSpawnSearchArea(
-                        world,
-                        anchor.x(),
-                        anchor.z(),
-                        blockRadius
-                ).join();
-            } else if (!world.isChunkLoaded(anchor.x() >> 4, anchor.z() >> 4)) {
+            if (!world.isChunkLoaded(anchor.x() >> 4, anchor.z() >> 4)) {
                 world.loadChunk(anchor.x() >> 4, anchor.z() >> 4);
             }
-            SpawnInlandRefiner.InlandScanResult inlandScan = SpawnInlandRefiner.scanWithFallback(
+            SpawnInlandRefiner.InlandScanResult inlandScan = SpawnInlandRefiner.scanPrimary(
                     world,
                     anchor.x(),
                     anchor.z(),
                     area,
                     tuning.scanRadius(),
                     tuning.scanStep(),
-                    expandedScanRadius,
-                    Math.max(8, tuning.scanStep() - 4),
                     tuning.maxScanCandidates(),
                     type,
                     schematics
@@ -821,6 +845,16 @@ public final class RandomLocationFinder {
                 continue;
             }
             for (SpawnRingBiomeLocator.LandPoint point : candidates) {
+                if (type.usesSchematic()) {
+                    schematics.prepareSpawnSearchFootprint(
+                            world,
+                            type.schematicId(),
+                            chunkMargin,
+                            List.of(new int[] {point.x(), point.z()})
+                    ).join();
+                } else if (!world.isChunkLoaded(point.x() >> 4, point.z() >> 4)) {
+                    world.loadChunk(point.x() >> 4, point.z() >> 4);
+                }
                 Candidate candidate = new Candidate(point.x(), point.z(), point.x() >> 4, point.z() >> 4);
                 Optional<Location> location = validateCandidate(world, candidate, type, gate, regionIndex);
                 if (location.isPresent()) {
@@ -854,6 +888,8 @@ public final class RandomLocationFinder {
     }
 
     private static int spawnChunkMargin(TypeSchematicPlacementSettings placement) {
+        int approachReach = Math.max(placement.terrainApproachRing, placement.terrainApproachFrontDepth)
+                + Math.max(0, placement.terrainPerimeterRaggedOutwardDepth);
         return Math.max(
                 placement.safetyMargin,
                 Math.max(
@@ -862,7 +898,7 @@ public final class RandomLocationFinder {
                                 placement.minWaterClearanceFromEdge,
                                 Math.max(
                                         placement.minCliffClearanceFromEdge,
-                                        Math.max(placement.terrainApproachRing, placement.terrainApproachFrontDepth) + 2
+                                        approachReach + 2
                                 )
                         )
                 )

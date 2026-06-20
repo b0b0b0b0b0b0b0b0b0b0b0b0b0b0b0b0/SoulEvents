@@ -91,6 +91,11 @@ public final class AirDropTypeSettingsMenu implements InventoryHolder {
             service.spawnAdminBatchAsync(player, typeId, gui.multiSummonCount);
             return;
         }
+        if (slot == gui.despawnSlot) {
+            service.despawnAdmin(player, typeId);
+            render();
+            return;
+        }
         if (slot == gui.requirementsSlot) {
             if (event.isRightClick()) {
                 guiFactory.openRequiredItems(player, typeId);
@@ -138,6 +143,11 @@ public final class AirDropTypeSettingsMenu implements InventoryHolder {
                 messages.resolve("gui.type-settings.multi-summon", ph),
                 messages.resolveLore("gui.type-settings.multi-summon-lore", ph)
         ));
+        inventory.setItem(gui.despawnSlot, icon(
+                Material.matchMaterial(gui.despawnMaterial),
+                messages.resolve("gui.type-settings.despawn", ph),
+                messages.resolveLore("gui.type-settings.despawn-lore", ph)
+        ));
         inventory.setItem(gui.lootInfoSlot, icon(
                 Material.matchMaterial(gui.lootInfoMaterial),
                 messages.resolve("gui.type-settings.loot", ph),
@@ -164,6 +174,7 @@ public final class AirDropTypeSettingsMenu implements InventoryHolder {
         )));
         values.put("occupied", Integer.toString(definition.loot().occupiedSlots));
         values.put("batch", Integer.toString(gui.multiSummonCount));
+        values.put("active", Integer.toString(service.countActive(typeId)));
         values.put("permission_state", definition.settings().openPermission.enabled
                 ? messages.resolvePlain("gui.requirements.state-on", Map.of())
                 : messages.resolvePlain("gui.requirements.state-off", Map.of()));

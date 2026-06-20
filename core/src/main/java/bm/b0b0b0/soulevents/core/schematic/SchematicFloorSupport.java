@@ -142,6 +142,96 @@ public final class SchematicFloorSupport {
         return Math.max(Math.max(approachRing, frontDepth), column.ringDistance());
     }
 
+    public static List<SchematicApproachColumn> exteriorTrimColumns(
+            List<SchematicFloorColumn> floorColumns,
+            SchematicDefinition.SchematicMetadata metadata,
+            int approachRing,
+            int raggedOutwardDepth,
+            int frontDepth,
+            String frontFacing
+    ) {
+        int maxRing = approachRing + Math.max(0, raggedOutwardDepth);
+        if (maxRing <= 0 || floorColumns.isEmpty()) {
+            return List.of();
+        }
+        java.util.LinkedHashMap<Long, SchematicApproachColumn> columns = new java.util.LinkedHashMap<>();
+        for (SchematicApproachColumn column : approachRingColumns(floorColumns, maxRing)) {
+            columns.put(columnKey(column.dx(), column.dz()), column);
+        }
+        for (SchematicApproachColumn column : approachAdaptColumns(
+                floorColumns,
+                metadata,
+                approachRing,
+                frontDepth,
+                frontFacing
+        )) {
+            columns.putIfAbsent(columnKey(column.dx(), column.dz()), column);
+        }
+        for (SchematicApproachColumn column : regionExteriorColumns(floorColumns, metadata, maxRing)) {
+            columns.putIfAbsent(columnKey(column.dx(), column.dz()), column);
+        }
+        return List.copyOf(columns.values());
+    }
+
+    private static List<SchematicApproachColumn> regionExteriorColumns(
+            List<SchematicFloorColumn> floorColumns,
+            SchematicDefinition.SchematicMetadata metadata,
+            int maxRing
+    ) {
+        List<SchematicFloorColumn> perimeterFloor = perimeterFloorColumns(floorColumns);
+        if (perimeterFloor.isEmpty()) {
+            return List.of();
+        }
+        int minDx = metadata.regionMinX() - metadata.originX();
+        int maxDx = metadata.regionMaxX() - metadata.originX();
+        int minDz = metadata.regionMinZ() - metadata.originZ();
+        int maxDz = metadata.regionMaxZ() - metadata.originZ();
+        int fallbackFootDy = minFloorDy(floorColumns, metadata);
+        java.util.LinkedHashMap<Long, SchematicApproachColumn> result = new java.util.LinkedHashMap<>();
+
+        for (int ring = 1; ring <= maxRing; ring++) {
+            int x0 = minDx - ring;
+            int x1 = maxDx + ring;
+            int z0 = minDz - ring;
+            int z1 = maxDz + ring;
+            for (int dx = x0; dx <= x1; dx++) {
+                addRegionExteriorCell(result, dx, z0, ring, minDx, maxDx, minDz, maxDz, perimeterFloor, fallbackFootDy);
+                addRegionExteriorCell(result, dx, z1, ring, minDx, maxDx, minDz, maxDz, perimeterFloor, fallbackFootDy);
+            }
+            for (int dz = z0 + 1; dz <= z1 - 1; dz++) {
+                addRegionExteriorCell(result, x0, dz, ring, minDx, maxDx, minDz, maxDz, perimeterFloor, fallbackFootDy);
+                addRegionExteriorCell(result, x1, dz, ring, minDx, maxDx, minDz, maxDz, perimeterFloor, fallbackFootDy);
+            }
+        }
+        return List.copyOf(result.values());
+    }
+
+    private static void addRegionExteriorCell(
+            java.util.LinkedHashMap<Long, SchematicApproachColumn> result,
+            int dx,
+            int dz,
+            int ring,
+            int minDx,
+            int maxDx,
+            int minDz,
+            int maxDz,
+            List<SchematicFloorColumn> perimeterFloor,
+            int fallbackFootDy
+    ) {
+        if (dx >= minDx && dx <= maxDx && dz >= minDz && dz <= maxDz) {
+            return;
+        }
+        long key = columnKey(dx, dz);
+        if (result.containsKey(key)) {
+            return;
+        }
+        int edgeReferenceDy = nearestEdgeReferenceDy(dx, dz, perimeterFloor);
+        if (edgeReferenceDy == Integer.MIN_VALUE) {
+            edgeReferenceDy = fallbackFootDy;
+        }
+        result.put(key, new SchematicApproachColumn(dx, dz, ring, edgeReferenceDy));
+    }
+
     private static int[] resolveApproachFrontFacing(
             List<SchematicFloorColumn> floorColumns,
             int markerDx,

@@ -91,6 +91,11 @@ public final class VolcanoTypeSettingsMenu implements InventoryHolder {
             service.spawnAdminBatchAsync(player, typeId, gui.multiSummonCount);
             return;
         }
+        if (slot == gui.despawnSlot) {
+            service.despawnAdmin(player, typeId);
+            render();
+            return;
+        }
         if (slot == gui.lootInfoSlot) {
             guiFactory.openLootHub(player, typeId);
         }
@@ -128,6 +133,11 @@ public final class VolcanoTypeSettingsMenu implements InventoryHolder {
                 messages.resolve("gui.type-settings.multi-summon", ph),
                 messages.resolveLore("gui.type-settings.multi-summon-lore", ph)
         ));
+        inventory.setItem(gui.despawnSlot, icon(
+                Material.matchMaterial(gui.despawnMaterial),
+                messages.resolve("gui.type-settings.despawn", ph),
+                messages.resolveLore("gui.type-settings.despawn-lore", ph)
+        ));
         inventory.setItem(gui.lootInfoSlot, icon(
                 Material.matchMaterial(gui.lootInfoMaterial),
                 messages.resolve("gui.type-settings.loot", ph),
@@ -149,6 +159,7 @@ public final class VolcanoTypeSettingsMenu implements InventoryHolder {
         )));
         values.put("occupied", Integer.toString(definition.loot().occupiedSlots));
         values.put("batch", Integer.toString(gui.multiSummonCount));
+        values.put("active", Integer.toString(service.countActive(typeId)));
         values.put("eruption_items", Integer.toString(definition.settings().eruption.itemCount));
         return values;
     }

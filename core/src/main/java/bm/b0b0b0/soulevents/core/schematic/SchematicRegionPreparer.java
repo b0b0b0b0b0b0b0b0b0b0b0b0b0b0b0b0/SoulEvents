@@ -201,7 +201,9 @@ public final class SchematicRegionPreparer {
             Runnable onComplete
     ) {
         List<SchematicFloorColumn> floorColumns = SchematicFloorSupport.footprintAdaptColumns(metadata.floorColumns());
-        int approachRing = Math.max(0, placement.terrainApproachRing);
+        int approachRing = SchematicApproachSupport.resolveEffectiveApproachRing(
+                world, pasteX, pasteY, pasteZ, metadata.floorColumns(), placement
+        );
         int frontDepth = Math.max(0, placement.terrainApproachFrontDepth);
         List<SchematicApproachColumn> approachColumns = SchematicFloorSupport.approachAdaptColumns(
                 metadata.floorColumns(),
@@ -244,6 +246,7 @@ public final class SchematicRegionPreparer {
                         SchematicFloorSupport.approachAdaptRingDepth(column, approachRing, frontDepth),
                         limit,
                         placement,
+                        approachRing,
                         pasteX,
                         pasteZ
                 );

@@ -445,18 +445,37 @@ public final class SchematicServiceImpl implements SchematicService {
                 Location resolvedChest = resolvedChests.getFirst();
                 List<WorldEditSchematicBridge.BlockSnapshot> undoSnapshots =
                         new ArrayList<>(prepared.snapshots());
+                java.util.Set<Long> undoCaptureKeys = WorldEditSchematicBridge.snapshotKeys(undoSnapshots);
+                if (placement.terrainPerimeterRaggedTrim) {
+                    SchematicPerimeterRaggedTrimmer.appendCapture(
+                            world,
+                            normalizedOrigin,
+                            metadata,
+                            placement,
+                            undoSnapshots,
+                            undoCaptureKeys
+                    );
+                    SchematicPerimeterRaggedTrimmer.trim(
+                            world,
+                            normalizedOrigin,
+                            metadata,
+                            placement,
+                            terrainContext.terrainAdapter()
+                    );
+                }
                 if (blendEnabled && effectiveBlendRadius > 0) {
                     SchematicWorldBounds bounds = SchematicFloorSupport.toFloorWorldBounds(normalizedOrigin, metadata);
-                    java.util.Set<Long> capturedKeys = WorldEditSchematicBridge.snapshotKeys(undoSnapshots);
                     SchematicLandscapeBlender landscapeBlender = terrainContext.landscapeBlender();
                     landscapeBlender.appendPreBlendCapture(
                             world,
                             bounds,
                             effectiveBlendRadius,
                             undoSnapshots,
-                            capturedKeys
+                            undoCaptureKeys
                     );
                     landscapeBlender.blend(world, bounds, effectiveBlendRadius);
+                }
+                if (placement.terrainPerimeterRaggedTrim || (blendEnabled && effectiveBlendRadius > 0)) {
                     sessionUndo.store(options.sessionId(), world.getName(), List.copyOf(undoSnapshots));
                 }
                 SchematicRegionChunkLoader.refreshForPlayers(

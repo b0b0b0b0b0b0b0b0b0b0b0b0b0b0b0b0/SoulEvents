@@ -21,6 +21,9 @@ public final class TypeSettingsGuiSettings {
     @Comment(@CommentValue("Слот пакетного призыва (несколько аирдропов)."))
     public int multiSummonSlot = 24;
 
+    @Comment(@CommentValue("Слот снятия активных событий этого типа (undo схемы, лут, эффекты)."))
+    public int despawnSlot = 30;
+
     @Comment(@CommentValue("Сколько аирдропов призвать по кнопке пакетного призыва."))
     public int multiSummonCount = 3;
 
@@ -33,6 +36,7 @@ public final class TypeSettingsGuiSettings {
     public String summonMaterial = Material.LIME_DYE.name();
     public String teleportMaterial = Material.COMPASS.name();
     public String multiSummonMaterial = Material.TNT.name();
+    public String despawnMaterial = Material.BARRIER.name();
     public String lootInfoMaterial = Material.WRITTEN_BOOK.name();
     public String requirementsMaterial = Material.NAME_TAG.name();
     public String backMaterial = Material.LIGHT_GRAY_DYE.name();

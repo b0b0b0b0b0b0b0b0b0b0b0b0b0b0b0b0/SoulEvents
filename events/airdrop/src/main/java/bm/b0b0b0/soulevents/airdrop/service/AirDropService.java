@@ -492,6 +492,30 @@ public final class AirDropService {
         }
     }
 
+    public void despawnAdmin(Player player, String typeId) {
+        List<UUID> sessionIds = api.modules().activeEvents(AirDropModule.MODULE_ID).stream()
+                .filter(event -> event.typeId().equalsIgnoreCase(typeId))
+                .map(ActiveEvent::sessionId)
+                .toList();
+        if (sessionIds.isEmpty()) {
+            messages.send(player, "airdrop.despawn-none", Map.of("type", typeId));
+            return;
+        }
+        for (UUID sessionId : sessionIds) {
+            endSession(sessionId, "ADMIN");
+        }
+        messages.send(player, "airdrop.despawn-done", Map.of(
+                "type", typeId,
+                "count", Integer.toString(sessionIds.size())
+        ));
+    }
+
+    public int countActive(String typeId) {
+        return (int) api.modules().activeEvents(AirDropModule.MODULE_ID).stream()
+                .filter(event -> event.typeId().equalsIgnoreCase(typeId))
+                .count();
+    }
+
     public void spawnPlayerAsync(Player player, String typeId) {
         Optional<AirDropTypeDefinition> typeOptional = config.type(typeId);
         if (typeOptional.isEmpty()) {
@@ -1186,7 +1210,7 @@ public final class AirDropService {
     }
 
     private void endSession(UUID sessionId, String phase) {
-        if (!"SHUTDOWN".equals(phase)) {
+        if (!"SHUTDOWN".equals(phase) && !"ADMIN".equals(phase)) {
             Optional<ActiveEvent> active = activeEvent(sessionId);
             Optional<AirDropSessionRegistry.SessionRecord> record = sessionRegistry.find(sessionId);
             if (active.isPresent() && record.isPresent()) {

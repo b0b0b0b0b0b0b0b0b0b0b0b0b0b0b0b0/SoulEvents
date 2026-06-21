@@ -2,6 +2,7 @@ package bm.b0b0b0.soulevents.mobwaves.config;
 
 import bm.b0b0b0.soulevents.mobwaves.config.settings.MobTypeOverrideSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.WaveDefinitionSettings;
+import bm.b0b0b0.soulevents.mobwaves.config.settings.WaveMobEntrySettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.WaveProfileSettings;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -9,7 +10,9 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -30,6 +33,9 @@ public final class ProfileDirectoryLoader {
                 settings.reload(file);
                 ensureDefaults(settings);
                 ensureMobOverrideDefaults(settings);
+                if (repairEmptyWaveOneEntries(settings)) {
+                    settings.save(file);
+                }
                 loaded.put(id, new WaveProfileDefinition(id, settings));
             }
         } catch (IOException exception) {
@@ -48,18 +54,38 @@ public final class ProfileDirectoryLoader {
     }
 
     private static void ensureDefaults(WaveProfileSettings settings) {
+        if (settings.defaultMobEffects == null) {
+            settings.defaultMobEffects = WaveProfileSettings.defaultMobEffects();
+        }
         if (settings.waves == null || settings.waves.isEmpty()) {
             settings.waves = WaveProfileSettings.defaultWaves();
             return;
         }
         for (WaveDefinitionSettings wave : settings.waves) {
-            if (wave.entries == null || wave.entries.isEmpty()) {
-                wave.entries = WaveDefinitionSettings.defaultEntries();
+            if (wave.entries == null) {
+                wave.entries = new ArrayList<>();
             }
             if (wave.superBoss == null) {
                 wave.superBoss = WaveDefinitionSettings.defaultSuperBoss();
             }
         }
+        for (MobTypeOverrideSettings override : settings.mobOverrides.values()) {
+            if (override.effects == null) {
+                override.effects = new ArrayList<>();
+            }
+        }
+    }
+
+    private static boolean repairEmptyWaveOneEntries(WaveProfileSettings settings) {
+        if (settings.waves.isEmpty()) {
+            return false;
+        }
+        WaveDefinitionSettings first = settings.waves.get(0);
+        if (!first.entries.isEmpty()) {
+            return false;
+        }
+        first.entries.addAll(WaveProfileSettings.waveOneDefaultEntries());
+        return true;
     }
 
     private static void ensureMobOverrideDefaults(WaveProfileSettings settings) {

@@ -2,6 +2,7 @@ package bm.b0b0b0.soulevents.core.config;
 
 import bm.b0b0b0.soulevents.core.config.settings.CoreSettings;
 import bm.b0b0b0.soulevents.core.config.settings.ProtectionSettings;
+import bm.b0b0b0.soulevents.core.config.settings.StatsSettings;
 import org.bukkit.plugin.Plugin;
 
 import java.nio.file.Path;
@@ -17,6 +18,8 @@ public final class ConfigurationLoader {
         core.reload(dataFolder.resolve("config.yml"));
         ProtectionSettings protection = new ProtectionSettings();
         protection.reload(dataFolder.resolve("protection.yml"));
-        return new PluginConfig(core, protection);
+        StatsSettings stats = new StatsSettings();
+        stats.reload(dataFolder.resolve("stats.yml"));
+        return new PluginConfig(core, protection, stats);
     }
 }

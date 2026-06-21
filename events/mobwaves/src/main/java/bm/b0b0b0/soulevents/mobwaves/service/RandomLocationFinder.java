@@ -252,9 +252,9 @@ public final class RandomLocationFinder {
             }
             return CandidateValidation.ok(location);
         }
-        int y = world.getHighestBlockYAt(candidate.x(), candidate.z());
+        int y = flatSurfaceFinder.naturalGroundY(world, candidate.x(), candidate.z());
         Block surface = world.getBlockAt(candidate.x(), y, candidate.z());
-        if (surface.isLiquid() || !surface.isSolid()) {
+        if (surface.isLiquid() || !surface.isSolid() || isVegetationBlock(surface.getType())) {
             return CandidateValidation.reject("surface-liquid-or-invalid block=" + surface.getType().name());
         }
         Location location = new Location(
@@ -281,7 +281,7 @@ public final class RandomLocationFinder {
         return CandidateValidation.ok(location);
     }
 
-    private static String flatSurfaceIssue(
+    private String flatSurfaceIssue(
             World world,
             int blockX,
             int blockZ,
@@ -294,7 +294,11 @@ public final class RandomLocationFinder {
         int[] surfaceHeights = new int[points.size()];
         for (int index = 0; index < points.size(); index++) {
             FlatSurfaceOffset offset = points.get(index);
-            surfaceHeights[index] = world.getHighestBlockYAt(blockX + offset.dx(), blockZ + offset.dz());
+            surfaceHeights[index] = flatSurfaceFinder.naturalGroundY(
+                    world,
+                    blockX + offset.dx(),
+                    blockZ + offset.dz()
+            );
         }
         int referenceY = surfaceHeights[0];
         for (int height : surfaceHeights) {
@@ -313,12 +317,9 @@ public final class RandomLocationFinder {
             int x = blockX + offset.dx();
             int y = surfaceHeights[index];
             int z = blockZ + offset.dz();
-            if (world.getHighestBlockYAt(x, z) != y) {
-                return "flat-highest-mismatch at=" + x + "," + z;
-            }
             Block surface = world.getBlockAt(x, y, z);
-            if (surface.isLiquid() || !surface.isSolid()) {
-                return "flat-surface-invalid block=" + surface.getType().name() + " at=" + x + "," + y + "," + z;
+            if (surface.isLiquid() || !surface.isSolid() || isVegetationBlock(surface.getType())) {
+                return "flat-bad-surface block=" + surface.getType().name() + " at=" + x + "," + y + "," + z;
             }
             Material type = surface.getType();
             if (type == Material.MAGMA_BLOCK
@@ -335,13 +336,50 @@ public final class RandomLocationFinder {
             }
             for (int offsetY = 1; offsetY <= requirements.minAirAbove(); offsetY++) {
                 Block above = world.getBlockAt(x, y + offsetY, z);
-                if (!above.isPassable() && !above.isEmpty()) {
+                if (!above.isPassable() && !above.isEmpty() && !isClearableObstruction(above.getType())) {
                     return "flat-no-air block=" + above.getType().name()
                             + " at=" + x + "," + (y + offsetY) + "," + z;
                 }
             }
         }
         return null;
+    }
+
+    private static boolean isVegetationBlock(Material type) {
+        String name = type.name();
+        return name.endsWith("_LOG")
+                || name.endsWith("_LEAVES")
+                || name.endsWith("_SAPLING")
+                || type == Material.VINE
+                || type == Material.MANGROVE_ROOTS
+                || type == Material.BAMBOO
+                || type == Material.TALL_GRASS
+                || type == Material.SHORT_GRASS
+                || type == Material.FERN
+                || type == Material.LARGE_FERN
+                || type == Material.DEAD_BUSH;
+    }
+
+    private static boolean isClearableObstruction(Material type) {
+        return isVegetationBlock(type)
+                || type == Material.SNOW
+                || type.name().endsWith("_FLOWER")
+                || type == Material.DANDELION
+                || type == Material.POPPY
+                || type == Material.BLUE_ORCHID
+                || type == Material.ALLIUM
+                || type == Material.AZURE_BLUET
+                || type == Material.RED_TULIP
+                || type == Material.ORANGE_TULIP
+                || type == Material.WHITE_TULIP
+                || type == Material.PINK_TULIP
+                || type == Material.OXEYE_DAISY
+                || type == Material.CORNFLOWER
+                || type == Material.LILY_OF_THE_VALLEY
+                || type == Material.SUNFLOWER
+                || type == Material.LILAC
+                || type == Material.ROSE_BUSH
+                || type == Material.PEONY;
     }
 
     public static List<FlatSurfaceOffset> footprintFor(HordeTypeSettings type, SchematicService schematics) {

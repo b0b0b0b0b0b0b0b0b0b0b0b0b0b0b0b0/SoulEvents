@@ -4,7 +4,6 @@ import bm.b0b0b0.soulevents.api.world.FlatSurfaceFinder;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceOffset;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceRequirements;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 
@@ -27,7 +26,7 @@ public final class FlatSurfaceFinderImpl implements FlatSurfaceFinder {
         int[] surfaceHeights = new int[points.size()];
         for (int index = 0; index < points.size(); index++) {
             FlatSurfaceOffset offset = points.get(index);
-            surfaceHeights[index] = world.getHighestBlockYAt(blockX + offset.dx(), blockZ + offset.dz());
+            surfaceHeights[index] = naturalGroundY(world, blockX + offset.dx(), blockZ + offset.dz());
         }
         int referenceY = surfaceHeights[0];
         for (int height : surfaceHeights) {
@@ -58,6 +57,16 @@ public final class FlatSurfaceFinderImpl implements FlatSurfaceFinder {
         ));
     }
 
+    @Override
+    public int naturalGroundY(World world, int blockX, int blockZ) {
+        return NaturalSurfaceSupport.naturalGroundY(world, blockX, blockZ);
+    }
+
+    @Override
+    public int clearObstructions(World world, int blockX, int blockZ, int minY, int maxY) {
+        return NaturalSurfaceSupport.clearObstructions(world, blockX, blockZ, minY, maxY);
+    }
+
     private static boolean isPlacementValid(
             World world,
             int x,
@@ -65,11 +74,8 @@ public final class FlatSurfaceFinderImpl implements FlatSurfaceFinder {
             int z,
             FlatSurfaceRequirements requirements
     ) {
-        if (world.getHighestBlockYAt(x, z) != y) {
-            return false;
-        }
         Block surface = world.getBlockAt(x, y, z);
-        if (!isValidSurfaceBlock(surface)) {
+        if (!NaturalSurfaceSupport.isValidGroundSurface(surface)) {
             return false;
         }
         if (requirements.requireSolidBelow()) {
@@ -80,21 +86,10 @@ public final class FlatSurfaceFinderImpl implements FlatSurfaceFinder {
         }
         for (int offsetY = 1; offsetY <= requirements.minAirAbove(); offsetY++) {
             Block above = world.getBlockAt(x, y + offsetY, z);
-            if (!above.isPassable() && !above.isEmpty()) {
+            if (NaturalSurfaceSupport.isBlockingAbove(above)) {
                 return false;
             }
         }
         return true;
-    }
-
-    private static boolean isValidSurfaceBlock(Block block) {
-        if (block.isLiquid() || !block.isSolid()) {
-            return false;
-        }
-        Material type = block.getType();
-        return type != Material.MAGMA_BLOCK
-                && type != Material.CACTUS
-                && type != Material.SWEET_BERRY_BUSH
-                && type != Material.POWDER_SNOW;
     }
 }

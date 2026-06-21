@@ -6,6 +6,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -85,6 +86,10 @@ public final class MobWaveMessageService {
     public void broadcast(String key, Map<String, String> placeholders) {
         Component message = resolve(key, placeholders);
         plugin.getServer().getOnlinePlayers().forEach(player -> player.sendMessage(message));
+    }
+
+    public void sendActionBar(Player player, String key, Map<String, String> placeholders) {
+        player.sendActionBar(resolve(key, placeholders));
     }
 
     private String resolveRawOrNull(String key) {

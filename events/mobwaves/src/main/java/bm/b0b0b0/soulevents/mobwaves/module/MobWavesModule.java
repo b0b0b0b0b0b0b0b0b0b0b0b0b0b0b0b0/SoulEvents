@@ -15,6 +15,7 @@ import bm.b0b0b0.soulevents.mobwaves.integration.WorldGuardIntegrations;
 import bm.b0b0b0.soulevents.mobwaves.message.MobWaveMessageService;
 import bm.b0b0b0.soulevents.mobwaves.service.HordePlayerEnforcementService;
 import bm.b0b0b0.soulevents.mobwaves.service.HordeMobTargetingService;
+import bm.b0b0b0.soulevents.mobwaves.service.HordeMobVisualService;
 import bm.b0b0b0.soulevents.mobwaves.service.MobHealthBarService;
 import bm.b0b0b0.soulevents.mobwaves.service.MobHordeService;
 import bm.b0b0b0.soulevents.mobwaves.service.MobLootDropService;
@@ -36,6 +37,7 @@ public final class MobWavesModule implements EventModule {
     private MobWaveMessageService messages;
     private MobWaveService waveService;
     private MobHealthBarService healthBarService;
+    private HordeMobVisualService mobVisualService;
     private HordeMobTargetingService targetingService;
     private HordePlayerEnforcementService playerEnforcementService;
     private MobWaveBridgeImpl bridge;
@@ -53,11 +55,19 @@ public final class MobWavesModule implements EventModule {
         this.config = config;
         this.messages = messages;
         this.healthBarService = new MobHealthBarService(plugin, messages);
-        this.waveService = new MobWaveService(plugin, config, healthBarService);
-        this.targetingService = new HordeMobTargetingService(plugin, config, waveService);
+        this.waveService = new MobWaveService(plugin, config, healthBarService, api);
+        this.mobVisualService = new HordeMobVisualService(plugin, config);
+        this.mobVisualService.bindWaveService(waveService);
+        this.waveService.bindMobVisualService(mobVisualService);
         this.bridge = new MobWaveBridgeImpl(waveService);
         MobLootDropService lootDropService = new MobLootDropService(plugin, messages);
         this.hordeService = new MobHordeService(api, plugin, config, messages, waveService, lootDropService);
+        this.targetingService = new HordeMobTargetingService(
+                plugin,
+                config,
+                waveService,
+                hordeService.nexusVisualService()
+        );
         this.playerEnforcementService = new HordePlayerEnforcementService(plugin, config, hordeService, waveService);
         this.guiFactory = new MobWavesGuiFactory(plugin, config, messages, hordeService);
     }
@@ -82,6 +92,7 @@ public final class MobWavesModule implements EventModule {
         this.config = config;
         this.messages = messages;
         waveService.reload(config);
+        mobVisualService.reload(config);
         targetingService.reload(config);
         hordeService.reload(config);
         playerEnforcementService.reload(config);
@@ -105,6 +116,7 @@ public final class MobWavesModule implements EventModule {
     @Override
     public void onEnable() {
         healthBarService.start();
+        mobVisualService.start();
         targetingService.start();
         playerEnforcementService.start();
         hordeService.startBossBar();
@@ -127,6 +139,7 @@ public final class MobWavesModule implements EventModule {
         hordeService.shutdown();
         waveService.shutdown();
         targetingService.stop();
+        mobVisualService.stop();
         playerEnforcementService.stop();
         healthBarService.stop();
     }

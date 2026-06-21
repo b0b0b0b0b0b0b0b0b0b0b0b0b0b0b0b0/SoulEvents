@@ -7,7 +7,6 @@ import bm.b0b0b0.soulevents.mobwaves.config.WaveProfileDefinition;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.WaveProfileSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.WaveProfileSettingsGuiSettings;
 import bm.b0b0b0.soulevents.mobwaves.message.MobWaveMessageService;
-import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -16,7 +15,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -82,6 +80,9 @@ public final class MobWaveProfileSettingsMenu implements InventoryHolder {
             guiFactory.openProfile(player, profileId);
             return;
         }
+        if (slot == gui.infoSlot) {
+            return;
+        }
         if (slot == gui.spawnRadiusMinusSlot) {
             settings.spawnRadius = Math.max(0, settings.spawnRadius - 4);
         } else if (slot == gui.spawnRadiusPlusSlot) {
@@ -118,53 +119,55 @@ public final class MobWaveProfileSettingsMenu implements InventoryHolder {
     }
 
     private void render() {
-        inventory.clear();
+        GuiFrames.fillBackground(inventory);
         WaveProfileSettings settings = currentSettings().orElse(new WaveProfileSettings());
         WaveProfileSettingsGuiSettings gui = config.gui().waveProfileSettings;
+        Map<String, String> ph = Map.of(
+                "profile", profileId,
+                "spawn", displayValue(settings.spawnRadius),
+                "batch", displayValue(settings.batchSize),
+                "interval", displayValue(settings.batchIntervalTicks),
+                "grace", displayValue(settings.graceAfterClearSeconds)
+        );
+        inventory.setItem(gui.infoSlot, GuiIcons.icon(
+                Material.matchMaterial(gui.infoMaterial),
+                messages.resolve("gui.profile-settings.info", ph),
+                messages.resolveLore("gui.profile-settings.info-lore", ph)
+        ));
+        putRow(gui.spawnRadiusMinusSlot, gui.spawnRadiusInfoSlot, gui.spawnRadiusPlusSlot,
+                Material.COMPASS, "spawn-radius", ph);
+        putRow(gui.batchSizeMinusSlot, gui.batchSizeInfoSlot, gui.batchSizePlusSlot,
+                Material.IRON_SWORD, "batch-size", ph);
+        putRow(gui.intervalMinusSlot, gui.intervalInfoSlot, gui.intervalPlusSlot,
+                Material.CLOCK, "interval", ph);
+        putRow(gui.graceMinusSlot, gui.graceInfoSlot, gui.gracePlusSlot,
+                Material.CHEST, "grace", ph);
         inventory.setItem(gui.backSlot, GuiIcons.icon(
                 Material.matchMaterial(gui.backMaterial),
-                messages.resolve("gui.profile-settings.back", Map.of()),
-                List.of()
+                messages.resolve("gui.profile-settings.back", ph),
+                messages.resolveLore("gui.profile-settings.back-lore", ph)
         ));
-        inventory.setItem(gui.spawnRadiusInfoSlot, GuiIcons.icon(
-                Material.COMPASS,
-                messages.resolve("gui.profile-settings.spawn-radius", Map.of(
-                        "value", displayValue(settings.spawnRadius, "default")
-                )),
-                messages.resolveLore("gui.profile-settings.spawn-radius-lore", Map.of())
-        ));
-        inventory.setItem(gui.spawnRadiusMinusSlot, GuiIcons.icon(Material.RED_DYE, Component.text("-4"), List.of()));
-        inventory.setItem(gui.spawnRadiusPlusSlot, GuiIcons.icon(Material.LIME_DYE, Component.text("+4"), List.of()));
-        inventory.setItem(gui.batchSizeInfoSlot, GuiIcons.icon(
-                Material.IRON_SWORD,
-                messages.resolve("gui.profile-settings.batch-size", Map.of(
-                        "value", displayValue(settings.batchSize, "default")
-                )),
-                List.of()
-        ));
-        inventory.setItem(gui.batchSizeMinusSlot, GuiIcons.icon(Material.RED_DYE, Component.text("-1"), List.of()));
-        inventory.setItem(gui.batchSizePlusSlot, GuiIcons.icon(Material.LIME_DYE, Component.text("+1"), List.of()));
-        inventory.setItem(gui.intervalInfoSlot, GuiIcons.icon(
-                Material.CLOCK,
-                messages.resolve("gui.profile-settings.interval", Map.of(
-                        "value", displayValue(settings.batchIntervalTicks, "default")
-                )),
-                List.of()
-        ));
-        inventory.setItem(gui.intervalMinusSlot, GuiIcons.icon(Material.RED_DYE, Component.text("-5t"), List.of()));
-        inventory.setItem(gui.intervalPlusSlot, GuiIcons.icon(Material.LIME_DYE, Component.text("+5t"), List.of()));
-        inventory.setItem(gui.graceInfoSlot, GuiIcons.icon(
-                Material.CHEST,
-                messages.resolve("gui.profile-settings.grace", Map.of(
-                        "value", displayValue(settings.graceAfterClearSeconds, "default")
-                )),
-                List.of()
-        ));
-        inventory.setItem(gui.graceMinusSlot, GuiIcons.icon(Material.RED_DYE, Component.text("-2s"), List.of()));
-        inventory.setItem(gui.gracePlusSlot, GuiIcons.icon(Material.LIME_DYE, Component.text("+2s"), List.of()));
     }
 
-    private static String displayValue(int value, String fallback) {
-        return value > 0 ? Integer.toString(value) : fallback;
+    private void putRow(int minusSlot, int infoSlot, int plusSlot, Material icon, String key, Map<String, String> ph) {
+        inventory.setItem(minusSlot, GuiIcons.icon(
+                Material.RED_DYE,
+                messages.resolve("gui.profile-settings." + key + "-minus", ph),
+                messages.resolveLore("gui.profile-settings." + key + "-minus-lore", ph)
+        ));
+        inventory.setItem(infoSlot, GuiIcons.icon(
+                icon,
+                messages.resolve("gui.profile-settings." + key, ph),
+                messages.resolveLore("gui.profile-settings." + key + "-lore", ph)
+        ));
+        inventory.setItem(plusSlot, GuiIcons.icon(
+                Material.LIME_DYE,
+                messages.resolve("gui.profile-settings." + key + "-plus", ph),
+                messages.resolveLore("gui.profile-settings." + key + "-plus-lore", ph)
+        ));
+    }
+
+    private String displayValue(int value) {
+        return value > 0 ? Integer.toString(value) : messages.resolvePlain("gui.common.default-value", Map.of());
     }
 }

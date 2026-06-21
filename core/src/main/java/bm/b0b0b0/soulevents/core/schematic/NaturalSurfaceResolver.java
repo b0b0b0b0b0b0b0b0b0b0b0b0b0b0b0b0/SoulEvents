@@ -6,7 +6,7 @@ import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 
-final class NaturalSurfaceResolver {
+public final class NaturalSurfaceResolver {
 
     private NaturalSurfaceResolver() {
     }
@@ -16,15 +16,10 @@ final class NaturalSurfaceResolver {
     }
 
     static int spawnSurfaceY(World world, int x, int z) {
-        return groundY(world, x, z);
+        return placementGroundY(world, x, z);
     }
 
-    static void clearFootingColumn(World world, int x, int z, int clearTop) {
-        int groundY = groundY(world, x, z);
-        clearColumnObstructions(world, x, z, groundY + 1, clearTop);
-    }
-
-    static int placementGroundY(World world, int x, int z) {
+    public static int placementGroundY(World world, int x, int z) {
         int y = groundY(world, x, z);
         int minY = world.getMinHeight();
         while (y >= minY) {
@@ -37,13 +32,18 @@ final class NaturalSurfaceResolver {
         return minY;
     }
 
-    static boolean isVegetationSurface(Material type) {
+    static void clearFootingColumn(World world, int x, int z, int clearTop) {
+        int ground = placementGroundY(world, x, z);
+        clearColumnObstructions(world, x, z, ground + 1, clearTop);
+    }
+
+    public static boolean isVegetationSurface(Material type) {
         return Tag.LOGS.isTagged(type)
                 || Tag.LEAVES.isTagged(type)
                 || isClearableObstruction(type);
     }
 
-    static boolean isClearableObstruction(Material type) {
+    public static boolean isClearableObstruction(Material type) {
         if (type.isAir() || type == Material.WATER || type == Material.LAVA) {
             return false;
         }
@@ -68,7 +68,7 @@ final class NaturalSurfaceResolver {
         };
     }
 
-    static int clearColumnObstructions(World world, int x, int z, int minY, int maxY) {
+    public static int clearColumnObstructions(World world, int x, int z, int minY, int maxY) {
         int cleared = 0;
         int fromY = Math.min(minY, maxY);
         int toY = Math.max(minY, maxY);

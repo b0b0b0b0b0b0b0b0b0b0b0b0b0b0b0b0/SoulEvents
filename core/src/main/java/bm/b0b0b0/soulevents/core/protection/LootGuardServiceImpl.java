@@ -2,6 +2,8 @@ package bm.b0b0b0.soulevents.core.protection;
 
 import bm.b0b0b0.soulevents.api.protection.LootGuardService;
 import bm.b0b0b0.soulevents.api.protection.ObfuscatedLootRef;
+import bm.b0b0b0.soulevents.api.stats.EventStatsMetrics;
+import bm.b0b0b0.soulevents.api.stats.PlayerEventStatsService;
 import bm.b0b0b0.soulevents.core.config.PluginConfig;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -26,6 +28,7 @@ public final class LootGuardServiceImpl implements LootGuardService {
     private static final String LOG_PREFIX = "[LootGuard] ";
 
     private final Plugin plugin;
+    private final PlayerEventStatsService stats;
     private final NamespacedKey slotKey;
     private final NamespacedKey sessionKey;
     private long takeCooldownMillis;
@@ -37,8 +40,9 @@ public final class LootGuardServiceImpl implements LootGuardService {
     private final Map<PlayerRevealKey, ItemStack> awaitingReveal = new ConcurrentHashMap<>();
     private final Map<PlayerRevealKey, BukkitTask> revealTasks = new ConcurrentHashMap<>();
 
-    public LootGuardServiceImpl(Plugin plugin, PluginConfig config) {
+    public LootGuardServiceImpl(Plugin plugin, PluginConfig config, PlayerEventStatsService stats) {
         this.plugin = plugin;
+        this.stats = stats;
         this.slotKey = new NamespacedKey(plugin, "loot-slot");
         this.sessionKey = new NamespacedKey(plugin, "loot-session");
         apply(config);
@@ -296,6 +300,7 @@ public final class LootGuardServiceImpl implements LootGuardService {
             return;
         }
         if (replaceObfuscated(player, playerKey.sessionId(), playerKey.slotIndex(), real)) {
+            stats.recordSession(playerId, playerKey.sessionId(), EventStatsMetrics.LOOT_TAKEN, 1L);
             debug("completeReveal OK player=" + player.getName()
                     + " session=" + playerKey.sessionId()
                     + " slot=" + playerKey.slotIndex()

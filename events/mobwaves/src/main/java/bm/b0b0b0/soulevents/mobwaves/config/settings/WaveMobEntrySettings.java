@@ -14,4 +14,17 @@ public final class WaveMobEntrySettings extends YamlSerializable {
 
     @Comment(@CommentValue("HP только для этой записи. 0 = из mob-overrides профиля."))
     public double maxHealth = 0.0;
+
+    public static WaveMobEntrySettings of(String entityType, int count) {
+        WaveMobEntrySettings entry = new WaveMobEntrySettings();
+        entry.entityType = entityType;
+        entry.count = count;
+        return entry;
+    }
+
+    public static WaveMobEntrySettings of(String entityType, int count, double maxHealth) {
+        WaveMobEntrySettings entry = of(entityType, count);
+        entry.maxHealth = maxHealth;
+        return entry;
+    }
 }

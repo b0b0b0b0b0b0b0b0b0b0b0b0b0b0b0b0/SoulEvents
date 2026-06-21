@@ -10,7 +10,7 @@ import java.util.List;
 public final class WaveDefinitionSettings extends YamlSerializable {
 
     public String name = "Wave 1";
-    public List<WaveMobEntrySettings> entries = defaultEntries();
+    public List<WaveMobEntrySettings> entries = new ArrayList<>();
 
     @Comment(@CommentValue("Супербосс волны — спавнится последним, HP × super-boss-health-multiplier из config."))
     public boolean superBossEnabled = true;

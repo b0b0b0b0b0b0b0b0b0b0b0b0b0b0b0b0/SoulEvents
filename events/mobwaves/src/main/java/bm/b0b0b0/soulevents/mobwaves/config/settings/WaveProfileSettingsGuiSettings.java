@@ -5,19 +5,21 @@ import org.bukkit.Material;
 
 public final class WaveProfileSettingsGuiSettings extends YamlSerializable {
 
-    public int rows = 4;
-    public int backSlot = 27;
+    public int rows = 5;
+    public int infoSlot = 4;
+    public String infoMaterial = Material.BOOK.name();
+    public int backSlot = 40;
     public String backMaterial = Material.LIGHT_GRAY_DYE.name();
-    public int spawnRadiusInfoSlot = 10;
-    public int spawnRadiusMinusSlot = 9;
-    public int spawnRadiusPlusSlot = 11;
-    public int batchSizeInfoSlot = 13;
-    public int batchSizeMinusSlot = 12;
-    public int batchSizePlusSlot = 14;
-    public int intervalInfoSlot = 16;
-    public int intervalMinusSlot = 15;
-    public int intervalPlusSlot = 17;
-    public int graceInfoSlot = 22;
-    public int graceMinusSlot = 21;
-    public int gracePlusSlot = 23;
+    public int spawnRadiusMinusSlot = 10;
+    public int spawnRadiusInfoSlot = 11;
+    public int spawnRadiusPlusSlot = 12;
+    public int batchSizeMinusSlot = 19;
+    public int batchSizeInfoSlot = 20;
+    public int batchSizePlusSlot = 21;
+    public int intervalMinusSlot = 28;
+    public int intervalInfoSlot = 29;
+    public int intervalPlusSlot = 30;
+    public int graceMinusSlot = 37;
+    public int graceInfoSlot = 38;
+    public int gracePlusSlot = 39;
 }

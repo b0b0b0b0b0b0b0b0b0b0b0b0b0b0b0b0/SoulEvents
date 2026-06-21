@@ -26,6 +26,15 @@ public final class MobWaveEntityTags {
         return new NamespacedKey(plugin, "mobwave-boss");
     }
 
+    private static NamespacedKey waveKey(Plugin plugin) {
+        return new NamespacedKey(plugin, "mobwave-wave");
+    }
+
+    public static void tagMob(Plugin plugin, Entity entity, UUID sessionId) {
+        PersistentDataContainer container = entity.getPersistentDataContainer();
+        container.set(sessionKey(plugin), PersistentDataType.STRING, sessionId.toString());
+    }
+
     public static void tagMob(Plugin plugin, Entity entity, UUID sessionId, boolean superBoss) {
         tagMob(plugin, entity, sessionId);
         if (superBoss) {
@@ -33,9 +42,16 @@ public final class MobWaveEntityTags {
         }
     }
 
-    public static void tagMob(Plugin plugin, Entity entity, UUID sessionId) {
-        PersistentDataContainer container = entity.getPersistentDataContainer();
-        container.set(sessionKey(plugin), PersistentDataType.STRING, sessionId.toString());
+    public static void tagMob(Plugin plugin, Entity entity, UUID sessionId, boolean superBoss, int waveNumber) {
+        tagMob(plugin, entity, sessionId, superBoss);
+        if (waveNumber > 0) {
+            entity.getPersistentDataContainer().set(waveKey(plugin), PersistentDataType.INTEGER, waveNumber);
+        }
+    }
+
+    public static int waveNumber(Plugin plugin, Entity entity) {
+        Integer value = entity.getPersistentDataContainer().get(waveKey(plugin), PersistentDataType.INTEGER);
+        return value == null ? 0 : value;
     }
 
     public static void tagDisplay(Plugin plugin, Entity display, UUID mobId) {

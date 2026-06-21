@@ -41,7 +41,7 @@ public final class MobWavesPlugin extends JavaPlugin {
         module.onLoad(new EventModuleContextImpl(api, this));
         api.modules().register(module);
         getServer().getPluginManager().registerEvents(new MobWavesGuiListener(messages), this);
-        mobWaveListener = new MobWaveListener(this, module.waveService(), config);
+        mobWaveListener = new MobWaveListener(this, api, module.waveService(), config);
         getServer().getPluginManager().registerEvents(mobWaveListener, this);
         getServer().getPluginManager().registerEvents(
                 new MobHordeItemPickupListener(module.hordeService()),

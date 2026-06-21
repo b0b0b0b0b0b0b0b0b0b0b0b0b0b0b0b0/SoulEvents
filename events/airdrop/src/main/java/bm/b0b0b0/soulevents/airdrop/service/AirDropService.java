@@ -1,5 +1,6 @@
 package bm.b0b0b0.soulevents.airdrop.service;
 
+import bm.b0b0b0.soulevents.api.stats.EventStatsMetrics;
 import bm.b0b0b0.soulevents.api.SoulEventsApi;
 import bm.b0b0b0.soulevents.api.mobwave.MobWaveAttachRequest;
 import bm.b0b0b0.soulevents.api.mobwave.MobWaveBridge;
@@ -332,6 +333,7 @@ public final class AirDropService {
         AirDropTypeSettings type = definition.settings();
         sessionRegistry.markOpened(sessionId);
         api.sessions().setPhase(sessionId, EventPhase.LOOTABLE);
+        api.stats().recordSession(player.getUniqueId(), sessionId, EventStatsMetrics.CHESTS_OPENED, 1L);
         broadcastLifecycle(
                 sessionId,
                 active.get().typeId(),
@@ -407,6 +409,9 @@ public final class AirDropService {
         AirDropTypeDefinition definition = definitionOptional.get();
         AirDropTypeSettings type = definition.settings();
         sessionRegistry.markLooted(sessionId);
+        if (player != null) {
+            api.stats().recordSession(player.getUniqueId(), sessionId, EventStatsMetrics.CHESTS_LOOTED, 1L);
+        }
         broadcastLifecycle(
                 sessionId,
                 active.get().typeId(),

@@ -3,8 +3,9 @@ package bm.b0b0b0.soulevents.mobwaves.service;
 
 
 import bm.b0b0b0.soulevents.mobwaves.config.settings.HordeMobCombatSettings;
-
+import bm.b0b0b0.soulevents.mobwaves.config.settings.MobPotionEffectSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.MobTypeOverrideSettings;
+import bm.b0b0b0.soulevents.mobwaves.util.MobPotionEffectSupport;
 
 import org.bukkit.Material;
 
@@ -24,11 +25,11 @@ import org.bukkit.inventory.EntityEquipment;
 
 import org.bukkit.inventory.ItemStack;
 
-
+import java.util.List;
 
 public final class HordeMobCombatApplier {
 
-
+    public static final double MAX_LIVING_HEALTH = 1024.0;
 
     private HordeMobCombatApplier() {
 
@@ -50,6 +51,16 @@ public final class HordeMobCombatApplier {
             HordeMobCombatSettings combat,
             MobCombatContext context
     ) {
+        apply(living, typeOverride, combat, context, null);
+    }
+
+    public static void apply(
+            LivingEntity living,
+            MobTypeOverrideSettings typeOverride,
+            HordeMobCombatSettings combat,
+            MobCombatContext context,
+            List<MobPotionEffectSettings> potionEffects
+    ) {
         activateMobAi(living);
         applyHealth(living, typeOverride, combat, context);
         applySpeed(living, typeOverride, combat);
@@ -60,10 +71,8 @@ public final class HordeMobCombatApplier {
         applySunImmunity(living, combat);
         equipArmorSet(living, combat);
         equipWeapon(living, combat, context);
+        applyPotionEffects(living, potionEffects);
         living.setFireTicks(0);
-        if (context.superBoss()) {
-            living.setGlowing(true);
-        }
     }
 
 
@@ -103,7 +112,7 @@ public final class HordeMobCombatApplier {
         if (context.superBoss()) {
             maxHealth *= Math.max(1.0, combat.superBossHealthMultiplier);
         }
-        maxHealth = Math.max(1.0, maxHealth);
+        maxHealth = Math.max(1.0, Math.min(MAX_LIVING_HEALTH, maxHealth));
         attribute.setBaseValue(maxHealth);
         living.setHealth(maxHealth);
     }
@@ -182,6 +191,12 @@ public final class HordeMobCombatApplier {
 
         }
 
+    }
+
+
+
+    private static void applyPotionEffects(LivingEntity living, List<MobPotionEffectSettings> effects) {
+        MobPotionEffectSupport.apply(living, effects);
     }
 
 

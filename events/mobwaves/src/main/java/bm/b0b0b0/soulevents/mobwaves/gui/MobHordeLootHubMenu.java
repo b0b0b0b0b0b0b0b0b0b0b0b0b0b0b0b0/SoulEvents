@@ -88,6 +88,9 @@ public final class MobHordeLootHubMenu implements InventoryHolder {
             guiFactory.openTypeSettings(player, typeId);
             return;
         }
+        if (slot == gui.infoSlot) {
+            return;
+        }
         if (slot == gui.obfuscationSlot) {
             guiFactory.openObfuscationItems(player, typeId);
             return;
@@ -128,7 +131,7 @@ public final class MobHordeLootHubMenu implements InventoryHolder {
     }
 
     private void render() {
-        inventory.clear();
+        GuiFrames.fillBackground(inventory);
         Optional<HordeTypeDefinition> definitionOptional = config.type(typeId);
         if (definitionOptional.isEmpty()) {
             return;
@@ -138,12 +141,11 @@ public final class MobHordeLootHubMenu implements InventoryHolder {
         LootHubGuiSettings gui = config.gui().lootHub;
         Map<String, String> ph = placeholders(loot, definition);
 
-        Material fillerMaterial = Material.matchMaterial(gui.fillerMaterial);
-        ItemStack filler = filler(fillerMaterial);
-        for (int slot = 0; slot < inventory.getSize(); slot++) {
-            inventory.setItem(slot, filler.clone());
-        }
-
+        inventory.setItem(gui.infoSlot, icon(
+                Material.matchMaterial(gui.infoMaterial),
+                messages.resolve("gui.loot-hub.info", ph),
+                messages.resolveLore("gui.loot-hub.info-lore", ph)
+        ));
         inventory.setItem(gui.backSlot, icon(
                 Material.matchMaterial(gui.backMaterial),
                 messages.resolve("gui.loot-hub.back", ph),
@@ -174,16 +176,6 @@ public final class MobHordeLootHubMenu implements InventoryHolder {
                 messages.resolve("gui.loot-hub.occupied-plus", ph),
                 messages.resolveLore("gui.loot-hub.occupied-plus-lore", ph)
         ));
-    }
-
-    private static ItemStack filler(Material material) {
-        ItemStack stack = new ItemStack(material == null ? Material.GRAY_STAINED_GLASS_PANE : material);
-        ItemMeta meta = stack.getItemMeta();
-        if (meta != null) {
-            meta.displayName(Component.empty());
-            stack.setItemMeta(meta);
-        }
-        return stack;
     }
 
     private ItemStack icon(Material material, Component name, List<Component> lore) {

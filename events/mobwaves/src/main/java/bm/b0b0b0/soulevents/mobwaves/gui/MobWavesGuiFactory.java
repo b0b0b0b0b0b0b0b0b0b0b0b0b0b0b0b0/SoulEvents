@@ -54,7 +54,11 @@ public final class MobWavesGuiFactory {
     }
 
     public void openProfile(Player player, String profileId) {
-        new MobWaveProfileMenu(plugin, config, messages, this, profileId).open(player);
+        openProfile(player, profileId, 0);
+    }
+
+    public void openProfile(Player player, String profileId, int page) {
+        new MobWaveProfileMenu(plugin, config, messages, this, profileId, page).open(player);
     }
 
     public void openWaveEditor(Player player, String profileId, int waveIndex) {
@@ -71,6 +75,10 @@ public final class MobWavesGuiFactory {
 
     public void openProfileSettings(Player player, String profileId) {
         new MobWaveProfileSettingsMenu(plugin, config, messages, this, profileId).open(player);
+    }
+
+    public void openMobEffects(Player player, String profileId, String mobType) {
+        new MobWaveMobEffectsMenu(plugin, config, messages, this, profileId, mobType).open(player);
     }
 
     public void openMobOverride(Player player, String profileId, String mobType) {

@@ -30,13 +30,21 @@ mobwaves.placement.region-too-close: "<red>Too close to a WG region (<distance> 
 mobwaves.placement.player-too-close: "<red>Too close to a player (<distance> blocks).</red>"
 mobwaves.placement.outside-map-boundary: "<red>Outside map boundary.</red>"
 
-mobwaves.bossbar.despawn: "<red><type_name></red> <gray>— despawns in <timer></gray>"
+mobwaves.bossbar.despawn: "<red><type_name></red> <gray>— rift collapsing · </gray><white><timer></white>"
+
+mobwaves.bossbar.victory: "<gradient:#7C3AED:#22C55E><bold>✓ VICTORY</bold></gradient> <gray>— rift closing · loot for </gray><gold><timer></gold>"
 
 mobwaves.bossbar.waiting: "<yellow><type_name></yellow> <gray>— waiting for a player to start waves</gray>"
 
 mobwaves.bossbar.active: "<green><type_name></green> <gray>— waves active · <timer> left</gray>"
 
-mobwaves.admin-summoned: "<green>Horde <type_name> summoned at <x>, <y>, <z> in <world>.</green>"
+mobwaves.bossbar.wave: "<white>Wave <wave>/<waves></white> <gray>— <timer> left</gray> <dark_gray>(+<bonus> per kill)</dark_gray>"
+
+mobwaves.bossbar.wave-grace: "<green>✔ Wave <wave> boss defeated</green> <gray>— wait for wave </gray><white><next_wave></white> <gray>· <timer> left</gray>"
+
+mobwaves.wave-timer-expired: "<red>Horde <type_name> — wave timer expired before all mobs were killed.</red>"
+
+mobwaves.admin-summoned: "<green>Horde <type_name> summoned at <x>, <y>, <z>.</green>"
 
 mobwaves.despawn-none: "<yellow>No active hordes of type <type>.</yellow>"
 
@@ -50,9 +58,25 @@ mobwaves.loot-pickup-delay: "<yellow>Wait — loot is not ready yet.</yellow>"
 
 mobwaves.loot-pickup-failed: "<red>Could not pick up loot.</red>"
 
+mobwaves.pickup.action.1: "<green>+1 trophy</green> <gray>from</gray> <yellow><type_name></yellow>"
+mobwaves.pickup.action.2: "<gold>☠ Loot picked up</gold> <gray>·</gray> <yellow><type_name></yellow>"
+mobwaves.pickup.action.3: "<green>✔ Grabbed drop</green> <gray>· kills: </gray><white><kills></white>"
+mobwaves.pickup.action.4: "<yellow>+1</yellow> <gray>loot —</gray> <type_name>"
+mobwaves.pickup.action.5: "<gradient:#7C3AED:#DC2626>☠ Horde loot</gradient> <gray>·</gray> <type_name>"
+
+mobwaves.actionbar.you-killed-boss.1: "<green>✔ You killed wave <wave> boss!</green> <gray>· +<bonus> sec to timer</gray>"
+mobwaves.actionbar.you-killed-boss.2: "<gold>☠ Wave <wave> boss down!</gold> <gray>· +<bonus> sec · kills: </gray><white><kills></white>"
+mobwaves.actionbar.you-killed-boss.3: "<aqua>Wave <wave> boss slain</aqua> <gray>· </gray><white><alive></white> <gray>still alive · +<bonus> sec</gray>"
+
+mobwaves.actionbar.you-killed-mob.1: "<gray>☠ You killed a mob</gray> <white>· wave <wave></white> <gray>· +<bonus> sec</gray>"
+mobwaves.actionbar.you-killed-mob.2: "<green>+1 kill</green> <gray>· wave </gray><white><wave></white> <gray>· +<bonus> sec to timer</gray>"
+mobwaves.actionbar.you-killed-mob.3: "<yellow>☠ Wave <wave> mob down</yellow> <gray>· +<bonus> sec</gray>"
+
 mobwaves.health-bar: "<red><bar></red>"
 
-mobwaves.health-bar-boss: "<gold><bold>BOSS</bold></gold> <red><bar></red>"
+mobwaves.wave-badge: "<aqua>Wave <wave></aqua>"
+
+mobwaves.health-bar-boss: "<gold><bold>BOSS</bold></gold> <gray>· wave <wave></gray> <red><bar></red>"
 
 mobwaves.health-value: "<gradient:gold:yellow><bold><current></bold></gradient><dark_gray> / </dark_gray><white><max></white> <red>❤</red>"
 
@@ -68,10 +92,10 @@ mobwaves.types.default.name: "<red>Horde</red>"
 
 mobwaves.types.elite.name: "<light_purple>Elite horde</light_purple>"
 mobwaves.structure.rift-nexus: "Rift Nexus"
-mobwaves.broadcast.spawn: "<newline><gradient:#7C3AED:#DC2626><bold>  ☠ RIFT ☠</bold></gradient><newline><gray>  Horde </gray><yellow><type_name></yellow><gray> emerged from </gray><light_purple><structure_name></light_purple><gray>!</gray><newline><gray>  Coords: </gray><white><x></white><gray>, </gray><white><y></white><gray>, </gray><white><z></white><gray> · </gray><aqua><world></aqua><newline><gray>  Loot drops from mobs — obfuscated pickup!</gray><newline>"
-mobwaves.broadcast.cleared: "<newline><gradient:#22C55E:#14B8A6><bold>  ✓ CLEARED</bold></gradient><newline><gray>  </gray><yellow><type_name></yellow><gray> — all waves defeated at </gray><light_purple><structure_name></light_purple><gray>!</gray><newline><gray>  Coords: </gray><white><x></white><gray>, </gray><white><y></white><gray>, </gray><white><z></white><newline>"
+mobwaves.broadcast.spawn: "<newline><gradient:#7C3AED:#DC2626><bold>  ☠ RIFT ☠</bold></gradient><newline><gray>  Horde </gray><yellow><type_name></yellow><gray> emerged from </gray><light_purple><structure_name></light_purple><gray>!</gray><newline><gray>  Coords: </gray><white><x></white><gray>, </gray><white><y></white><gray>, </gray><white><z></white><newline><gray>  Loot drops from mobs — obfuscated pickup!</gray><newline>"
+mobwaves.broadcast.cleared: "<newline><gradient:#7C3AED:#22C55E:#FACC15><bold>  ★ VICTORY ★</bold></gradient><newline><gray>  Players </gray><green><bold>defeated</bold></green><gray> horde </gray><yellow><type_name></yellow><gray> at </gray><light_purple><structure_name></light_purple><gray>!</gray><newline><gray>  The rift flares and collapses — </gray><gold><bold>grab the loot!</bold></gold><newline><gray>  Kills: </gray><white><kills></white><gray> · final blow: </gray><yellow><boss_killer></yellow><newline><gray>  Coords: </gray><white><x></white><gray>, </gray><white><y></white><gray>, </gray><white><z></white><newline>"
 
-mobwaves.broadcast.removed: "<newline><dark_gray><strikethrough>  ────────────────────</strikethrough></dark_gray><newline><gray>  Horde </gray><yellow><type_name></yellow><gray> ended</gray><newline>"
+mobwaves.broadcast.removed: "<newline><dark_gray><strikethrough>  ────────────────────</strikethrough></dark_gray><newline><gray>  Rift </gray><yellow><type_name></yellow><gray> collapsed — </gray><red>horde was not defeated</red><gray>.</gray><newline>"
 
 mobwaves.loot-label.pickup: "<gold>✦ Horde loot</gold>"
 
@@ -79,13 +103,15 @@ mobwaves.loot-label.rare: "<light_purple>✦ Rare trophy</light_purple>"
 
 gui.admin.title: "<dark_gray>Mob hordes</dark_gray>"
 
-gui.admin.wave-profiles: "<aqua>Wave profiles</aqua>"
+gui.admin.wave-profiles: "<aqua>Wave scenarios</aqua>"
 
-gui.admin.wave-profiles-lore.1: "<gray>Profiles: </gray><white><count></white>"
+gui.admin.wave-profiles-lore.1: "<gray>Files: </gray><white><count></white>"
 
-gui.admin.wave-profiles-lore.2: "<dark_gray>Waves, spawn eggs, mob HP.</dark_gray>"
+gui.admin.wave-profiles-lore.2: "<dark_gray>profiles/*.yml — waves in order, super-boss,</dark_gray>"
 
-gui.admin.wave-profiles-lore.3: "<yellow>LMB — profile editor</yellow>"
+gui.admin.wave-profiles-lore.3: "<dark_gray>mob HP. Linked to horde type / airdrop.</dark_gray>"
+
+gui.admin.wave-profiles-lore.4: "<yellow>LMB — scenario list</yellow>"
 
 gui.admin.type-enabled: "<green>enabled</green>"
 
@@ -107,11 +133,17 @@ gui.admin.profile-lore.1: "<gray>Waves: </gray><white><waves></white>"
 
 gui.admin.profile-lore.2: "<yellow>LMB — edit profile</yellow>"
 
-gui.profiles-hub.title: "<dark_gray>Wave profiles</dark_gray>"
+gui.profiles-hub.title: "<dark_gray>Wave scenarios</dark_gray>"
 
 gui.profiles-hub.back: "<gray>Back</gray>"
 
-gui.profiles-hub.back-lore.1: "<dark_gray>Back to horde type list.</dark_gray>"
+gui.profiles-hub.back-lore.1: "<dark_gray>Back to horde admin.</dark_gray>"
+
+gui.profiles-hub.profile-lore.1: "<gray>Waves in scenario: </gray><white><waves></white>"
+
+gui.profiles-hub.profile-lore.2: "<dark_gray>File: profiles/<id>.yml</dark_gray>"
+
+gui.profiles-hub.profile-lore.3: "<yellow>LMB — editor</yellow>"
 
 gui.type-settings.title: "<dark_gray>Horde: <type></dark_gray>"
 
@@ -143,13 +175,13 @@ gui.type-settings.despawn-lore.2: "<gray>Active: </gray><white><active></white>"
 
 gui.type-settings.despawn-lore.3: "<dark_gray>No global broadcast.</dark_gray>"
 
-gui.type-settings.wave-profile: "<aqua>Wave profile</aqua>"
+gui.type-settings.wave-profile: "<aqua>Wave scenario</aqua>"
 
 gui.type-settings.wave-profile-lore.1: "<gray>File: </gray><white>profiles/<profile>.yml</white>"
 
-gui.type-settings.wave-profile-lore.2: "<dark_gray>Wave and mob editor.</dark_gray>"
+gui.type-settings.wave-profile-lore.2: "<dark_gray>Which waves run after horde spawn.</dark_gray>"
 
-gui.type-settings.wave-profile-lore.3: "<yellow>LMB — open profile</yellow>"
+gui.type-settings.wave-profile-lore.3: "<yellow>LMB — open scenario</yellow>"
 
 gui.type-settings.loot: "<gold>Loot & obfuscation</gold>"
 
@@ -235,21 +267,49 @@ gui.loot-pool.page-info-lore.1: "<gray>Top slots — loot for this page.</gray>"
 
 gui.loot-pool.saved: "<green>Page <page>: <page_count> items · total: <total></green>"
 
-gui.profile.title: "<dark_gray>Profile: <profile></dark_gray>"
+gui.profile.title: "<dark_gray>Scenario: <profile> · <page>/<pages></dark_gray>"
+
+gui.profile.info: "<yellow>What is this?</yellow>"
+
+gui.profile.info-lore.1: "<gray>A scenario is an ordered list of waves.</gray>"
+
+gui.profile.info-lore.2: "<gray>Used by horde types and airdrop wave-defense.</gray>"
+
+gui.profile.info-lore.3: "<dark_gray>File: profiles/<profile>.yml</dark_gray>"
 
 gui.profile.back: "<gray>Back</gray>"
 
+gui.profile.back-lore.1: "<dark_gray>Back to scenario list.</dark_gray>"
+
+gui.profile.prev-page: "<gray>← Previous</gray>"
+
+gui.profile.prev-page-lore.1: "<dark_gray>Page <page>/<pages></dark_gray>"
+
+gui.profile.next-page: "<gray>Next →</gray>"
+
+gui.profile.next-page-lore.1: "<dark_gray>Page <page>/<pages></dark_gray>"
+
+gui.profile.page-info: "<white>Page <page>/<pages></white>"
+
+gui.profile.page-info-lore.1: "<gray>Waves in scenario: </gray><white><waves></white>"
+
+gui.profile.page-info-lore.2: "<gray>Slots </gray><white>9–44</white><gray> — wave list.</gray>"
+
 gui.profile.add-wave: "<green>Add wave</green>"
 
-gui.profile.add-wave-lore.1: "<gray>Append a new wave.</gray>"
+gui.profile.add-wave-lore.1: "<gray>New wave at the end of the scenario.</gray>"
 
-gui.profile.mob-settings: "<gold>Mob settings</gold>"
+gui.profile.mob-settings: "<gold>Mob stats</gold>"
 
-gui.profile.mob-settings-lore.1: "<gray>Health, speed, damage per type.</gray>"
+gui.profile.mob-settings-lore.1: "<gray>HP, speed, damage per type.</gray>"
 
-gui.profile.profile-settings: "<yellow>Profile settings</yellow>"
+gui.profile.mob-settings-lore.2: "<red>Applies to ALL waves in this scenario.</red>"
 
-gui.profile.profile-settings-lore.1: "<gray>Spawn radius, batch size, intervals.</gray>"
+gui.profile.mob-settings-lore.3: "<dark_gray>Hostile mobs only.</dark_gray>"
+
+gui.profile.profile-settings: "<yellow>Scenario timing</yellow>"
+
+gui.profile.profile-settings-lore.1: "<gray>Spawn radius, batch size, pause between waves.</gray>"
 
 gui.profile.wave-item: "<aqua><name></aqua>"
 
@@ -307,47 +367,137 @@ gui.wave-settings.delete-wave: "<red>Delete wave</red>"
 
 gui.wave-settings.delete-wave-lore.1: "<dark_gray>Cannot be undone.</dark_gray>"
 
-gui.profile-settings.title: "<dark_gray>Profile: <profile></dark_gray>"
+gui.profile-settings.title: "<dark_gray>Timing: <profile></dark_gray>"
 
 gui.profile-settings.back: "<gray>Back</gray>"
 
-gui.profile-settings.spawn-radius: "<aqua>Spawn radius: <value></aqua>"
+gui.profile-settings.back-lore.1: "<dark_gray>Back to scenario editor.</dark_gray>"
 
-gui.profile-settings.spawn-radius-lore.1: "<gray>0 = module default.</gray>"
+gui.common.default-value: "default"
+gui.common.on: "on"
+gui.common.off: "off"
 
-gui.profile-settings.batch-size: "<yellow>Batch size: <value></yellow>"
+gui.type-settings.info: "<yellow>Horde control</yellow>"
+gui.type-settings.info-lore.1: "<gray>Type <white><type></white> — file types/<type>.yml</gray>"
+gui.type-settings.info-lore.2: "<gray>Active hordes now: </gray><white><active></white>"
+gui.type-settings.info-lore.3: "<dark_gray>Buttons below — actions for this horde type.</dark_gray>"
 
-gui.profile-settings.interval: "<yellow>Batch interval (ticks): <value></yellow>"
+gui.loot-hub.info: "<yellow>Mob loot</yellow>"
+gui.loot-hub.info-lore.1: "<gray>Type <white><type></white> · file loot/<loot>.yml</gray>"
+gui.loot-hub.info-lore.2: "<dark_gray>Masks hide items until pickup.</dark_gray>"
+gui.loot-hub.info-lore.3: "<dark_gray>Pool — what can drop on kill.</dark_gray>"
 
-gui.profile-settings.grace: "<green>Grace after clear (s): <value></green>"
+gui.wave-editor.info: "<yellow>Wave <index></yellow>"
+gui.wave-editor.info-lore.1: "<gray>Top slots — place spawn eggs.</gray>"
+gui.wave-editor.info-lore.2: "<gray>Stack size = mob count.</gray>"
+gui.wave-editor.info-lore.3: "<dark_gray>Bottom row — wave controls.</dark_gray>"
+gui.wave-editor.back-lore.1: "<dark_gray>Back (closing also saves).</dark_gray>"
 
-gui.mob-settings.title: "<dark_gray>Mobs: <profile></dark_gray>"
+gui.wave-settings.info: "<yellow>Wave <index> settings</yellow>"
+gui.wave-settings.info-lore.1: "<gray>This wave only in the scenario.</gray>"
+gui.wave-settings.info-lore.2: "<gray>Super-boss spawns last after all mobs.</gray>"
+gui.wave-settings.back-lore.1: "<dark_gray>Back to scenario wave list.</dark_gray>"
+gui.wave-settings.boss-type-unknown: "<red>Unknown mob</red>"
+gui.wave-settings.boss-health-minus-lore.1: "<gray>−25 base boss HP.</gray>"
+gui.wave-settings.boss-health-plus-lore.1: "<gray>+25 base boss HP.</gray>"
+gui.wave-settings.boss-health-info-lore.1: "<gray>Default → mob stats ×5.</gray>"
+gui.wave-settings.boss-toggle-lore.1: "<yellow>Click — toggle super-boss.</yellow>"
+gui.wave-settings.boss-type-lore.1: "<yellow>Click — next hostile mob type.</yellow>"
+
+gui.profile-settings.info: "<yellow>Scenario timing</yellow>"
+gui.profile-settings.info-lore.1: "<gray>All waves in <profile>.yml</gray>"
+gui.profile-settings.info-lore.2: "<dark_gray>Each row: [−] value [+]</dark_gray>"
+gui.profile-settings.spawn-radius: "<aqua>Spawn radius: <spawn></aqua>"
+gui.profile-settings.spawn-radius-lore.1: "<gray>Distance from anchor where mobs spawn.</gray>"
+gui.profile-settings.spawn-radius-minus: "<red>−4 blocks</red>"
+gui.profile-settings.spawn-radius-minus-lore.1: "<gray>Decrease spawn radius.</gray>"
+gui.profile-settings.spawn-radius-plus: "<green>+4 blocks</green>"
+gui.profile-settings.spawn-radius-plus-lore.1: "<gray>Increase spawn radius.</gray>"
+gui.profile-settings.batch-size: "<yellow>Batch: <batch> mobs</yellow>"
+gui.profile-settings.batch-size-lore.1: "<gray>Mobs spawned per batch.</gray>"
+gui.profile-settings.batch-size-minus: "<red>−1</red>"
+gui.profile-settings.batch-size-minus-lore.1: "<gray>Fewer mobs per batch.</gray>"
+gui.profile-settings.batch-size-plus: "<green>+1</green>"
+gui.profile-settings.batch-size-plus-lore.1: "<gray>More mobs per batch.</gray>"
+gui.profile-settings.interval: "<yellow>Delay: <interval> ticks</yellow>"
+gui.profile-settings.interval-lore.1: "<gray>Wait between batches (20 ticks = 1 sec).</gray>"
+gui.profile-settings.interval-minus: "<red>−5 ticks</red>"
+gui.profile-settings.interval-minus-lore.1: "<gray>Spawn batches more often.</gray>"
+gui.profile-settings.interval-plus: "<green>+5 ticks</green>"
+gui.profile-settings.interval-plus-lore.1: "<gray>Spawn batches less often.</gray>"
+gui.profile-settings.grace: "<green>Rest: <grace> sec</green>"
+gui.profile-settings.grace-lore.1: "<gray>Pause after clearing a wave.</gray>"
+gui.profile-settings.grace-minus: "<red>−2 sec</red>"
+gui.profile-settings.grace-minus-lore.1: "<gray>Shorter pause between waves.</gray>"
+gui.profile-settings.grace-plus: "<green>+2 sec</green>"
+gui.profile-settings.grace-plus-lore.1: "<gray>Longer pause between waves.</gray>"
+
+gui.mob-settings.title: "<dark_gray>Mob stats · <profile></dark_gray>"
+
+gui.mob-settings.info: "<yellow>Global stats</yellow>"
+
+gui.mob-settings.info-lore.1: "<red>Apply to ALL waves in scenario <profile>.</red>"
+
+gui.mob-settings.info-lore.2: "<gray>Not tied to a single wave.</gray>"
+
+gui.mob-settings.info-lore.3: "<dark_gray>Hostile mobs only (Enemy).</dark_gray>"
 
 gui.mob-settings.back: "<gray>Back</gray>"
 
-gui.mob-settings.entry-lore.1: "<gray>HP: </gray><white><health></white>"
+gui.mob-settings.back-lore.1: "<dark_gray>Back to scenario editor.</dark_gray>"
 
-gui.mob-settings.entry-lore.2: "<gray>Speed: </gray><white><speed>x</white>"
+gui.mob-override.damage-plus-lore.1: "<gray>+0.1 multiplier.</gray>"
+gui.mob-override.effects: "<light_purple>Effects (<effects>)</light_purple>"
+gui.mob-override.effects-lore.1: "<gray>Potions: speed, strength, regen, etc.</gray>"
+gui.mob-override.effects-lore.2: "<yellow>LMB — open list</yellow>"
 
-gui.mob-settings.entry-lore.3: "<gray>Damage: </gray><white><damage>x</white>"
+gui.mob-settings.entry-lore.1: "<gray>❤ </gray><white><health></white>  <gray>⚡ </gray><white><speed>x</white>  <gray>⚔ </gray><white><damage>x</white>  <gray>🧪 </gray><white><effects></white>"
+gui.mob-settings.entry-lore.2: "<yellow>LMB — configure this type</yellow>"
 
-gui.mob-settings.entry-lore.4: "<yellow>LMB — edit</yellow>"
+gui.mob-override.title-prefix: "<dark_gray>Mob · </dark_gray>"
+gui.mob-override.info: "<yellow>Stats for all waves</yellow>"
+gui.mob-override.info-lore.1: "<gray>Scenario: </gray><white><profile></white>"
+gui.mob-override.info-lore.2: "<dark_gray>Each row: [−] value [+] — one stat.</dark_gray>"
+gui.mob-override.info-lore.3: "<dark_gray>Default HP uses module fallbacks.</dark_gray>"
+gui.mob-override.health-info: "<red>Health: <health></red>"
+gui.mob-override.health-info-lore.1: "<gray>Max HP for this mob type.</gray>"
+gui.mob-override.health-minus-lore.1: "<gray>−25 HP.</gray>"
+gui.mob-override.health-plus-lore.1: "<gray>+25 HP.</gray>"
+gui.mob-override.speed-info: "<aqua>Speed: <speed>x</aqua>"
+gui.mob-override.speed-info-lore.1: "<gray>Movement speed multiplier.</gray>"
+gui.mob-override.speed-minus-lore.1: "<gray>−0.1 multiplier.</gray>"
+gui.mob-override.speed-plus-lore.1: "<gray>+0.1 multiplier.</gray>"
+gui.mob-override.damage-info: "<gold>Damage: <damage>x</gold>"
+gui.mob-override.damage-info-lore.1: "<gray>Attack damage multiplier.</gray>"
+gui.mob-override.damage-minus-lore.1: "<gray>−0.1 multiplier.</gray>"
+gui.mob-override.damage-plus-lore.1: "<gray>+0.1 multiplier.</gray>"
 
-gui.mob-override.title: "<dark_gray><mob></dark_gray>"
+gui.mob-override.health-minus: "<red>−25 HP</red>"
+
+gui.mob-override.health-plus: "<green>+25 HP</green>"
+
+gui.mob-override.speed-minus: "<red>Slower</red>"
+
+gui.mob-override.speed-plus: "<green>Faster</green>"
+
+gui.mob-override.damage-minus: "<red>Weaker</red>"
+
+gui.mob-override.damage-plus: "<green>Stronger</green>"
+
+gui.mob-effects.title-prefix: "<dark_gray>Effects · </dark_gray>"
+gui.mob-effects.info: "<yellow>Potion effects</yellow>"
+gui.mob-effects.info-lore.1: "<gray>Scenario: </gray><white><profile></white>"
+gui.mob-effects.info-lore.2: "<gray>Configured: </gray><white><count></white>"
+gui.mob-effects.info-lore.3: "<dark_gray>−1 ticks = infinite (duration-ticks in config).</dark_gray>"
+gui.mob-effects.add: "<green>Add effect</green>"
+gui.mob-effects.add-lore.1: "<gray>LMB — next unused type.</gray>"
+gui.mob-effects.entry-lore.1: "<white><summary></white>"
+gui.mob-effects.entry-lore.2: "<gray>LMB — level +1 (max V)</gray>"
+gui.mob-effects.entry-lore.3: "<red>RMB — remove</red>"
+gui.mob-effects.back: "<gray>Back</gray>"
+gui.mob-effects.back-lore.1: "<dark_gray>Back to mob stats.</dark_gray>"
 
 gui.mob-override.back: "<gray>Back</gray>"
 
-gui.mob-override.health-minus: "<red>-5 HP</red>"
-
-gui.mob-override.health-plus: "<green>+5 HP</green>"
-
-gui.mob-override.health-info: "<white>HP: <health></white>"
-
-gui.mob-override.speed-minus: "<red>Speed -0.1</red>"
-
-gui.mob-override.speed-plus: "<green>Speed +0.1</green>"
-
-gui.mob-override.damage-minus: "<red>Damage -0.1</red>"
-
-gui.mob-override.damage-plus: "<green>Damage +0.1</green>"
+gui.mob-override.back-lore.1: "<dark_gray>Back to mob type list.</dark_gray>"
 

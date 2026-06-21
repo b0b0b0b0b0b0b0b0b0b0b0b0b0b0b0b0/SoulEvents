@@ -1,5 +1,7 @@
 package bm.b0b0b0.soulevents.mobwaves.listener;
 
+import bm.b0b0b0.soulevents.api.SoulEventsApi;
+import bm.b0b0b0.soulevents.api.stats.EventStatsMetrics;
 import bm.b0b0b0.soulevents.mobwaves.MobWavesPlugin;
 import bm.b0b0b0.soulevents.mobwaves.config.MobWavesPluginConfig;
 import bm.b0b0b0.soulevents.mobwaves.message.MobWavesRuntimeLog;
@@ -23,11 +25,13 @@ import java.util.UUID;
 public final class MobWaveListener implements Listener {
 
     private final MobWavesPlugin plugin;
+    private final SoulEventsApi api;
     private final MobWaveService service;
     private MobWavesPluginConfig config;
 
-    public MobWaveListener(MobWavesPlugin plugin, MobWaveService service, MobWavesPluginConfig config) {
+    public MobWaveListener(MobWavesPlugin plugin, SoulEventsApi api, MobWaveService service, MobWavesPluginConfig config) {
         this.plugin = plugin;
+        this.api = api;
         this.service = service;
         this.config = config;
     }
@@ -131,6 +135,16 @@ public final class MobWaveListener implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onDeathClearVanillaLoot(EntityDeathEvent event) {
+        Optional<UUID> sessionId = MobWaveEntityTags.sessionId(plugin, event.getEntity());
+        if (sessionId.isEmpty() || !config.module().hordeCombat.clearVanillaDrops) {
+            return;
+        }
+        event.getDrops().clear();
+        event.setDroppedExp(0);
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDeath(EntityDeathEvent event) {
         Optional<UUID> sessionId = MobWaveEntityTags.sessionId(plugin, event.getEntity());
@@ -147,7 +161,22 @@ public final class MobWaveListener implements Listener {
                         + location.getBlockY() + ","
                         + location.getBlockZ()
         );
-        service.onMobDeath(sessionId.get(), event.getEntity().getUniqueId(), event.getEntity().getLocation());
+        Player killer = event.getEntity().getKiller();
+        service.onMobDeath(
+                sessionId.get(),
+                event.getEntity().getUniqueId(),
+                event.getEntity().getLocation(),
+                MobWaveEntityTags.isSuperBoss(plugin, event.getEntity()),
+                killer
+        );
+        if (killer != null) {
+            api.stats().recordSession(
+                    killer.getUniqueId(),
+                    sessionId.get(),
+                    EventStatsMetrics.MOBS_KILLED,
+                    1L
+            );
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)

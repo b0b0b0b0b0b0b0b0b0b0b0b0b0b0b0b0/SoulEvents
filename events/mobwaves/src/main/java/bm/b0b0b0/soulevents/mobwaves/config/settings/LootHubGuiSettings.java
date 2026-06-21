@@ -7,31 +7,34 @@ import org.bukkit.Material;
 public final class LootHubGuiSettings {
 
     @Comment(@CommentValue("Строк инвентаря."))
-    public int rows = 5;
+    public int rows = 4;
 
     @Comment(@CommentValue("Слот «Назад»."))
-    public int backSlot = 36;
+    public int infoSlot = 4;
+
+    public String infoMaterial = Material.BOOK.name();
+
+    public int backSlot = 31;
 
     @Comment(@CommentValue("Кнопка «Маски обфускации»."))
-    public int obfuscationSlot = 13;
+    public int obfuscationSlot = 11;
 
-    @Comment(@CommentValue("Кнопка «Пул лута» (сундук)."))
-    public int poolSlot = 31;
+    @Comment(@CommentValue("Кнопка «Пул лута»."))
+    public int poolSlot = 15;
 
     @Comment(@CommentValue("Слот «−» для occupiedSlots."))
     public int occupiedMinusSlot = 28;
 
-    @Comment(@CommentValue("Слот отображения occupiedSlots (бумага)."))
-    public int occupiedInfoSlot = 19;
+    @Comment(@CommentValue("Слот отображения occupiedSlots."))
+    public int occupiedInfoSlot = 29;
 
     @Comment(@CommentValue("Слот «+» для occupiedSlots."))
-    public int occupiedPlusSlot = 10;
+    public int occupiedPlusSlot = 30;
 
     public String backMaterial = Material.LIGHT_GRAY_DYE.name();
     public String obfuscationMaterial = Material.COAL.name();
     public String poolMaterial = Material.CHEST.name();
-    public String occupiedMinusMaterial = Material.RED_STAINED_GLASS_PANE.name();
-    public String occupiedPlusMaterial = Material.LIME_STAINED_GLASS_PANE.name();
+    public String occupiedMinusMaterial = Material.RED_DYE.name();
+    public String occupiedPlusMaterial = Material.LIME_DYE.name();
     public String occupiedInfoMaterial = Material.PAPER.name();
-    public String fillerMaterial = Material.GRAY_STAINED_GLASS_PANE.name();
 }

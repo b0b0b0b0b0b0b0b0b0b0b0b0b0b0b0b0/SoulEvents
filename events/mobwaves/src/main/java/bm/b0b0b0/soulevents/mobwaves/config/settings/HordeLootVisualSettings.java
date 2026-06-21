@@ -20,10 +20,26 @@ public final class HordeLootVisualSettings extends YamlSerializable {
     @Comment(@CommentValue("Lang-ключи подписи (случайный на предмет)."))
     public List<String> itemLabelKeys = defaultLabelKeys();
 
+    @Comment(@CommentValue("Action bar игроку при подборе дропа с моба."))
+    public boolean pickupActionBarEnabled = true;
+
+    @Comment(@CommentValue("Lang-ключи action bar (случайный при каждом подборе)."))
+    public List<String> pickupActionBarKeys = defaultPickupActionBarKeys();
+
     private static List<String> defaultLabelKeys() {
         List<String> keys = new ArrayList<>();
         keys.add("mobwaves.loot-label.pickup");
         keys.add("mobwaves.loot-label.rare");
+        return keys;
+    }
+
+    private static List<String> defaultPickupActionBarKeys() {
+        List<String> keys = new ArrayList<>();
+        keys.add("mobwaves.pickup.action.1");
+        keys.add("mobwaves.pickup.action.2");
+        keys.add("mobwaves.pickup.action.3");
+        keys.add("mobwaves.pickup.action.4");
+        keys.add("mobwaves.pickup.action.5");
         return keys;
     }
 }

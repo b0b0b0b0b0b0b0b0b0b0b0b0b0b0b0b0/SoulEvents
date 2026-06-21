@@ -7,9 +7,12 @@ load: STARTUP
 
 softdepend:
   - FastAsyncWorldEdit
+  - PlaceholderAPI
 
 libraries:
   - net.elytrium:serializer:1.1.1
+  - com.zaxxer:HikariCP:5.1.0
+  - org.xerial:sqlite-jdbc:3.45.3.0
 
 commands:
   soulevents:

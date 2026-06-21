@@ -86,8 +86,9 @@ public final class MobWaveProfilesMenu implements InventoryHolder {
             }
             Material material = Material.matchMaterial(gui.defaultProfileIconMaterial);
             Component name = Component.text(profile.id());
-            List<Component> lore = messages.resolveLore("gui.admin.profile-lore", Map.of(
-                    "waves", Integer.toString(profile.settings().waves.size())
+            List<Component> lore = messages.resolveLore("gui.profiles-hub.profile-lore", Map.of(
+                    "waves", Integer.toString(profile.settings().waves.size()),
+                    "id", profile.id()
             ));
             inventory.setItem(slot, GuiIcons.icon(material, name, lore));
             slotProfiles.put(slot, profile.id());

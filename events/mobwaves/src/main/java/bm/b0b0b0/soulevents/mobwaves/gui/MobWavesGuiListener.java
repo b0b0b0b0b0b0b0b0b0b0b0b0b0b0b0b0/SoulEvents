@@ -49,6 +49,8 @@ public final class MobWavesGuiListener implements Listener {
             menu.handleClick(event);
         } else if (holder instanceof MobWaveMobOverrideMenu menu) {
             menu.handleClick(event);
+        } else if (holder instanceof MobWaveMobEffectsMenu menu) {
+            menu.handleClick(event);
         } else if (holder instanceof MobWaveWaveSettingsMenu menu) {
             menu.handleClick(event);
         } else if (holder instanceof MobWaveProfileSettingsMenu menu) {
@@ -126,6 +128,7 @@ public final class MobWavesGuiListener implements Listener {
                 || holder instanceof MobWaveEditorMenu
                 || holder instanceof MobWaveMobSettingsMenu
                 || holder instanceof MobWaveMobOverrideMenu
+                || holder instanceof MobWaveMobEffectsMenu
                 || holder instanceof MobWaveWaveSettingsMenu
                 || holder instanceof MobWaveProfileSettingsMenu;
     }

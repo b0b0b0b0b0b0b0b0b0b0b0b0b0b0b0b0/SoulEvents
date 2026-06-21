@@ -3,6 +3,8 @@ package bm.b0b0b0.soulevents.mobwaves.util;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
+import org.bukkit.entity.Enemy;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 
 import java.util.ArrayList;
@@ -23,12 +25,14 @@ public final class MobWaveEntitySupport {
     }
 
     public static boolean isAllowed(EntityType type) {
-        return type != null
-                && type.isAlive()
-                && type.isSpawnable()
-                && !BANNED.contains(type)
-                && type != EntityType.PLAYER
-                && type != EntityType.ARMOR_STAND;
+        if (type == null || !type.isAlive() || !type.isSpawnable()) {
+            return false;
+        }
+        if (BANNED.contains(type) || type == EntityType.PLAYER || type == EntityType.ARMOR_STAND) {
+            return false;
+        }
+        Class<? extends Entity> entityClass = type.getEntityClass();
+        return entityClass != null && Enemy.class.isAssignableFrom(entityClass);
     }
 
     public static List<EntityType> allowedTypes() {

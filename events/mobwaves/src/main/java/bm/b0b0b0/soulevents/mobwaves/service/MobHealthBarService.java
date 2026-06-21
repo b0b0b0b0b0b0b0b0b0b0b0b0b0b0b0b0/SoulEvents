@@ -35,9 +35,8 @@ import org.bukkit.util.Vector;
 
 
 import java.util.HashMap;
-
 import java.util.Map;
-
+import java.util.Optional;
 import java.util.UUID;
 
 
@@ -51,8 +50,8 @@ public final class MobHealthBarService {
     private final MobWaveMessageService messages;
 
     private final Map<UUID, UUID> mobToBarDisplay = new HashMap<>();
-
     private final Map<UUID, UUID> mobToValueDisplay = new HashMap<>();
+    private final Map<UUID, UUID> mobToWaveDisplay = new HashMap<>();
 
     private BukkitTask tickTask;
 
@@ -99,14 +98,14 @@ public final class MobHealthBarService {
         }
 
         for (UUID displayId : mobToValueDisplay.values()) {
-
             removeDisplay(displayId);
-
         }
-
+        for (UUID displayId : mobToWaveDisplay.values()) {
+            removeDisplay(displayId);
+        }
         mobToBarDisplay.clear();
-
         mobToValueDisplay.clear();
+        mobToWaveDisplay.clear();
 
     }
 
@@ -123,10 +122,9 @@ public final class MobHealthBarService {
         remove(mob.getUniqueId());
 
         UUID mobId = mob.getUniqueId();
-
-        Location barAnchor = mob.getLocation().add(0.0, mob.getHeight() + 0.62, 0.0);
-
-        Location valueAnchor = mob.getLocation().add(0.0, mob.getHeight() + 0.28, 0.0);
+        DisplayOffsets offsets = DisplayOffsets.forMob(plugin, mob);
+        Location barAnchor = mob.getLocation().add(0.0, offsets.barY(), 0.0);
+        Location valueAnchor = mob.getLocation().add(0.0, offsets.valueY(), 0.0);
 
         TextDisplay barDisplay = mob.getWorld().spawn(barAnchor, TextDisplay.class, spawned -> {
 
@@ -164,6 +162,22 @@ public final class MobHealthBarService {
 
         });
 
+        TextDisplay waveDisplay = null;
+        if (offsets.showWave()) {
+            Location waveAnchor = mob.getLocation().add(0.0, offsets.waveY(), 0.0);
+            waveDisplay = mob.getWorld().spawn(waveAnchor, TextDisplay.class, spawned -> {
+                spawned.text(renderWave(mob));
+                spawned.setBillboard(Display.Billboard.CENTER);
+                spawned.setSeeThrough(false);
+                spawned.setShadowed(true);
+                spawned.setDefaultBackground(false);
+                spawned.setPersistent(false);
+                spawned.setLineWidth(120);
+            });
+            MobWaveEntityTags.tagDisplay(plugin, waveDisplay, mobId);
+            mobToWaveDisplay.put(mobId, waveDisplay.getUniqueId());
+        }
+
         MobWaveEntityTags.tagDisplay(plugin, barDisplay, mobId);
 
         MobWaveEntityTags.tagDisplay(plugin, valueDisplay, mobId);
@@ -187,13 +201,13 @@ public final class MobHealthBarService {
         }
 
         UUID valueId = mobToValueDisplay.remove(mobId);
-
         if (valueId != null) {
-
             removeDisplay(valueId);
-
         }
-
+        UUID waveId = mobToWaveDisplay.remove(mobId);
+        if (waveId != null) {
+            removeDisplay(waveId);
+        }
     }
 
 
@@ -223,22 +237,22 @@ public final class MobHealthBarService {
             if (!(mobEntity instanceof LivingEntity living) || living.isDead() || !living.isValid()) {
 
                 UUID valueId = mobToValueDisplay.remove(mobId);
-
+                UUID waveId = mobToWaveDisplay.remove(mobId);
                 removeDisplay(entry.getValue());
-
                 if (valueId != null) {
-
                     removeDisplay(valueId);
-
                 }
-
+                if (waveId != null) {
+                    removeDisplay(waveId);
+                }
                 return true;
-
             }
 
             Entity barEntity = plugin.getServer().getEntity(entry.getValue());
-
             Entity valueEntity = plugin.getServer().getEntity(mobToValueDisplay.get(mobId));
+            Entity waveEntity = Optional.ofNullable(mobToWaveDisplay.get(mobId))
+                    .map(id -> plugin.getServer().getEntity(id))
+                    .orElse(null);
 
             if (!(barEntity instanceof TextDisplay barDisplay)) {
 
@@ -255,10 +269,14 @@ public final class MobHealthBarService {
             }
 
             TextDisplay valueDisplay = valueEntity instanceof TextDisplay textDisplay ? textDisplay : null;
+            TextDisplay waveDisplay = waveEntity instanceof TextDisplay waveText ? waveText : null;
 
-            Location barAnchor = living.getLocation().add(0.0, living.getHeight() + 0.62, 0.0);
-
-            Location valueAnchor = living.getLocation().add(0.0, living.getHeight() + 0.28, 0.0);
+            DisplayOffsets offsets = DisplayOffsets.forMob(plugin, living);
+            Location barAnchor = living.getLocation().add(0.0, offsets.barY(), 0.0);
+            Location valueAnchor = living.getLocation().add(0.0, offsets.valueY(), 0.0);
+            Location waveAnchor = offsets.showWave()
+                    ? living.getLocation().add(0.0, offsets.waveY(), 0.0)
+                    : null;
 
             if (barDisplay.getLocation().distanceSquared(barAnchor) > 0.01) {
 
@@ -267,21 +285,21 @@ public final class MobHealthBarService {
             }
 
             if (valueDisplay != null && valueDisplay.getLocation().distanceSquared(valueAnchor) > 0.01) {
-
                 valueDisplay.teleport(valueAnchor);
-
+            }
+            if (waveDisplay != null && waveAnchor != null && waveDisplay.getLocation().distanceSquared(waveAnchor) > 0.01) {
+                waveDisplay.teleport(waveAnchor);
             }
 
             barDisplay.text(renderBar(living));
-
             if (valueDisplay != null) {
-
                 valueDisplay.text(renderValue(living));
-
                 updateVisibility(living, valueDisplay);
-
             }
-
+            if (waveDisplay != null) {
+                waveDisplay.text(renderWave(living));
+                updateVisibility(living, waveDisplay);
+            }
             updateVisibility(living, barDisplay);
 
             return false;
@@ -378,12 +396,42 @@ public final class MobHealthBarService {
 
         return messages.resolve(
                 MobWaveEntityTags.isSuperBoss(plugin, mob) ? "mobwaves.health-bar-boss" : "mobwaves.health-bar",
-                Map.of("bar", bar.toString())
+                Map.of(
+                        "bar", bar.toString(),
+                        "wave", Integer.toString(Math.max(1, MobWaveEntityTags.waveNumber(plugin, mob)))
+                )
         );
 
     }
 
 
+
+    private Component renderWave(LivingEntity mob) {
+        if (MobWaveEntityTags.isSuperBoss(plugin, mob)) {
+            return Component.empty();
+        }
+        int wave = MobWaveEntityTags.waveNumber(plugin, mob);
+        if (wave <= 0) {
+            return Component.empty();
+        }
+        return messages.resolve("mobwaves.wave-badge", Map.of("wave", Integer.toString(wave)));
+    }
+
+    private record DisplayOffsets(double waveY, double barY, double valueY, boolean showWave) {
+
+        private static DisplayOffsets forMob(Plugin plugin, LivingEntity mob) {
+            double height = mob.getHeight();
+            if (MobWaveEntityTags.isSuperBoss(plugin, mob)) {
+                return new DisplayOffsets(0.0, height + 1.08, height + 0.68, false);
+            }
+            return new DisplayOffsets(
+                    height + 0.95,
+                    height + 0.62,
+                    height + 0.28,
+                    MobWaveEntityTags.waveNumber(plugin, mob) > 0
+            );
+        }
+    }
 
     private Component renderValue(LivingEntity mob) {
 

@@ -8,6 +8,8 @@ import bm.b0b0b0.soulevents.mobwaves.config.settings.WaveDefinitionSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.WaveMobEntrySettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.WaveWaveSettingsGuiSettings;
 import bm.b0b0b0.soulevents.mobwaves.message.MobWaveMessageService;
+import bm.b0b0b0.soulevents.mobwaves.service.HordeMobCombatApplier;
+import bm.b0b0b0.soulevents.mobwaves.util.MobWaveEntityNames;
 import bm.b0b0b0.soulevents.mobwaves.util.MobWaveEntitySupport;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -18,7 +20,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -98,6 +99,9 @@ public final class MobWaveWaveSettingsMenu implements InventoryHolder {
             guiFactory.openProfile(player, profileId);
             return;
         }
+        if (slot == gui.infoSlot) {
+            return;
+        }
         if (slot == gui.deleteWaveSlot) {
             deleteWave(player);
             return;
@@ -133,7 +137,7 @@ public final class MobWaveWaveSettingsMenu implements InventoryHolder {
         if (boss.maxHealth <= 0.0) {
             boss.maxHealth = 250.0;
         }
-        boss.maxHealth = Math.max(0.0, Math.min(5000.0, boss.maxHealth + delta));
+        boss.maxHealth = Math.max(0.0, Math.min(HordeMobCombatApplier.MAX_LIVING_HEALTH, boss.maxHealth + delta));
     }
 
     private void deleteWave(Player player) {
@@ -171,55 +175,65 @@ public final class MobWaveWaveSettingsMenu implements InventoryHolder {
     }
 
     private void render() {
-        inventory.clear();
+        GuiFrames.fillBackground(inventory);
         WaveDefinitionSettings wave = resolveWave().orElse(new WaveDefinitionSettings());
         if (wave.superBoss == null) {
             wave.superBoss = WaveDefinitionSettings.defaultSuperBoss();
         }
         WaveWaveSettingsGuiSettings gui = config.gui().waveWaveSettings;
+        EntityType bossType = MobWaveEntitySupport.resolveEntityType(wave.superBoss.entityType);
         String bossHealth = wave.superBoss.maxHealth > 0.0
                 ? Integer.toString((int) wave.superBoss.maxHealth)
-                : "default";
-        inventory.setItem(gui.backSlot, GuiIcons.icon(
-                Material.matchMaterial(gui.backMaterial),
-                messages.resolve("gui.wave-settings.back", Map.of()),
-                List.of()
+                : messages.resolvePlain("gui.common.default-value", Map.of());
+        String bossStateKey = wave.superBossEnabled ? "gui.common.on" : "gui.common.off";
+        Map<String, String> ph = Map.of(
+                "index", Integer.toString(waveIndex + 1),
+                "name", wave.name,
+                "health", bossHealth,
+                "state", messages.resolvePlain(bossStateKey, Map.of())
+        );
+        inventory.setItem(gui.infoSlot, GuiIcons.icon(
+                Material.matchMaterial(gui.infoMaterial),
+                messages.resolve("gui.wave-settings.info", ph),
+                messages.resolveLore("gui.wave-settings.info-lore", ph)
         ));
         inventory.setItem(gui.toggleBossSlot, GuiIcons.icon(
                 Material.matchMaterial(gui.toggleBossMaterial),
-                messages.resolve("gui.wave-settings.boss-toggle", Map.of(
-                        "state", wave.superBossEnabled ? "on" : "off"
-                )),
-                messages.resolveLore("gui.wave-settings.boss-toggle-lore", Map.of())
+                messages.resolve("gui.wave-settings.boss-toggle", ph),
+                messages.resolveLore("gui.wave-settings.boss-toggle-lore", ph)
         ));
-        EntityType bossType = MobWaveEntitySupport.resolveEntityType(wave.superBoss.entityType);
         Material egg = bossType == null ? Material.BARRIER : MobWaveEntitySupport.spawnEgg(bossType);
         inventory.setItem(gui.bossTypeSlot, GuiIcons.icon(
                 egg,
-                messages.resolve("gui.wave-settings.boss-type", Map.of(
-                        "type", bossType == null ? wave.superBoss.entityType : bossType.name()
-                )),
-                messages.resolveLore("gui.wave-settings.boss-type-lore", Map.of())
+                bossType == null
+                        ? messages.resolve("gui.wave-settings.boss-type-unknown", ph)
+                        : MobWaveEntityNames.displayName(bossType),
+                messages.resolveLore("gui.wave-settings.boss-type-lore", ph)
         ));
         inventory.setItem(gui.bossHealthMinusSlot, GuiIcons.icon(
                 Material.RED_DYE,
-                messages.resolve("gui.wave-settings.boss-health-minus", Map.of()),
-                List.of()
+                messages.resolve("gui.wave-settings.boss-health-minus", ph),
+                messages.resolveLore("gui.wave-settings.boss-health-minus-lore", ph)
         ));
         inventory.setItem(gui.bossHealthInfoSlot, GuiIcons.icon(
                 Material.GOLDEN_APPLE,
-                messages.resolve("gui.wave-settings.boss-health-info", Map.of("health", bossHealth)),
-                messages.resolveLore("gui.wave-settings.boss-health-lore", Map.of())
+                messages.resolve("gui.wave-settings.boss-health-info", ph),
+                messages.resolveLore("gui.wave-settings.boss-health-info-lore", ph)
         ));
         inventory.setItem(gui.bossHealthPlusSlot, GuiIcons.icon(
                 Material.LIME_DYE,
-                messages.resolve("gui.wave-settings.boss-health-plus", Map.of()),
-                List.of()
+                messages.resolve("gui.wave-settings.boss-health-plus", ph),
+                messages.resolveLore("gui.wave-settings.boss-health-plus-lore", ph)
         ));
         inventory.setItem(gui.deleteWaveSlot, GuiIcons.icon(
                 Material.matchMaterial(gui.deleteWaveMaterial),
-                messages.resolve("gui.wave-settings.delete-wave", Map.of()),
-                messages.resolveLore("gui.wave-settings.delete-wave-lore", Map.of())
+                messages.resolve("gui.wave-settings.delete-wave", ph),
+                messages.resolveLore("gui.wave-settings.delete-wave-lore", ph)
+        ));
+        inventory.setItem(gui.backSlot, GuiIcons.icon(
+                Material.matchMaterial(gui.backMaterial),
+                messages.resolve("gui.wave-settings.back", ph),
+                messages.resolveLore("gui.wave-settings.back-lore", ph)
         ));
     }
 }

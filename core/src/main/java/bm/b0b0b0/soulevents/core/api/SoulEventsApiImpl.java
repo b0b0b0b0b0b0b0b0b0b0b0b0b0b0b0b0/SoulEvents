@@ -7,22 +7,27 @@ import bm.b0b0b0.soulevents.api.module.EventSessionController;
 import bm.b0b0b0.soulevents.api.protection.ProtectionServices;
 import bm.b0b0b0.soulevents.api.schedule.EventScheduler;
 import bm.b0b0b0.soulevents.api.schematic.SchematicService;
+import bm.b0b0b0.soulevents.api.stats.PlayerEventStatsService;
 import bm.b0b0b0.soulevents.api.world.FlatSurfaceFinder;
 import bm.b0b0b0.soulevents.core.config.PluginConfig;
-import bm.b0b0b0.soulevents.core.world.FlatSurfaceFinderImpl;
 import bm.b0b0b0.soulevents.core.message.YamlMessageService;
 import bm.b0b0b0.soulevents.core.module.EventModuleRegistryImpl;
 import bm.b0b0b0.soulevents.core.module.EventSessionControllerImpl;
+import bm.b0b0b0.soulevents.core.placeholder.PlaceholderApiHook;
 import bm.b0b0b0.soulevents.core.protection.ProtectionServicesImpl;
 import bm.b0b0b0.soulevents.core.schedule.EventSchedulerImpl;
 import bm.b0b0b0.soulevents.core.schematic.SchematicServiceImpl;
+import bm.b0b0b0.soulevents.core.stats.PlayerEventStatsServiceImpl;
+import bm.b0b0b0.soulevents.core.world.FlatSurfaceFinderImpl;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public final class SoulEventsApiImpl implements SoulEventsApi {
 
     private final Plugin plugin;
     private final EventModuleRegistryImpl modules;
     private final EventSessionControllerImpl sessions;
+    private final PlayerEventStatsServiceImpl stats;
     private final EventSchedulerImpl scheduler;
     private final ProtectionServicesImpl protection;
     private final SchematicServiceImpl schematics;
@@ -33,10 +38,16 @@ public final class SoulEventsApiImpl implements SoulEventsApi {
         this.plugin = plugin;
         this.sessions = new EventSessionControllerImpl();
         this.modules = new EventModuleRegistryImpl(sessions);
+        this.stats = new PlayerEventStatsServiceImpl((JavaPlugin) plugin, config, sessions);
         this.scheduler = new EventSchedulerImpl(plugin);
-        this.protection = new ProtectionServicesImpl(plugin, config);
+        this.protection = new ProtectionServicesImpl(plugin, config, stats);
         this.messages = new YamlMessageService(plugin);
-        this.schematics = new SchematicServiceImpl((org.bukkit.plugin.java.JavaPlugin) plugin, this.messages);
+        this.schematics = new SchematicServiceImpl((JavaPlugin) plugin, this.messages);
+    }
+
+    public void start() {
+        stats.start();
+        PlaceholderApiHook.hook(plugin, stats);
     }
 
     @Override
@@ -79,6 +90,11 @@ public final class SoulEventsApiImpl implements SoulEventsApi {
         return messages;
     }
 
+    @Override
+    public PlayerEventStatsService stats() {
+        return stats;
+    }
+
     public YamlMessageService yamlMessages() {
         return messages;
     }
@@ -87,8 +103,13 @@ public final class SoulEventsApiImpl implements SoulEventsApi {
         return schematics;
     }
 
+    public PlayerEventStatsServiceImpl statsService() {
+        return stats;
+    }
+
     public void reload(PluginConfig config) {
         protection.reload(config);
+        stats.reload(config);
         schematics.reload();
         messages.reload();
         scheduler.reloadAll();
@@ -98,6 +119,7 @@ public final class SoulEventsApiImpl implements SoulEventsApi {
         scheduler.cancelAll();
         sessions.clear();
         protection.shutdown();
+        stats.shutdown();
         schematics.shutdown();
     }
 }

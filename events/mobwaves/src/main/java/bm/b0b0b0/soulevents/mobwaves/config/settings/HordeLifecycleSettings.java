@@ -10,7 +10,7 @@ public final class HordeLifecycleSettings extends YamlSerializable {
     public int maxActiveSeconds = 600;
 
     @Comment(@CommentValue("Секунд после зачистки всех волн, затем cleanup."))
-    public int maxActiveSecondsAfterCleared = 120;
+    public int maxActiveSecondsAfterCleared = 30;
 
     @Comment(@CommentValue("BossBar игрокам в радиусе от нексуса (0 = выкл.)."))
     public int bossBarRadius = 48;
@@ -31,4 +31,13 @@ public final class HordeLifecycleSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Lang: орда исчезнет через <timer>"))
     public String bossBarDespawnKey = "mobwaves.bossbar.despawn";
+
+    @Comment(@CommentValue("Lang: волна <wave>/<waves>, таймер <timer>, бонус <bonus> за убийство"))
+    public String bossBarWaveKey = "mobwaves.bossbar.wave";
+
+    @Comment(@CommentValue("Lang: босс волны <wave> повержен — жди <next_wave>, таймер <timer>"))
+    public String bossBarWaveGraceKey = "mobwaves.bossbar.wave-grace";
+
+    @Comment(@CommentValue("Lang: победа — разлом схлопывается, трофеи ещё <timer>"))
+    public String bossBarVictoryKey = "mobwaves.bossbar.victory";
 }

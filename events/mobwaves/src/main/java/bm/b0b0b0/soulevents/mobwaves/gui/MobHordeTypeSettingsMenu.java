@@ -79,6 +79,9 @@ public final class MobHordeTypeSettingsMenu implements InventoryHolder {
             guiFactory.openAdmin(player);
             return;
         }
+        if (slot == gui.infoSlot) {
+            return;
+        }
         if (slot == gui.summonSlot) {
             service.spawnAdminAsync(player, typeId);
             return;
@@ -104,7 +107,7 @@ public final class MobHordeTypeSettingsMenu implements InventoryHolder {
     }
 
     private void render() {
-        inventory.clear();
+        GuiFrames.fillBackground(inventory);
         Optional<HordeTypeDefinition> definitionOptional = config.type(typeId);
         if (definitionOptional.isEmpty()) {
             return;
@@ -113,6 +116,11 @@ public final class MobHordeTypeSettingsMenu implements InventoryHolder {
         TypeSettingsGuiSettings gui = config.gui().typeSettings;
         Map<String, String> ph = typePlaceholders(definition);
 
+        inventory.setItem(gui.infoSlot, icon(
+                Material.matchMaterial(gui.infoMaterial),
+                messages.resolve("gui.type-settings.info", ph),
+                messages.resolveLore("gui.type-settings.info-lore", ph)
+        ));
         inventory.setItem(gui.backSlot, icon(
                 Material.matchMaterial(gui.backMaterial),
                 messages.resolve("gui.type-settings.back", ph),

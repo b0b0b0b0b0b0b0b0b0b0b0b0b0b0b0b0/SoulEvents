@@ -16,6 +16,8 @@ public final class WaveEditorGuiSettings extends YamlSerializable {
 
     public int editableSlotCount = 45;
 
+    public int infoSlot = 4;
+    public String infoMaterial = Material.BOOK.name();
     public int waveSettingsSlot = 46;
     public String waveSettingsMaterial = Material.COMPARATOR.name();
     public int bossSlot = 47;

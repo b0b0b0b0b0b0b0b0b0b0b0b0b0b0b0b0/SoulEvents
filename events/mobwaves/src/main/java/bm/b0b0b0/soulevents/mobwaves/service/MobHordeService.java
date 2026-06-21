@@ -2,11 +2,13 @@ package bm.b0b0b0.soulevents.mobwaves.service;
 
 import bm.b0b0b0.soulevents.api.SoulEventsApi;
 import bm.b0b0b0.soulevents.api.mobwave.MobWaveAttachRequest;
+import bm.b0b0b0.soulevents.api.mobwave.MobWaveStatus;
 import bm.b0b0b0.soulevents.api.module.ActiveEvent;
 import bm.b0b0b0.soulevents.api.module.EventPhase;
 import bm.b0b0b0.soulevents.api.protection.LootGuardService;
 import bm.b0b0b0.soulevents.api.schematic.SchematicPasteOptions;
 import bm.b0b0b0.soulevents.api.schematic.SchematicWorldBounds;
+import bm.b0b0b0.soulevents.api.world.FlatSurfaceOffset;
 import bm.b0b0b0.soulevents.api.world.WorldPlacementDenial;
 import bm.b0b0b0.soulevents.api.world.WorldPlacementResult;
 import bm.b0b0b0.soulevents.mobwaves.MobWavesPermissions;
@@ -15,6 +17,7 @@ import bm.b0b0b0.soulevents.mobwaves.config.MobWavesPluginConfig;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.HordeBroadcastSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.HordeBuiltinNexusSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.HordeLifecycleSettings;
+import bm.b0b0b0.soulevents.mobwaves.config.settings.HordeLootVisualSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.HordeMobLootSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.WorldPlacementSettings;
 import bm.b0b0b0.soulevents.mobwaves.gate.WorldPlacementGate;
@@ -24,7 +27,6 @@ import bm.b0b0b0.soulevents.mobwaves.message.MobWaveMessageService;
 import bm.b0b0b0.soulevents.mobwaves.message.MobWavesRuntimeLog;
 import bm.b0b0b0.soulevents.mobwaves.module.MobWavesModule;
 import org.bukkit.Bukkit;
-import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
@@ -89,6 +91,10 @@ public final class MobHordeService {
         this.config = config;
         rebuildGates();
         wireBossBar();
+    }
+
+    public HordeNexusVisualService nexusVisualService() {
+        return nexusVisualService;
     }
 
     public MobWavesPluginConfig config() {
@@ -232,7 +238,7 @@ public final class MobHordeService {
                 }
                 return;
             }
-            Location surface = surfacePasteOrigin(location.get());
+            Location surface = groundPasteOrigin(location.get());
             if (!canSpawn(typeId, definition.settings().maxConcurrent, bypassLimits)) {
                 if (feedback != null) {
                     messages.send(feedback, "mobwaves.limit-reached", Map.of("type", typeId));
@@ -247,7 +253,7 @@ public final class MobHordeService {
     }
 
     private void startHorde(String typeId, HordeTypeDefinition definition, Location surfaceOrigin, String source) {
-        Location pasteOrigin = blockAnchor(surfaceOrigin);
+        Location pasteOrigin = groundPasteOrigin(blockAnchor(surfaceOrigin));
         if (definition.settings().usesSchematic()) {
             startHordeWithSchematic(typeId, definition, pasteOrigin, source);
             return;
@@ -263,16 +269,18 @@ public final class MobHordeService {
     ) {
         HordeBuiltinNexusSettings nexusSettings = definition.settings().builtinNexus;
         HordeBuiltinNexusBuilder.BuiltNexus builtNexus = null;
-        Location waveAnchor = pasteOrigin.clone().add(0.0, 1.0, 0.0);
+        Location groundOrigin = groundPasteOrigin(pasteOrigin);
+        Location waveAnchor = groundOrigin.clone().add(0.0, 1.0, 0.0);
         Location visualAnchor = new Location(
-                pasteOrigin.getWorld(),
-                pasteOrigin.getBlockX() + 0.5,
-                pasteOrigin.getBlockY() + 1.0,
-                pasteOrigin.getBlockZ() + 0.5
+                groundOrigin.getWorld(),
+                groundOrigin.getBlockX() + 0.5,
+                groundOrigin.getBlockY() + 1.0,
+                groundOrigin.getBlockZ() + 0.5
         );
         if (nexusSettings.enabled) {
+            clearNexusFooting(definition, groundOrigin, nexusSettings);
             Optional<HordeBuiltinNexusBuilder.BuiltNexus> builtOptional =
-                    HordeBuiltinNexusBuilder.build(pasteOrigin, nexusSettings);
+                    HordeBuiltinNexusBuilder.build(groundOrigin, nexusSettings);
             if (builtOptional.isPresent()) {
                 builtNexus = builtOptional.get();
                 waveAnchor = builtNexus.waveAnchor();
@@ -285,7 +293,7 @@ public final class MobHordeService {
         sessionRegistry.register(new MobHordeSessionRegistry.SessionRecord(
                 sessionId,
                 typeId,
-                pasteOrigin,
+                groundOrigin,
                 sessionAnchor,
                 builtNexus,
                 false
@@ -500,13 +508,37 @@ public final class MobHordeService {
     private MobWaveSessionHooks hordeHooks(HordeTypeDefinition definition) {
         return new MobWaveSessionHooks() {
             @Override
-            public void onMobKilled(UUID waveSessionId, Location deathLocation) {
+            public void onMobKilled(UUID waveSessionId, Location deathLocation, Player killer, int waveIndex, boolean superBoss) {
+                sessionRegistry.find(waveSessionId).ifPresent(MobHordeSessionRegistry.SessionRecord::incrementSessionKills);
                 dropLootForKill(waveSessionId, definition, deathLocation);
+                if (killer != null && killer.isOnline() && !superBoss) {
+                    sendMobKillActionBar(killer, waveSessionId, definition, waveIndex);
+                }
+            }
+
+            @Override
+            public void onBossKilled(UUID waveSessionId, int waveIndex, Player killer, int sessionKills) {
+                sessionRegistry.find(waveSessionId).ifPresent(record -> {
+                    if (killer != null) {
+                        record.lastBossKiller(killer.getName());
+                    }
+                    Location strike = killer != null ? killer.getLocation() : record.waveAnchor();
+                    nexusVisualService.playBossSlainThunder(record.waveAnchor(), strike);
+                    if (killer != null && killer.isOnline()) {
+                        sendBossKillActionBar(killer, waveSessionId, definition, waveIndex, sessionKills);
+                    }
+                });
             }
 
             @Override
             public void onAllWavesComplete(UUID waveSessionId) {
                 onHordeWavesComplete(waveSessionId, definition);
+            }
+
+            @Override
+            public void onWaveTimerExpired(UUID waveSessionId) {
+                messages.broadcast("mobwaves.wave-timer-expired", placeholders(definition.id(), definition, null));
+                endSession(waveSessionId, "WAVE_TIMER");
             }
         };
     }
@@ -534,14 +566,19 @@ public final class MobHordeService {
         HordeBroadcastSettings broadcast = definition.settings().broadcast;
         if (broadcast.enabled && broadcast.clearedEnabled) {
             sessionRegistry.find(sessionId).ifPresent(record ->
-                    messages.broadcast(broadcast.clearedMessageKey, placeholders(definition.id(), definition, record.waveAnchor()))
+                    messages.broadcast(
+                            broadcast.clearedMessageKey,
+                            placeholders(definition.id(), definition, record.waveAnchor(), record)
+                    )
             );
         }
-        int seconds = Math.max(30, definition.settings().lifecycle.maxActiveSecondsAfterCleared);
+        int seconds = Math.max(1, definition.settings().lifecycle.maxActiveSecondsAfterCleared);
         Instant endAt = Instant.now().plusSeconds(seconds);
         sessionRegistry.find(sessionId).ifPresent(record -> {
+            record.markWavesVictory();
             record.endAt(endAt);
             record.cancelCleanupTask();
+            nexusVisualService.beginVictoryFinale(sessionId, record.waveAnchor(), seconds);
         });
         scheduleSessionEnd(sessionId, endAt, "CLEARED");
     }
@@ -582,6 +619,83 @@ public final class MobHordeService {
         lootDropService.removeLabel(itemEntity.getWorld(), lootItem.labelId);
         itemEntity.remove();
         sessionRegistry.markLootClaimed(sessionId, itemEntity.getUniqueId());
+        activeEvent(sessionId).flatMap(event -> config.type(event.typeId()))
+                .ifPresent(definition -> sendPickupActionBar(player, sessionId, definition));
+    }
+
+    private void sendPickupActionBar(Player player, UUID sessionId, HordeTypeDefinition definition) {
+        HordeLootVisualSettings visual = definition.settings().lootVisual;
+        if (!visual.pickupActionBarEnabled || visual.pickupActionBarKeys.isEmpty()) {
+            return;
+        }
+        String key = visual.pickupActionBarKeys.get(
+                ThreadLocalRandom.current().nextInt(visual.pickupActionBarKeys.size())
+        );
+        sessionRegistry.find(sessionId).ifPresent(record ->
+                messages.sendActionBar(
+                        player,
+                        key,
+                        placeholders(definition.id(), definition, record.waveAnchor(), record)
+                )
+        );
+    }
+
+    private void sendMobKillActionBar(Player killer, UUID sessionId, HordeTypeDefinition definition, int waveIndex) {
+        HordeBroadcastSettings broadcast = definition.settings().broadcast;
+        if (!broadcast.mobKillActionBarEnabled || broadcast.mobKillActionBarKeys.isEmpty()) {
+            return;
+        }
+        String key = broadcast.mobKillActionBarKeys.get(
+                ThreadLocalRandom.current().nextInt(broadcast.mobKillActionBarKeys.size())
+        );
+        sessionRegistry.find(sessionId).ifPresent(record ->
+                messages.sendActionBar(
+                        killer,
+                        key,
+                        killActionBarPlaceholders(definition, record, waveIndex)
+                )
+        );
+    }
+
+    private void sendBossKillActionBar(
+            Player killer,
+            UUID sessionId,
+            HordeTypeDefinition definition,
+            int waveIndex,
+            int sessionKills
+    ) {
+        HordeBroadcastSettings broadcast = definition.settings().broadcast;
+        if (!broadcast.bossKillActionBarEnabled || broadcast.bossKillActionBarKeys.isEmpty()) {
+            return;
+        }
+        String key = broadcast.bossKillActionBarKeys.get(
+                ThreadLocalRandom.current().nextInt(broadcast.bossKillActionBarKeys.size())
+        );
+        sessionRegistry.find(sessionId).ifPresent(record -> {
+            Map<String, String> placeholders = killActionBarPlaceholders(definition, record, waveIndex);
+            placeholders.put("kills", Integer.toString(sessionKills));
+            placeholders.put("alive", Integer.toString(aliveCountNear(record)));
+            placeholders.put("next_wave", Integer.toString(waveIndex + 1));
+            messages.sendActionBar(killer, key, placeholders);
+        });
+    }
+
+    private Map<String, String> killActionBarPlaceholders(
+            HordeTypeDefinition definition,
+            MobHordeSessionRegistry.SessionRecord record,
+            int waveIndex
+    ) {
+        Map<String, String> placeholders = placeholders(definition.id(), definition, record.waveAnchor(), record);
+        placeholders.put("wave", Integer.toString(waveIndex));
+        int bonus = Math.max(0, config.module().hordeCombat.secondsAddedPerKill);
+        placeholders.put("bonus", Integer.toString(bonus));
+        return placeholders;
+    }
+
+    private int aliveCountNear(MobHordeSessionRegistry.SessionRecord record) {
+        return waveService.status(record.sessionId())
+                .map(MobWaveStatus::aliveMobs)
+                .orElse(0);
     }
 
     public void shutdown() {
@@ -602,7 +716,7 @@ public final class MobHordeService {
         if (sessionRegistry.find(sessionId).isEmpty() && activeEvent(sessionId).isEmpty()) {
             return;
         }
-        if (!"SHUTDOWN".equals(phase) && !"ADMIN".equals(phase)) {
+        if (!"SHUTDOWN".equals(phase) && !"ADMIN".equals(phase) && !"CLEARED".equals(phase)) {
             Optional<ActiveEvent> active = activeEvent(sessionId);
             Optional<MobHordeSessionRegistry.SessionRecord> record = sessionRegistry.find(sessionId);
             if (active.isPresent() && record.isPresent()) {
@@ -694,7 +808,8 @@ public final class MobHordeService {
                 () -> sessionRegistry.snapshot().stream()
                         .collect(Collectors.toMap(MobHordeSessionRegistry.SessionRecord::sessionId, record -> record)),
                 this::activeEvent,
-                config::type
+                config::type,
+                waveService::waveTimerSnapshot
         );
     }
 
@@ -722,18 +837,51 @@ public final class MobHordeService {
         );
     }
 
-    private static Location surfacePasteOrigin(Location hint) {
+    private Location groundPasteOrigin(Location hint) {
         World world = hint.getWorld();
         if (world == null) {
             return hint;
         }
         int x = hint.getBlockX();
         int z = hint.getBlockZ();
-        int y = world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES);
-        return new Location(world, x, y, z);
+        int groundY = api.placement().naturalGroundY(world, x, z);
+        return new Location(world, x, groundY, z);
+    }
+
+    private void clearNexusFooting(
+            HordeTypeDefinition definition,
+            Location groundOrigin,
+            HordeBuiltinNexusSettings nexusSettings
+    ) {
+        World world = groundOrigin.getWorld();
+        if (world == null) {
+            return;
+        }
+        int groundY = groundOrigin.getBlockY();
+        int clearTop = groundY + nexusSettings.visibleHeight
+                + Math.max(2, definition.settings().randomSpawn.flatMinAirAbove)
+                + 12;
+        for (FlatSurfaceOffset offset : HordeBuiltinNexusBuilder.footprintOffsets(nexusSettings)) {
+            api.placement().clearObstructions(
+                    world,
+                    groundOrigin.getBlockX() + offset.dx(),
+                    groundOrigin.getBlockZ() + offset.dz(),
+                    groundY + 1,
+                    clearTop
+            );
+        }
     }
 
     private Map<String, String> placeholders(String typeId, HordeTypeDefinition definition, Location anchor) {
+        return placeholders(typeId, definition, anchor, null);
+    }
+
+    private Map<String, String> placeholders(
+            String typeId,
+            HordeTypeDefinition definition,
+            Location anchor,
+            MobHordeSessionRegistry.SessionRecord record
+    ) {
         Map<String, String> values = new HashMap<>();
         values.put("type", typeId);
         values.put("type_name", messages.resolvePlain(definition.settings().displayNameKey, Map.of()));
@@ -741,8 +889,14 @@ public final class MobHordeService {
                 "structure_name",
                 messages.resolvePlain(definition.settings().structureNameKey(), Map.of())
         );
-        if (anchor != null && anchor.getWorld() != null) {
-            values.put("world", anchor.getWorld().getName());
+        if (record != null) {
+            values.put("kills", Integer.toString(record.sessionKills()));
+            values.put("boss_killer", record.lastBossKiller());
+        } else {
+            values.put("kills", "0");
+            values.put("boss_killer", "—");
+        }
+        if (anchor != null) {
             values.put("x", Integer.toString(anchor.getBlockX()));
             values.put("y", Integer.toString(anchor.getBlockY()));
             values.put("z", Integer.toString(anchor.getBlockZ()));

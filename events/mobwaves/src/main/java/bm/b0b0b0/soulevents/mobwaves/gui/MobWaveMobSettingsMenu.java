@@ -5,8 +5,8 @@ import bm.b0b0b0.soulevents.mobwaves.config.WaveProfileDefinition;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.MobSettingsGuiSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.MobTypeOverrideSettings;
 import bm.b0b0b0.soulevents.mobwaves.message.MobWaveMessageService;
+import bm.b0b0b0.soulevents.mobwaves.util.MobWaveEntityNames;
 import bm.b0b0b0.soulevents.mobwaves.util.MobWaveEntitySupport;
-import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
@@ -76,6 +76,9 @@ public final class MobWaveMobSettingsMenu implements InventoryHolder {
             guiFactory.openProfile(player, profileId);
             return;
         }
+        if (event.getRawSlot() == gui.infoSlot) {
+            return;
+        }
         String mobType = slotTypes.get(event.getRawSlot());
         if (mobType != null) {
             guiFactory.openMobOverride(player, profileId, mobType);
@@ -83,44 +86,55 @@ public final class MobWaveMobSettingsMenu implements InventoryHolder {
     }
 
     private void render() {
-        inventory.clear();
+        GuiFrames.fillBackground(inventory);
         slotTypes.clear();
         MobSettingsGuiSettings gui = config.gui().mobSettings;
-        inventory.setItem(gui.backSlot, GuiIcons.icon(
-                Material.matchMaterial(gui.backMaterial),
-                messages.resolve("gui.mob-settings.back", Map.of()),
-                List.of()
-        ));
         Optional<WaveProfileDefinition> profileOptional = config.profile(profileId);
         if (profileOptional.isEmpty()) {
             return;
         }
         WaveProfileDefinition profile = profileOptional.get();
+        Map<String, String> ph = Map.of("profile", profileId);
+        inventory.setItem(gui.infoSlot, GuiIcons.icon(
+                Material.matchMaterial(gui.infoMaterial),
+                messages.resolve("gui.mob-settings.info", ph),
+                messages.resolveLore("gui.mob-settings.info-lore", ph)
+        ));
+        String defaultLabel = messages.resolvePlain("gui.common.default-value", Map.of());
         int slot = gui.mobListStartSlot;
+        int maxSlot = Math.min(gui.mobListEndSlot, gui.backSlot - 1);
         for (EntityType type : MobWaveEntitySupport.allowedTypes()) {
-            if (slot >= inventory.getSize()) {
+            if (slot > maxSlot) {
                 break;
             }
             MobTypeOverrideSettings override = profile.settings().mobOverrides.getOrDefault(
                     type.name(),
                     new MobTypeOverrideSettings()
             );
+            int effectCount = override.effects == null ? 0 : override.effects.size();
             String health = override.maxHealth > 0.0
                     ? Integer.toString((int) override.maxHealth)
-                    : "default";
+                    : defaultLabel;
+            Map<String, String> entryPh = Map.of(
+                    "health", health,
+                    "speed", formatMultiplier(override.speedMultiplier),
+                    "damage", formatMultiplier(override.damageMultiplier),
+                    "effects", Integer.toString(effectCount)
+            );
             ItemStack egg = new ItemStack(MobWaveEntitySupport.spawnEgg(type));
             egg.editMeta(meta -> {
-                meta.displayName(Component.text(type.name()));
-                meta.lore(messages.resolveLore("gui.mob-settings.entry-lore", Map.of(
-                        "health", health,
-                        "speed", formatMultiplier(override.speedMultiplier),
-                        "damage", formatMultiplier(override.damageMultiplier)
-                )));
+                meta.displayName(MobWaveEntityNames.displayName(type));
+                meta.lore(messages.resolveLore("gui.mob-settings.entry-lore", entryPh));
             });
             inventory.setItem(slot, egg);
             slotTypes.put(slot, type.name());
             slot++;
         }
+        inventory.setItem(gui.backSlot, GuiIcons.icon(
+                Material.matchMaterial(gui.backMaterial),
+                messages.resolve("gui.mob-settings.back", ph),
+                messages.resolveLore("gui.mob-settings.back-lore", ph)
+        ));
     }
 
     private static String formatMultiplier(double value) {

@@ -5,15 +5,17 @@ import org.bukkit.Material;
 
 public final class WaveWaveSettingsGuiSettings extends YamlSerializable {
 
-    public int rows = 3;
-    public int backSlot = 18;
+    public int rows = 4;
+    public int infoSlot = 4;
+    public String infoMaterial = Material.BOOK.name();
+    public int backSlot = 31;
     public String backMaterial = Material.LIGHT_GRAY_DYE.name();
-    public int toggleBossSlot = 11;
+    public int toggleBossSlot = 10;
     public String toggleBossMaterial = Material.NETHER_STAR.name();
-    public int bossTypeSlot = 13;
-    public int bossHealthMinusSlot = 12;
-    public int bossHealthPlusSlot = 14;
-    public int bossHealthInfoSlot = 4;
-    public int deleteWaveSlot = 26;
+    public int bossTypeSlot = 12;
+    public int bossHealthMinusSlot = 19;
+    public int bossHealthInfoSlot = 20;
+    public int bossHealthPlusSlot = 21;
+    public int deleteWaveSlot = 23;
     public String deleteWaveMaterial = Material.RED_DYE.name();
 }

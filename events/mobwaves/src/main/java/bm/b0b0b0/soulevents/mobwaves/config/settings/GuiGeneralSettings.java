@@ -42,6 +42,9 @@ public final class GuiGeneralSettings extends YamlSerializable {
     public MobOverrideGuiSettings mobOverride = new MobOverrideGuiSettings();
 
     @NewLine
+    public MobEffectsGuiSettings mobEffects = new MobEffectsGuiSettings();
+
+    @NewLine
     public LootHubGuiSettings lootHub = new LootHubGuiSettings();
 
     @NewLine

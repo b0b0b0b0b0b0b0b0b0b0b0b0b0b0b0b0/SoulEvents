@@ -1,5 +1,6 @@
 package bm.b0b0b0.soulevents.mobwaves.service;
 
+import bm.b0b0b0.soulevents.api.mobwave.MobWaveChestPhase;
 import bm.b0b0b0.soulevents.mobwaves.config.HordeTypeDefinition;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.HordeLifecycleSettings;
 import bm.b0b0b0.soulevents.mobwaves.message.MobWaveMessageService;
@@ -32,12 +33,15 @@ public final class HordeDespawnBossBarService implements Listener {
     private static final BossBar.Color WAITING_BAR_COLOR = BossBar.Color.YELLOW;
     private static final BossBar.Color ACTIVE_BAR_COLOR = BossBar.Color.GREEN;
     private static final BossBar.Color DESPAWN_BAR_COLOR = BossBar.Color.RED;
+    private static final BossBar.Color WAVE_BAR_COLOR = BossBar.Color.WHITE;
+    private static final BossBar.Color VICTORY_BAR_COLOR = BossBar.Color.PURPLE;
 
     private final Plugin plugin;
     private final MobWaveMessageService messages;
     private Supplier<Map<UUID, MobHordeSessionRegistry.SessionRecord>> sessionSnapshot = Map::of;
     private Function<UUID, Optional<ActiveEvent>> activeEventLookup = sessionId -> Optional.empty();
     private Function<String, Optional<HordeTypeDefinition>> typeLookup = typeId -> Optional.empty();
+    private Function<UUID, Optional<MobWaveService.WaveTimerSnapshot>> waveTimerLookup = sessionId -> Optional.empty();
     private BukkitTask tickTask;
     private final Map<UUID, BossBar> playerBars = new HashMap<>();
 
@@ -49,11 +53,13 @@ public final class HordeDespawnBossBarService implements Listener {
     public void wire(
             Supplier<Map<UUID, MobHordeSessionRegistry.SessionRecord>> sessionSnapshot,
             Function<UUID, Optional<ActiveEvent>> activeEventLookup,
-            Function<String, Optional<HordeTypeDefinition>> typeLookup
+            Function<String, Optional<HordeTypeDefinition>> typeLookup,
+            Function<UUID, Optional<MobWaveService.WaveTimerSnapshot>> waveTimerLookup
     ) {
         this.sessionSnapshot = sessionSnapshot;
         this.activeEventLookup = activeEventLookup;
         this.typeLookup = typeLookup;
+        this.waveTimerLookup = waveTimerLookup;
     }
 
     public void start() {
@@ -136,32 +142,49 @@ public final class HordeDespawnBossBarService implements Listener {
             }
 
             Optional<SessionView> candidate = Optional.empty();
-            Instant endAt = record.endAt();
-            if (endAt != null && now.isBefore(endAt)) {
-                long remaining = Math.max(0L, Duration.between(now, endAt).toSeconds());
-                candidate = Optional.of(new SessionView(
-                        definition.get(),
-                        endAt,
-                        remaining,
-                        BarMode.DESPAWN
-                ));
-            } else if (!record.wavesAttached()) {
-                candidate = Optional.of(new SessionView(
-                        definition.get(),
-                        active.get().startedAt(),
-                        0L,
-                        BarMode.WAITING
-                ));
-            } else {
-                Instant expireAt = record.expireAt();
-                if (expireAt != null && now.isBefore(expireAt)) {
-                    long remaining = Math.max(0L, Duration.between(now, expireAt).toSeconds());
-                    candidate = Optional.of(new SessionView(
+            Optional<MobWaveService.WaveTimerSnapshot> waveTimer = waveTimerLookup.apply(sessionId);
+            if (record.wavesAttached() && waveTimer.isPresent()) {
+                MobWaveService.WaveTimerSnapshot timer = waveTimer.get();
+                if (timer.phase() == MobWaveChestPhase.GRACE) {
+                    candidate = Optional.of(SessionView.waveGrace(
                             definition.get(),
-                            expireAt,
-                            remaining,
-                            BarMode.ACTIVE
+                            timer.remainingSeconds(),
+                            timer.displayMaxSeconds(),
+                            timer.waveIndex(),
+                            timer.waveCount(),
+                            timer.bonusSecondsPerKill()
                     ));
+                } else {
+                    candidate = Optional.of(SessionView.wave(
+                            definition.get(),
+                            timer.remainingSeconds(),
+                            timer.displayMaxSeconds(),
+                            timer.waveIndex(),
+                            timer.waveCount(),
+                            timer.bonusSecondsPerKill()
+                    ));
+                }
+            } else {
+                Instant endAt = record.endAt();
+                if (endAt != null && now.isBefore(endAt)) {
+                    long remaining = Math.max(0L, Duration.between(now, endAt).toSeconds());
+                    if (record.wavesVictory()) {
+                        candidate = Optional.of(SessionView.victory(definition.get(), remaining));
+                    } else {
+                        candidate = Optional.of(SessionView.despawn(definition.get(), remaining));
+                    }
+                } else if (!record.wavesAttached()) {
+                    candidate = Optional.of(SessionView.waiting(definition.get()));
+                } else {
+                    Instant expireAt = record.expireAt();
+                    if (expireAt != null && now.isBefore(expireAt)) {
+                        long remaining = Math.max(0L, Duration.between(now, expireAt).toSeconds());
+                        candidate = Optional.of(SessionView.active(
+                                definition.get(),
+                                remaining,
+                                lifecycle.maxActiveSeconds
+                        ));
+                    }
                 }
             }
 
@@ -177,19 +200,20 @@ public final class HordeDespawnBossBarService implements Listener {
 
     private void updateBar(Player player, SessionView session) {
         HordeLifecycleSettings lifecycle = session.definition().settings().lifecycle;
-        long totalSeconds = switch (session.mode()) {
-            case WAITING -> 1L;
-            case ACTIVE -> Math.max(1L, lifecycle.maxActiveSeconds);
-            case DESPAWN -> Math.max(1L, lifecycle.maxActiveSecondsAfterCleared);
-        };
         float progress = switch (session.mode()) {
             case WAITING -> 1F;
-            case ACTIVE, DESPAWN -> Math.max(0F, Math.min(1F, session.remainingSeconds() / (float) totalSeconds));
+            case WAVE, WAVE_GRACE, ACTIVE, DESPAWN, VICTORY -> Math.max(
+                    0F,
+                    Math.min(1F, session.remainingSeconds() / (float) Math.max(1L, session.displayMaxSeconds()))
+            );
         };
         BossBar.Color color = switch (session.mode()) {
             case WAITING -> WAITING_BAR_COLOR;
+            case WAVE -> WAVE_BAR_COLOR;
+            case WAVE_GRACE -> BossBar.Color.GREEN;
             case ACTIVE -> ACTIVE_BAR_COLOR;
             case DESPAWN -> DESPAWN_BAR_COLOR;
+            case VICTORY -> VICTORY_BAR_COLOR;
         };
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("timer", formatTimer(session.remainingSeconds()));
@@ -197,10 +221,17 @@ public final class HordeDespawnBossBarService implements Listener {
                 "type_name",
                 messages.resolvePlain(session.definition().settings().displayNameKey, Map.of())
         );
+        placeholders.put("wave", Integer.toString(session.waveIndex()));
+        placeholders.put("waves", Integer.toString(session.waveCount()));
+        placeholders.put("next_wave", Integer.toString(Math.min(session.waveCount(), session.waveIndex() + 1)));
+        placeholders.put("bonus", formatTimer(session.bonusSecondsPerKill()));
         String messageKey = switch (session.mode()) {
             case WAITING -> lifecycle.bossBarWaitingKey;
+            case WAVE -> lifecycle.bossBarWaveKey;
+            case WAVE_GRACE -> lifecycle.bossBarWaveGraceKey;
             case ACTIVE -> lifecycle.bossBarActiveKey;
             case DESPAWN -> lifecycle.bossBarDespawnKey;
+            case VICTORY -> lifecycle.bossBarVictoryKey;
         };
         Component title = messages.resolve(messageKey, placeholders);
         BossBar bar = playerBars.computeIfAbsent(player.getUniqueId(), ignored -> BossBar.bossBar(
@@ -229,8 +260,11 @@ public final class HordeDespawnBossBarService implements Listener {
     }
 
     private enum BarMode {
+        WAVE(-1),
+        WAVE_GRACE(-1),
         WAITING(0),
         ACTIVE(1),
+        VICTORY(1),
         DESPAWN(2);
 
         private final int priority;
@@ -246,10 +280,83 @@ public final class HordeDespawnBossBarService implements Listener {
 
     private record SessionView(
             HordeTypeDefinition definition,
-            Instant endAt,
             long remainingSeconds,
+            long displayMaxSeconds,
+            int waveIndex,
+            int waveCount,
+            int bonusSecondsPerKill,
             BarMode mode
     ) {
+        static SessionView wave(
+                HordeTypeDefinition definition,
+                long remainingSeconds,
+                long displayMaxSeconds,
+                int waveIndex,
+                int waveCount,
+                int bonusSecondsPerKill
+        ) {
+            return new SessionView(
+                    definition,
+                    remainingSeconds,
+                    displayMaxSeconds,
+                    waveIndex,
+                    waveCount,
+                    bonusSecondsPerKill,
+                    BarMode.WAVE
+            );
+        }
+
+        static SessionView waveGrace(
+                HordeTypeDefinition definition,
+                long remainingSeconds,
+                long displayMaxSeconds,
+                int waveIndex,
+                int waveCount,
+                int bonusSecondsPerKill
+        ) {
+            return new SessionView(
+                    definition,
+                    remainingSeconds,
+                    displayMaxSeconds,
+                    waveIndex,
+                    waveCount,
+                    bonusSecondsPerKill,
+                    BarMode.WAVE_GRACE
+            );
+        }
+
+        static SessionView waiting(HordeTypeDefinition definition) {
+            return new SessionView(definition, 0L, 1L, 0, 0, 0, BarMode.WAITING);
+        }
+
+        static SessionView active(HordeTypeDefinition definition, long remainingSeconds, long displayMaxSeconds) {
+            return new SessionView(definition, remainingSeconds, displayMaxSeconds, 0, 0, 0, BarMode.ACTIVE);
+        }
+
+        static SessionView despawn(HordeTypeDefinition definition, long remainingSeconds) {
+            return new SessionView(
+                    definition,
+                    remainingSeconds,
+                    Math.max(1L, definition.settings().lifecycle.maxActiveSecondsAfterCleared),
+                    0,
+                    0,
+                    0,
+                    BarMode.DESPAWN
+            );
+        }
+
+        static SessionView victory(HordeTypeDefinition definition, long remainingSeconds) {
+            return new SessionView(
+                    definition,
+                    remainingSeconds,
+                    Math.max(1L, definition.settings().lifecycle.maxActiveSecondsAfterCleared),
+                    0,
+                    0,
+                    0,
+                    BarMode.VICTORY
+            );
+        }
+
         int priority() {
             return mode.priority();
         }

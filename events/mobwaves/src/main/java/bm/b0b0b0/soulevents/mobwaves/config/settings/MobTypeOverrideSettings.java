@@ -4,6 +4,9 @@ import net.elytrium.serializer.annotations.Comment;
 import net.elytrium.serializer.annotations.CommentValue;
 import net.elytrium.serializer.language.object.YamlSerializable;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public final class MobTypeOverrideSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Переопределение здоровья. 0 = дефолт типа."))
@@ -14,4 +17,7 @@ public final class MobTypeOverrideSettings extends YamlSerializable {
 
     @Comment(@CommentValue("Множитель урона атаки."))
     public double damageMultiplier = 1.0;
+
+    @Comment(@CommentValue("Эффекты зелий (SPEED, STRENGTH, …). duration-ticks: -1 = бесконечно."))
+    public List<MobPotionEffectSettings> effects = new ArrayList<>();
 }

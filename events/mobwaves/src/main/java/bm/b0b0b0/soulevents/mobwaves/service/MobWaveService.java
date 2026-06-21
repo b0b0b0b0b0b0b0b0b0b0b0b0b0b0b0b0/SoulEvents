@@ -1,20 +1,23 @@
 package bm.b0b0b0.soulevents.mobwaves.service;
 
+import bm.b0b0b0.soulevents.api.SoulEventsApi;
 import bm.b0b0b0.soulevents.api.mobwave.MobWaveAttachRequest;
 import bm.b0b0b0.soulevents.api.mobwave.MobWaveChestPhase;
 import bm.b0b0b0.soulevents.api.mobwave.MobWaveStatus;
 import bm.b0b0b0.soulevents.mobwaves.config.MobWavesPluginConfig;
 import bm.b0b0b0.soulevents.mobwaves.config.WaveProfileDefinition;
+import bm.b0b0b0.soulevents.mobwaves.config.settings.HordeMobCombatSettings;
+import bm.b0b0b0.soulevents.mobwaves.config.settings.MobPotionEffectSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.MobTypeOverrideSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.MobWavesModuleSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.WaveDefinitionSettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.WaveMobEntrySettings;
 import bm.b0b0b0.soulevents.mobwaves.config.settings.WaveProfileSettings;
 import bm.b0b0b0.soulevents.mobwaves.message.MobWavesRuntimeLog;
+import bm.b0b0b0.soulevents.mobwaves.util.MobPotionEffectSupport;
 import bm.b0b0b0.soulevents.mobwaves.util.MobWaveEntitySupport;
 import bm.b0b0b0.soulevents.mobwaves.util.MobWaveEntityTags;
 import org.bukkit.Bukkit;
-import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -42,13 +45,25 @@ public final class MobWaveService {
     private final Plugin plugin;
     private MobWavesPluginConfig config;
     private final MobHealthBarService healthBarService;
+    private final SoulEventsApi api;
+    private HordeMobVisualService mobVisualService;
 
     private final Map<UUID, ActiveSession> sessions = new ConcurrentHashMap<>();
 
-    public MobWaveService(Plugin plugin, MobWavesPluginConfig config, MobHealthBarService healthBarService) {
+    public MobWaveService(
+            Plugin plugin,
+            MobWavesPluginConfig config,
+            MobHealthBarService healthBarService,
+            SoulEventsApi api
+    ) {
         this.plugin = plugin;
         this.config = config;
         this.healthBarService = healthBarService;
+        this.api = api;
+    }
+
+    public void bindMobVisualService(HordeMobVisualService mobVisualService) {
+        this.mobVisualService = mobVisualService;
     }
 
     public void reload(MobWavesPluginConfig config) {
@@ -141,14 +156,42 @@ public final class MobWaveService {
     }
 
     public void forEachAliveMob(java.util.function.Consumer<LivingEntity> consumer) {
+        forEachAliveMob((living, ignored) -> consumer.accept(living));
+    }
+
+    public void forEachAliveMob(java.util.function.BiConsumer<LivingEntity, MobAnchorContext> consumer) {
         for (ActiveSession session : sessions.values()) {
+            MobAnchorContext anchorContext = anchorContext(session);
             for (UUID mobId : session.aliveMobs) {
                 Entity entity = Bukkit.getEntity(mobId);
                 if (entity instanceof LivingEntity living && living.isValid() && !living.isDead()) {
-                    consumer.accept(living);
+                    consumer.accept(living, anchorContext);
                 }
             }
         }
+    }
+
+    public Optional<MobAnchorContext> anchorContext(UUID sessionId) {
+        ActiveSession session = sessions.get(sessionId);
+        if (session == null) {
+            return Optional.empty();
+        }
+        return Optional.of(anchorContext(session));
+    }
+
+    private MobAnchorContext anchorContext(ActiveSession session) {
+        int spawnRadius = session.spawnRadius > 0 ? session.spawnRadius : config.module().defaultSpawnRadius;
+        HordeMobCombatSettings combat = config.module().hordeCombat;
+        int chaseRadius = combat.maxChaseDistanceFromAnchorBlocks > 0
+                ? combat.maxChaseDistanceFromAnchorBlocks
+                : spawnRadius + 24;
+        int pullRadius = combat.mobPullBackRadiusBlocks > 0
+                ? combat.mobPullBackRadiusBlocks
+                : spawnRadius + 12;
+        return new MobAnchorContext(session.sessionId, session.anchor.clone(), chaseRadius, pullRadius);
+    }
+
+    public record MobAnchorContext(UUID sessionId, Location anchor, int maxChaseRadiusBlocks, int pullBackRadiusBlocks) {
     }
 
     public boolean blocksChest(UUID sessionId) {
@@ -173,24 +216,92 @@ public final class MobWaveService {
         ));
     }
 
-    public void onMobDeath(UUID sessionId, UUID mobId, Location deathLocation) {
+    public void onMobDeath(UUID sessionId, UUID mobId, Location deathLocation, boolean superBoss, org.bukkit.entity.Player killer) {
         ActiveSession session = sessions.get(sessionId);
         if (session == null) {
             return;
         }
         session.aliveMobs.remove(mobId);
         healthBarService.remove(mobId);
-        if (session.hooks != null && deathLocation != null) {
-            session.hooks.onMobKilled(sessionId, deathLocation);
+        if (mobVisualService != null) {
+            mobVisualService.clear(mobId);
         }
-        checkWaveProgress(session);
+        session.sessionKills++;
+        extendWaveTimer(session);
+        if (session.hooks != null && deathLocation != null) {
+            session.hooks.onMobKilled(sessionId, deathLocation, killer, session.waveIndex + 1, superBoss);
+        }
+        WaveDefinitionSettings wave = currentWave(session);
+        if (wave != null && wave.superBossEnabled && superBoss) {
+            if (session.hooks != null) {
+                session.hooks.onBossKilled(sessionId, session.waveIndex + 1, killer, session.sessionKills);
+            }
+            stopPendingSpawns(session);
+            onWaveCleared(session);
+            return;
+        }
+        if (wave == null || !wave.superBossEnabled) {
+            checkWaveProgress(session);
+        }
+    }
+
+    private WaveDefinitionSettings currentWave(ActiveSession session) {
+        if (session.waveIndex < 0 || session.waveIndex >= session.profile.settings().waves.size()) {
+            return null;
+        }
+        return session.profile.settings().waves.get(session.waveIndex);
+    }
+
+    private void stopPendingSpawns(ActiveSession session) {
+        session.spawnQueue.clear();
+        if (session.batchTask != null) {
+            session.batchTask.cancel();
+            session.batchTask = null;
+        }
+    }
+
+    private void pruneDeadMobs(ActiveSession session) {
+        session.aliveMobs.removeIf(mobId -> {
+            Entity entity = Bukkit.getEntity(mobId);
+            return entity == null || entity.isDead() || !entity.isValid();
+        });
+    }
+
+    public Optional<WaveTimerSnapshot> waveTimerSnapshot(UUID sessionId) {
+        ActiveSession session = sessions.get(sessionId);
+        if (session == null || !config.module().hordeCombat.waveTimerEnabled) {
+            return Optional.empty();
+        }
+        if (session.phase != MobWaveChestPhase.LOCKED && session.phase != MobWaveChestPhase.GRACE) {
+            return Optional.empty();
+        }
+        long remainingSeconds = Math.max(0L, (session.waveTimerEndTick - Bukkit.getCurrentTick() + 19L) / 20L);
+        int bonus = Math.max(0, config.module().hordeCombat.secondsAddedPerKill);
+        return Optional.of(new WaveTimerSnapshot(
+                remainingSeconds,
+                session.waveIndex + 1,
+                session.profile.settings().waves.size(),
+                bonus,
+                Math.max(1L, session.waveTimerDisplayMaxSeconds),
+                session.phase
+        ));
+    }
+
+    public record WaveTimerSnapshot(
+            long remainingSeconds,
+            int waveIndex,
+            int waveCount,
+            int bonusSecondsPerKill,
+            long displayMaxSeconds,
+            MobWaveChestPhase phase
+    ) {
     }
 
     private void startWave(ActiveSession session) {
         session.cancelTasks();
         session.phase = MobWaveChestPhase.LOCKED;
         session.spawnQueue.clear();
-        session.aliveMobs.clear();
+        pruneDeadMobs(session);
         if (session.waveIndex >= session.profile.settings().waves.size()) {
             session.phase = MobWaveChestPhase.COMPLETED;
             return;
@@ -241,6 +352,11 @@ public final class MobWaveService {
                         + " intervalTicks=" + session.batchIntervalTicks
                         + " anchor=" + formatBlock(session.anchor)
         );
+        if (session.waveIndex == 0) {
+            resetWaveTimer(session);
+        } else {
+            ensureWaveTimerTask(session);
+        }
         spawnNextBatch(session);
         session.batchTask = Bukkit.getScheduler().runTaskTimer(
                 plugin,
@@ -327,6 +443,7 @@ public final class MobWaveService {
             return;
         }
         session.phase = MobWaveChestPhase.GRACE;
+        ensureWaveTimerTask(session);
         session.graceTask = Bukkit.getScheduler().runTaskLater(
                 plugin,
                 () -> {
@@ -338,6 +455,67 @@ public final class MobWaveService {
                 },
                 session.graceSeconds * 20L
         );
+    }
+
+    private void resetWaveTimer(ActiveSession session) {
+        HordeMobCombatSettings combat = config.module().hordeCombat;
+        if (!combat.waveTimerEnabled) {
+            session.waveTimerEndTick = Integer.MAX_VALUE;
+            session.waveTimerDisplayMaxSeconds = 1L;
+            return;
+        }
+        int initialSeconds = Math.max(1, combat.initialWaveTimerSeconds);
+        session.waveTimerEndTick = Bukkit.getCurrentTick() + initialSeconds * 20;
+        session.waveTimerDisplayMaxSeconds = initialSeconds;
+        ensureWaveTimerTask(session);
+    }
+
+    private void extendWaveTimer(ActiveSession session) {
+        HordeMobCombatSettings combat = config.module().hordeCombat;
+        if (!combat.waveTimerEnabled) {
+            return;
+        }
+        if (session.phase != MobWaveChestPhase.LOCKED && session.phase != MobWaveChestPhase.GRACE) {
+            return;
+        }
+        int bonusSeconds = Math.max(0, combat.secondsAddedPerKill);
+        if (bonusSeconds <= 0) {
+            return;
+        }
+        session.waveTimerEndTick += bonusSeconds * 20;
+        long remainingSeconds = Math.max(1L, (session.waveTimerEndTick - Bukkit.getCurrentTick() + 19L) / 20L);
+        session.waveTimerDisplayMaxSeconds = Math.max(session.waveTimerDisplayMaxSeconds, remainingSeconds);
+    }
+
+    private void ensureWaveTimerTask(ActiveSession session) {
+        if (session.waveTimerTask != null) {
+            return;
+        }
+        session.waveTimerTask = Bukkit.getScheduler().runTaskTimer(
+                plugin,
+                () -> checkWaveTimer(session),
+                20L,
+                20L
+        );
+    }
+
+    private void checkWaveTimer(ActiveSession session) {
+        if (!sessions.containsKey(session.sessionId)) {
+            return;
+        }
+        if (session.phase != MobWaveChestPhase.LOCKED && session.phase != MobWaveChestPhase.GRACE) {
+            return;
+        }
+        if (!config.module().hordeCombat.waveTimerEnabled) {
+            return;
+        }
+        if (Bukkit.getCurrentTick() < session.waveTimerEndTick) {
+            return;
+        }
+        session.waveTimerEndTick = Integer.MAX_VALUE;
+        if (session.hooks != null) {
+            session.hooks.onWaveTimerExpired(session.sessionId);
+        }
     }
 
     private SpawnAttempt spawnMob(ActiveSession session, SpawnPlan plan) {
@@ -367,20 +545,26 @@ public final class MobWaveService {
                         mob.setPersistent(true);
                     }
                     entity.setCustomNameVisible(false);
-                    MobWaveEntityTags.tagMob(plugin, entity, session.sessionId, plan.context().superBoss());
+                    int waveNumber = session.waveIndex + 1;
+                    MobWaveEntityTags.tagMob(plugin, entity, session.sessionId, plan.context().superBoss(), waveNumber);
                 }
         );
         if (living == null || living.isDead()) {
             return SpawnAttempt.failed("spawn-cancelled-or-dead");
         }
-        applyHordeCombat(living, session.profile.settings().mobOverrides, plan.context());
+        applyHordeCombat(living, session.profile.settings(), plan.context());
         if (living instanceof Mob mob && config.module().hordeCombat.forceTargetPlayers) {
+            MobAnchorContext anchorContext = anchorContext(session);
             HordeMobTargetingService.assignNearestPlayer(
                     mob,
-                    config.module().hordeCombat.targetRadiusBlocks
+                    config.module().hordeCombat.targetRadiusBlocks,
+                    anchorContext
             );
         }
         healthBarService.attach(living);
+        if (mobVisualService != null) {
+            mobVisualService.applyOutline(living, plan.context().superBoss());
+        }
         if (!living.isValid() || living.isDead()) {
             return SpawnAttempt.failed("invalid-after-healthbar");
         }
@@ -476,13 +660,14 @@ public final class MobWaveService {
         if (!world.isChunkLoaded(chunkX, chunkZ)) {
             return LocationResult.fail("chunk-unloaded:" + chunkX + "," + chunkZ);
         }
-        int surfaceY = world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES);
-        Location surfaceSpawn = new Location(world, x + 0.5, surfaceY + 1.0, z + 0.5);
+        int groundY = api.placement().naturalGroundY(world, x, z);
+        api.placement().clearObstructions(world, x, z, groundY + 1, groundY + 3);
+        Location surfaceSpawn = new Location(world, x + 0.5, groundY + 1.0, z + 0.5);
         String reject = validateMobSpawn(surfaceSpawn);
         if (reject == null) {
             return LocationResult.ok(surfaceSpawn);
         }
-        return LocationResult.fail("surface-rejected:" + reject + "@" + x + "," + surfaceY + "," + z);
+        return LocationResult.fail("surface-rejected:" + reject + "@" + x + "," + groundY + "," + z);
     }
 
     private static String validateMobSpawn(Location spawn) {
@@ -510,11 +695,21 @@ public final class MobWaveService {
 
     private void applyHordeCombat(
             LivingEntity living,
-            Map<String, MobTypeOverrideSettings> overrides,
+            WaveProfileSettings profile,
             MobCombatContext context
     ) {
-        MobTypeOverrideSettings typeOverride = overrides.get(living.getType().name());
-        HordeMobCombatApplier.apply(living, typeOverride, config.module().hordeCombat, context);
+        MobTypeOverrideSettings typeOverride = profile.mobOverrides.get(living.getType().name());
+        List<MobPotionEffectSettings> effects = MobPotionEffectSupport.merge(
+                profile.defaultMobEffects,
+                typeOverride == null ? null : typeOverride.effects
+        );
+        HordeMobCombatApplier.apply(
+                living,
+                typeOverride,
+                config.module().hordeCombat,
+                context,
+                effects
+        );
     }
 
     public record EnforcementZone(Location anchor, int radiusBlocks) {
@@ -599,12 +794,16 @@ public final class MobWaveService {
         private final int enforcementRadius;
 
         private int waveIndex;
+        private int sessionKills;
         private MobWaveChestPhase phase = MobWaveChestPhase.LOCKED;
         private int batchSize;
         private int batchIntervalTicks;
         private int graceSeconds;
         private BukkitTask batchTask;
         private BukkitTask graceTask;
+        private BukkitTask waveTimerTask;
+        private int waveTimerEndTick = Integer.MAX_VALUE;
+        private long waveTimerDisplayMaxSeconds = 1L;
 
         private ActiveSession(
                 UUID sessionId,
@@ -634,6 +833,10 @@ public final class MobWaveService {
             if (graceTask != null) {
                 graceTask.cancel();
                 graceTask = null;
+            }
+            if (waveTimerTask != null) {
+                waveTimerTask.cancel();
+                waveTimerTask = null;
             }
         }
     }

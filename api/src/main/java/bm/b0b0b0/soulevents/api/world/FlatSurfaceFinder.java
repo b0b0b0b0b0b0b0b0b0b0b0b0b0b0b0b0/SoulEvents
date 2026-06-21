@@ -15,4 +15,12 @@ public interface FlatSurfaceFinder {
             FlatSurfaceRequirements requirements,
             List<FlatSurfaceOffset> footprint
     );
+
+    default int naturalGroundY(World world, int blockX, int blockZ) {
+        return world.getHighestBlockYAt(blockX, blockZ);
+    }
+
+    default int clearObstructions(World world, int blockX, int blockZ, int minY, int maxY) {
+        return 0;
+    }
 }

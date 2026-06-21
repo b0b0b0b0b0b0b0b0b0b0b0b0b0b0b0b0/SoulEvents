@@ -100,6 +100,9 @@ public final class MobHordeSessionRegistry {
         private BukkitTask cleanupTask;
         private BukkitTask activationTask;
         private boolean wavesAttached;
+        private final java.util.concurrent.atomic.AtomicInteger sessionKills = new java.util.concurrent.atomic.AtomicInteger(0);
+        private volatile String lastBossKiller = "—";
+        private volatile boolean wavesVictory;
 
         public SessionRecord(
                 UUID sessionId,
@@ -183,6 +186,32 @@ public final class MobHordeSessionRegistry {
 
         public void markWavesAttached() {
             wavesAttached = true;
+        }
+
+        public int sessionKills() {
+            return sessionKills.get();
+        }
+
+        public void incrementSessionKills() {
+            sessionKills.incrementAndGet();
+        }
+
+        public String lastBossKiller() {
+            return lastBossKiller;
+        }
+
+        public void lastBossKiller(String killerName) {
+            if (killerName != null && !killerName.isBlank()) {
+                lastBossKiller = killerName;
+            }
+        }
+
+        public boolean wavesVictory() {
+            return wavesVictory;
+        }
+
+        public void markWavesVictory() {
+            wavesVictory = true;
         }
 
         public void assignActivationTask(BukkitTask task) {

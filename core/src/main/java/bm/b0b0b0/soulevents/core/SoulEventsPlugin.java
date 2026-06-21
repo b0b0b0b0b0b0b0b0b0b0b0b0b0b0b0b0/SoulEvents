@@ -6,6 +6,7 @@ import bm.b0b0b0.soulevents.core.api.SoulEventsApiImpl;
 import bm.b0b0b0.soulevents.core.command.SoulEventsCommand;
 import bm.b0b0b0.soulevents.core.config.ConfigurationLoader;
 import bm.b0b0b0.soulevents.core.config.PluginConfig;
+import bm.b0b0b0.soulevents.core.listener.PlayerStatsWarmListener;
 import bm.b0b0b0.soulevents.core.listener.ProtectionListener;
 import bm.b0b0b0.soulevents.core.listener.VirtualLootProtectionListener;
 import bm.b0b0b0.soulevents.core.message.StartupConsolePresenter;
@@ -29,8 +30,10 @@ public final class SoulEventsPlugin extends JavaPlugin {
         api.modules().setRegisterListener(module -> startupCoordinator.onModuleRegistered(module.id()));
         startupConsole.logStartupHeader();
         getServer().getServicesManager().register(SoulEventsApi.class, api, this, ServicePriority.Normal);
+        api.start();
         getServer().getPluginManager().registerEvents(new ProtectionListener(api), this);
         getServer().getPluginManager().registerEvents(new VirtualLootProtectionListener(), this);
+        getServer().getPluginManager().registerEvents(new PlayerStatsWarmListener(api.statsService()), this);
         new SoulEventsCommand(api, api.schematicService()).register(this);
         startupCoordinator.scheduleFallbackFooter(200L);
     }

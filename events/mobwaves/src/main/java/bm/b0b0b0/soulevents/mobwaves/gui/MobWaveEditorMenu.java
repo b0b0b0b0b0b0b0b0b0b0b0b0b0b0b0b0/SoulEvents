@@ -94,12 +94,17 @@ public final class MobWaveEditorMenu implements InventoryHolder {
                 || rawSlot == gui.saveSlot
                 || rawSlot == gui.waveSettingsSlot
                 || rawSlot == gui.bossSlot
-                || rawSlot == gui.deleteWaveSlot;
+                || rawSlot == gui.deleteWaveSlot
+                || rawSlot == gui.infoSlot;
     }
 
     public void handleClick(InventoryClickEvent event) {
         WaveEditorGuiSettings gui = config.gui().waveEditor;
         int rawSlot = event.getRawSlot();
+        if (rawSlot == gui.infoSlot) {
+            event.setCancelled(true);
+            return;
+        }
         if (rawSlot == gui.waveSettingsSlot) {
             event.setCancelled(true);
             skipCloseSave = true;
@@ -190,10 +195,22 @@ public final class MobWaveEditorMenu implements InventoryHolder {
 
     private void renderFrame() {
         WaveEditorGuiSettings gui = config.gui().waveEditor;
+        for (int slot = editableSlotCount; slot < inventory.getSize(); slot++) {
+            if (!isFrameSlot(slot)) {
+                inventory.setItem(slot, GuiFrames.pane());
+            }
+        }
+        inventory.setItem(gui.infoSlot, GuiIcons.icon(
+                Material.matchMaterial(gui.infoMaterial),
+                messages.resolve("gui.wave-editor.info", Map.of(
+                        "index", Integer.toString(waveIndex + 1)
+                )),
+                messages.resolveLore("gui.wave-editor.info-lore", Map.of())
+        ));
         inventory.setItem(gui.backSlot, GuiIcons.icon(
                 Material.matchMaterial(gui.backMaterial),
                 messages.resolve("gui.wave-editor.back", Map.of()),
-                List.of()
+                messages.resolveLore("gui.wave-editor.back-lore", Map.of())
         ));
         inventory.setItem(gui.saveSlot, GuiIcons.icon(
                 Material.matchMaterial(gui.saveMaterial),

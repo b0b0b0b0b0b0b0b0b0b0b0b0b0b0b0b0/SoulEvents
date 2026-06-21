@@ -46,7 +46,7 @@ public final class AirDropTypeSettings extends YamlSerializable {
     @Comment(@CommentValue("Фаза «beacon смерти» перед открытием."))
     public PreOpenBeaconSettings preOpenBeacon = new PreOpenBeaconSettings();
 
-    @Comment(@CommentValue("Волны мобов (модуль SoulEvents-MobWaves): профиль, блокировка сундука до зачистки."))
+    @Comment(@CommentValue("Wave-defense через SoulEvents-MobWaves — см. комментарии в секции."))
     public WaveDefenseSettings waveDefense = new WaveDefenseSettings();
 
     @Comment(@CommentValue("Право на открытие сундука."))

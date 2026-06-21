@@ -3,6 +3,7 @@ package bm.b0b0b0.soulevents.airdrop.config;
 import bm.b0b0b0.soulevents.airdrop.config.settings.AirDropTypeSettings;
 import bm.b0b0b0.soulevents.airdrop.config.settings.LootEntrySettings;
 import bm.b0b0b0.soulevents.airdrop.config.settings.LootTableSettings;
+import bm.b0b0b0.soulevents.airdrop.config.settings.WaveDefenseSettings;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
@@ -109,6 +110,12 @@ public final class TypeDirectoryLoader {
         }
         AirDropTypeSettings settings = new AirDropTypeSettings();
         settings.reload(typePath);
+        if (settings.waveDefense == null) {
+            settings.waveDefense = new WaveDefenseSettings();
+        }
+        if (persistWaveDefenseSectionIfMissing(typePath, settings)) {
+            settings.save(typePath);
+        }
         String lootId = settings.lootTableId == null || settings.lootTableId.isEmpty() ? typeId : settings.lootTableId;
         if (!ConfigIds.isValid(lootId)) {
             plugin.getLogger().warning("Type " + typeId + " references invalid loot id: " + lootId + ", using type id");
@@ -126,5 +133,16 @@ public final class TypeDirectoryLoader {
 
     private static String stripExtension(String fileName) {
         return fileName.substring(0, fileName.length() - 4);
+    }
+
+    private static boolean persistWaveDefenseSectionIfMissing(Path typePath, AirDropTypeSettings settings) {
+        try {
+            if (Files.readString(typePath).contains("wave-defense:")) {
+                return false;
+            }
+        } catch (IOException exception) {
+            return false;
+        }
+        return true;
     }
 }
